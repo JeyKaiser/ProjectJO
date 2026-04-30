@@ -35,7 +35,12 @@ export default function ColeccionesExplorer() {
           {anioActual.referencias.map((ref) => {
             const faseMacro = getFaseMacro(ref.faseActual);
             return (
-              <div key={ref.id} className="referencia-card" style={{ borderTopColor: `var(--temp-${faseMacro.tempVar}-border)` }}>
+              <div
+                key={ref.id}
+                className="referencia-card"
+                style={{ borderTopColor: `var(--temp-${faseMacro.tempVar}-border)`, cursor: 'pointer' }}
+                onClick={() => navigate(`/colecciones/${coleccionActual.id}/${anioActual.anio}/${ref.id}`)}
+              >
                 {/* Barra de Temperatura */}
                 <TemperatureBar subfase={ref.faseActual} />
 

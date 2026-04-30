@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FileText, Scissors, PackageCheck, Settings, FolderOpen } from 'lucide-react';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard } from 'lucide-react';
 
 export default function Sidebar() {
   return (
@@ -12,6 +12,14 @@ export default function Sidebar() {
       </div>
       
       <nav className="sidebar-nav">
+        {/* DASHBOARD */}
+        <div className="nav-section">
+          <NavLink to="/" end className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
+            <span className="nav-item-icon"><LayoutDashboard size={20} /></span>
+            <span>Dashboard</span>
+          </NavLink>
+        </div>
+
         {/* EXPLORAR COLECCIONES */}
         <div className="nav-section">
           <NavLink to="/colecciones" className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -26,7 +34,7 @@ export default function Sidebar() {
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--temp-cold-border)', display: 'inline-block' }}></span>
             Fase 1 · Ideación y Diseño
           </div>
-          <NavLink to="/" className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
+          <NavLink to="/ficha-nueva" className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}>
             <span className="nav-item-icon"><FileText size={20} /></span>
             <span>Nueva Ficha Técnica</span>
           </NavLink>
