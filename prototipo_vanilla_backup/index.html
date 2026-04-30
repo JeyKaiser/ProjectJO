@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistema de Gestión de Colecciones JO - Gestión del ciclo de vida de referencias de prendas de vestir">
+  <meta name="author" content="Colecciones JO">
+  <title>Gestión de Colecciones JO</title>
+  
+  <!-- Estilos -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Favicon (emoji como placeholder) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👗</text></svg>">
+</head>
+<body>
+  
+  <!-- Contenedor Principal -->
+  <div class="app-container">
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <!-- Logo -->
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">JO</div>
+          <div class="sidebar-logo-text">Colecciones JO</div>
+        </div>
+      </div>
+      
+      <!-- Navegación -->
+      <nav class="sidebar-nav">
+        <!-- Principal -->
+        <div class="nav-section">
+          <div class="nav-section-title">Principal</div>
+          <div class="nav-item active" id="nav-dashboard" onclick="app.mostrarDashboard()">
+            <span class="nav-item-icon">📊</span>
+            <span>Dashboard</span>
+          </div>
+          <div class="nav-item" id="nav-referencias" onclick="app.mostrarLista()">
+            <span class="nav-item-icon">📋</span>
+            <span>Referencias</span>
+          </div>
+        </div>
+        
+        <!-- Colecciones -->
+        <div class="nav-section">
+          <div class="nav-section-title">Colecciones</div>
+          <div class="nav-item" onclick="app.filtros.coleccion = 'WINTER SUN'; app.mostrarLista();">
+            <span class="nav-item-icon">❄️</span>
+            <span>Winter Sun</span>
+          </div>
+          <div class="nav-item" onclick="app.filtros.coleccion = 'RESORT RTW'; app.mostrarLista();">
+            <span class="nav-item-icon">🏖️</span>
+            <span>Resort RTW</span>
+          </div>
+          <div class="nav-item" onclick="app.filtros.coleccion = 'SPRING SUMMER'; app.mostrarLista();">
+            <span class="nav-item-icon">🌸</span>
+            <span>Spring Summer</span>
+          </div>
+          <div class="nav-item" onclick="app.filtros.coleccion = 'SUMMER VACATION'; app.mostrarLista();">
+            <span class="nav-item-icon">☀️</span>
+            <span>Summer Vacation</span>
+          </div>
+          <div class="nav-item" onclick="app.filtros.coleccion = 'PREFALL RTW'; app.mostrarLista();">
+            <span class="nav-item-icon">🍂</span>
+            <span>Prefall RTW</span>
+          </div>
+          <div class="nav-item" onclick="app.filtros.coleccion = 'FALL WINTER'; app.mostrarLista();">
+            <span class="nav-item-icon">🍁</span>
+            <span>Fall Winter</span>
+          </div>
+        </div>
+        
+        <!-- Herramientas -->
+        <div class="nav-section">
+          <div class="nav-section-title">Herramientas</div>
+          <div class="nav-item" onclick="app.exportarDatos()">
+            <span class="nav-item-icon">📥</span>
+            <span>Exportar Datos</span>
+          </div>
+          <div class="nav-item" onclick="app.regenerarDatosPrueba()">
+            <span class="nav-item-icon">🔄</span>
+            <span>Regenerar Datos</span>
+          </div>
+          <div class="nav-item" onclick="app.limpiarDatos()">
+            <span class="nav-item-icon">🗑️</span>
+            <span>Limpiar Datos</span>
+          </div>
+        </div>
+      </nav>
+    </aside>
+    
+    <!-- Contenido Principal -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-left">
+          <!-- Búsqueda Global -->
+          <div class="header-search">
+            <span class="header-search-icon">🔍</span>
+            <input 
+              type="text" 
+              id="search-global" 
+              placeholder="Buscar referencias por nombre, código, color..."
+              autocomplete="off"
+            />
+          </div>
+        </div>
+        
+        <div class="header-right">
+          <!-- Selector de Colección -->
+          <select class="header-select" id="selector-coleccion">
+            <option value="">Todas las Colecciones</option>
+            <option value="WINTER SUN">Winter Sun</option>
+            <option value="RESORT RTW">Resort RTW</option>
+            <option value="SPRING SUMMER">Spring Summer</option>
+            <option value="SUMMER VACATION">Summer Vacation</option>
+            <option value="PREFALL RTW">Prefall RTW</option>
+            <option value="FALL WINTER">Fall Winter</option>
+          </select>
+          
+          <!-- Botones de Acción -->
+          <button class="header-icon-btn" title="Notificaciones">
+            🔔
+            <span class="badge">3</span>
+          </button>
+          
+          <button class="header-icon-btn" title="Configuración">
+            ⚙️
+          </button>
+          
+          <button class="header-icon-btn" title="Usuario">
+            👤
+          </button>
+        </div>
+      </header>
+      
+      <!-- Área de Contenido Dinámico -->
+      <div class="content" id="content-area">
+        <!-- El contenido se cargará dinámicamente aquí -->
+        <div style="text-align: center; padding: 4rem;">
+          <div style="font-size: 4rem; margin-bottom: 1rem;">⏳</div>
+          <h2>Cargando aplicación...</h2>
+          <p class="text-gray">Por favor espere un momento</p>
+        </div>
+      </div>
+    </main>
+    
+  </div>
+  
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="components.js"></script>
+  <script src="app.js"></script>
+  
+</body>
+</html>
