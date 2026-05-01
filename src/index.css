@@ -37,15 +37,15 @@
   --success-light: #d1fae5;
   --success: #10b981;
   --success-dark: #059669;
-  
+
   --warning-light: #fef3c7;
   --warning: #f59e0b;
   --warning-dark: #d97706;
-  
+
   --error-light: #fee2e2;
   --error: #ef4444;
   --error-dark: #dc2626;
-  
+
   --info-light: #dbeafe;
   --info: #3b82f6;
   --info-dark: #2563eb;
@@ -177,7 +177,12 @@ body {
 /* ============================================
    TIPOGRAFÍA
    ============================================ */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   font-weight: 700;
   line-height: 1.2;
@@ -185,12 +190,29 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: var(--space-4);
 }
 
-h1 { font-size: var(--text-4xl); }
-h2 { font-size: var(--text-3xl); }
-h3 { font-size: var(--text-2xl); }
-h4 { font-size: var(--text-xl); }
-h5 { font-size: var(--text-lg); }
-h6 { font-size: var(--text-base); }
+h1 {
+  font-size: var(--text-4xl);
+}
+
+h2 {
+  font-size: var(--text-3xl);
+}
+
+h3 {
+  font-size: var(--text-2xl);
+}
+
+h4 {
+  font-size: var(--text-xl);
+}
+
+h5 {
+  font-size: var(--text-lg);
+}
+
+h6 {
+  font-size: var(--text-base);
+}
 
 p {
   margin-bottom: var(--space-4);
@@ -734,40 +756,108 @@ a:hover {
   gap: var(--space-6);
 }
 
-.grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
-.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
-.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
-.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-cols-1 {
+  grid-template-columns: repeat(1, 1fr);
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 
 /* ============================================
    UTILIDADES
    ============================================ */
-.text-center { text-align: center; }
-.text-right { text-align: right; }
-.text-left { text-align: left; }
+.text-center {
+  text-align: center;
+}
 
-.font-bold { font-weight: 700; }
-.font-semibold { font-weight: 600; }
-.font-medium { font-weight: 500; }
+.text-right {
+  text-align: right;
+}
 
-.text-primary { color: var(--primary-600); }
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-error { color: var(--error); }
-.text-gray { color: var(--gray-500); }
+.text-left {
+  text-align: left;
+}
 
-.mt-4 { margin-top: var(--space-4); }
-.mb-4 { margin-bottom: var(--space-4); }
-.mt-6 { margin-top: var(--space-6); }
-.mb-6 { margin-bottom: var(--space-6); }
+.font-bold {
+  font-weight: 700;
+}
 
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-4 { gap: var(--space-4); }
+.font-semibold {
+  font-weight: 600;
+}
 
-.hidden { display: none; }
+.font-medium {
+  font-weight: 500;
+}
+
+.text-primary {
+  color: var(--primary-600);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.text-error {
+  color: var(--error);
+}
+
+.text-gray {
+  color: var(--gray-500);
+}
+
+.mt-4 {
+  margin-top: var(--space-4);
+}
+
+.mb-4 {
+  margin-bottom: var(--space-4);
+}
+
+.mt-6 {
+  margin-top: var(--space-6);
+}
+
+.mb-6 {
+  margin-bottom: var(--space-6);
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-4 {
+  gap: var(--space-4);
+}
+
+.hidden {
+  display: none;
+}
 
 /* ============================================
    ANIMACIONES
@@ -777,6 +867,7 @@ a:hover {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -791,6 +882,7 @@ a:hover {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -807,7 +899,7 @@ a:hover {
   :root {
     --sidebar-width: 240px;
   }
-  
+
   .grid-cols-4 {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -817,25 +909,25 @@ a:hover {
   .sidebar {
     transform: translateX(-100%);
   }
-  
+
   .sidebar.open {
     transform: translateX(0);
   }
-  
+
   .main-content {
     margin-left: 0;
   }
-  
+
   .grid-cols-2,
   .grid-cols-3,
   .grid-cols-4 {
     grid-template-columns: 1fr;
   }
-  
+
   .header {
     padding: 0 var(--space-4);
   }
-  
+
   .content {
     padding: var(--space-4);
   }
@@ -926,7 +1018,7 @@ a:hover {
   justify-content: center;
   font-size: var(--text-5xl);
   font-weight: 800;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255, 255, 255, 0.6);
   font-family: var(--font-display);
 }
 
@@ -1146,8 +1238,8 @@ a:hover {
 
 .temperature-bar-track {
   position: relative;
-  height: 6px;
-  border-radius: 3px;
+  height: 10px;
+  border-radius: 5px;
   background: var(--gradient-temperature);
   opacity: 0.3;
 }
@@ -1157,7 +1249,7 @@ a:hover {
   top: 0;
   left: 0;
   height: 100%;
-  border-radius: 3px;
+  border-radius: 5px;
   background: var(--gradient-temperature);
   opacity: 1;
   transition: width var(--transition-slow);
@@ -1171,8 +1263,8 @@ a:hover {
 }
 
 .temperature-bar-marker-dot {
-  width: 12px;
-  height: 12px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: var(--white);
   border: 3px solid var(--gray-800);
@@ -1191,6 +1283,7 @@ a:hover {
   .colecciones-grid {
     grid-template-columns: repeat(3, 1fr);
   }
+
   .referencias-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1200,9 +1293,11 @@ a:hover {
   .colecciones-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .anios-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .referencias-grid {
     grid-template-columns: 1fr;
   }
@@ -1434,6 +1529,7 @@ a:hover {
   .detalle-header-top {
     flex-direction: column;
   }
+
   .detalle-grid-info {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1730,9 +1826,11 @@ a:hover {
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .dashboard-mid {
     grid-template-columns: 1fr;
   }
+
   .coleccion-row-left {
     flex: 0 0 200px;
   }
@@ -1742,10 +1840,12 @@ a:hover {
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
   }
+
   .coleccion-row {
     flex-direction: column;
     align-items: flex-start;
   }
+
   .coleccion-row-stats {
     flex-wrap: wrap;
   }

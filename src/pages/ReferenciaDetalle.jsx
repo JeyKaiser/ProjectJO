@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, ChevronDown, ChevronUp, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle } from 'lucide-react';
 import { colecciones, getFaseMacro } from '../data/colecciones';
+import { useAuth, ROLES } from '../context/AuthContext';
 import TemperatureBar from '../components/TemperatureBar';
 
 function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
@@ -37,6 +38,30 @@ function EstadoBadge({ estado }) {
 
 export default function ReferenciaDetalle() {
   const { coleccionId, anio, refId } = useParams();
+  const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
+
+  // Mock estado de flujo de trabajo (Hand-off)
+  const [workflowState, setWorkflowState] = useState({
+    area: 'TECNICO', // Área actual que tiene la responsabilidad
+    status: 'PENDING_RECEIPT', // IN_PROGRESS, PENDING_RECEIPT
+    history: []
+  });
+
+  const handleEntregar = (nextArea) => {
+    setWorkflowState(prev => ({
+      area: nextArea,
+      status: 'PENDING_RECEIPT',
+      history: [...prev.history, { action: 'ENTREGADO', by: role, date: new Date().toISOString() }]
+    }));
+  };
+
+  const handleRecibir = () => {
+    setWorkflowState(prev => ({
+      ...prev,
+      status: 'IN_PROGRESS',
+      history: [...prev.history, { action: 'RECIBIDO', by: role, date: new Date().toISOString() }]
+    }));
+  };
 
   const coleccion = colecciones.find(c => c.id === coleccionId);
   const anioData = coleccion?.anios.find(a => a.anio === parseInt(anio));
@@ -103,6 +128,53 @@ export default function ReferenciaDetalle() {
         </div>
       </div>
 
+      {/* PANEL DE CONTROL DE ESTADO (HAND-OFF) */}
+      <div className="card" style={{ marginBottom: 'var(--space-6)', borderLeft: '4px solid var(--primary-500)', padding: 'var(--space-4)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h3 style={{ margin: '0 0 var(--space-1) 0', fontSize: 'var(--text-lg)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Control de Flujo de Trabajo
+              {workflowState.status === 'PENDING_RECEIPT' && <span className="badge badge-warning">Esperando Recepción</span>}
+              {workflowState.status === 'IN_PROGRESS' && <span className="badge badge-success">En Ejecución</span>}
+            </h3>
+            <p style={{ margin: 0, color: 'var(--gray-600)', fontSize: 'var(--text-sm)' }}>
+              La referencia está actualmente asignada a: <strong>{workflowState.area}</strong>
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+            {/* Si está esperando recepción y soy el rol correcto */}
+            {workflowState.status === 'PENDING_RECEIPT' && 
+             ((workflowState.area === 'TECNICO' && (isTecnico || isAdmin)) || 
+              (workflowState.area === 'TRAZADOR' && (isTrazador || isAdmin))) && (
+              <button className="btn btn-success" onClick={handleRecibir}>
+                <ArrowDownToLine size={18} /> Recibir y Empezar a Contar Tiempo
+              </button>
+            )}
+
+            {/* Si está en progreso y soy el rol correcto, puedo entregar */}
+            {workflowState.status === 'IN_PROGRESS' && 
+             ((workflowState.area === 'CREATIVO' && (isCreativo || isAdmin)) || 
+              (workflowState.area === 'TECNICO' && (isTecnico || isAdmin))) && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn btn-outline" style={{ borderColor: 'var(--error)', color: 'var(--error)' }}>
+                  <AlertTriangle size={18} /> Devolver con Observaciones
+                </button>
+                <button className="btn btn-primary" onClick={() => handleEntregar(workflowState.area === 'CREATIVO' ? 'TECNICO' : 'TRAZADOR')}>
+                  <Send size={18} /> Entregar a {workflowState.area === 'CREATIVO' ? 'Diseño Técnico' : 'Trazadores'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {workflowState.history.length > 0 && (
+          <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--gray-200)', fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
+            Última acción: {workflowState.history[workflowState.history.length - 1].action} por {workflowState.history[workflowState.history.length - 1].by}
+          </div>
+        )}
+      </div>
+
       {/* Secciones */}
       <div className="detalle-secciones">
 
@@ -135,6 +207,26 @@ export default function ReferenciaDetalle() {
                 <span className="detalle-info-value">{val}</span>
               </div>
             ))}
+          </div>
+        </SeccionColapsable>
+
+        {/* SECCIÓN 1.5: Reprogramación / Referente */}
+        <SeccionColapsable titulo="Reprogramación / Referente" icono={<BookMarked size={18} />} accentColor="var(--primary-color)" defaultOpen={true}>
+          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#1e293b' }}>¿Es esta referencia una reprogramación?</h4>
+              <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>Asigna un referente de colecciones pasadas para omitir el cálculo de consumos y escalado base. El trazador usará los consumos pre-calculados.</p>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input type="text" placeholder="Buscar por Tipo de Prenda o Código PT..." style={{ flex: 1, padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px' }} />
+                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}>
+                  <Search size={14} /> Buscar Referente
+                </button>
+              </div>
+            </div>
+            <div style={{ background: '#dcfce7', padding: '12px', borderRadius: '6px', border: '1px dashed #22c55e', minWidth: '200px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#166534', textTransform: 'uppercase' }}>Estado Actual</span>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#15803d', marginTop: '4px' }}>Moldería Nueva (No es reprogramación)</div>
+            </div>
           </div>
         </SeccionColapsable>
 
