@@ -1,542 +1,477 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-// import { ChevronRight, ChevronDown, ChevronUp, Save, Plus, Trash2, Tag, BookMarked, Users, Scissors, Palette, Stamp, Layers, FoldedPlane, FileText } from 'lucide-react';
-import { ChevronRight, ChevronDown, ChevronUp, Save, Plus, Trash2, Tag, BookMarked, Users, Scissors, Palette, Stamp, Layers, FileText } from 'lucide-react';
-import { getPersonasActivas } from '../data/personas';
-import { generarCodigoMD, opcionesLinea, opcionesSublinea, opcionesClosure, opcionesMontajeManiqui, opcionesClasificacion, opcionesTallaje, opcionesLargo, opcionesPrioridad, opcionesDrop, opcionesProcesoExterno, opcionesUsoTela, opcionesBaseTextil } from '../utils/codigos';
+import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { colecciones } from '../data/colecciones';
 
-function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
+// ── Catálogos ────────────────────────────────────────────────
+const COLECCIONES_OPTIONS = colecciones.map(c => ({
+  value: c.id,
+  label: `${c.nombre} 2026`,
+}));
+
+const TIPO_PRENDA_OPTIONS = [
+  'Vestido', 'Pantalón', 'Falda', 'Blazer', 'Jacket', 'Abrigo',
+  'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Otro',
+];
+
+const LINEA_OPTIONS = ['Ready To Wear', 'Couture', 'Resort', 'Pre-Fall'];
+const SUBLINEA_OPTIONS = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Jumpsuits', 'Sets'];
+const TALLAJE_OPTIONS = ['XS-S-M-L', 'XS-S-M-L-XL', 'S-M-L', 'Talla Única', 'Personalizado'];
+const LARGO_OPTIONS = ['Mini', 'Midi', 'Maxi', 'Full Length', 'Hip', 'Knee Length', 'Cropped'];
+const CLOSURE_OPTIONS = ['Sin cierre', 'Cremallera lateral', 'Cremallera posterior', 'Botones', 'Elástico', 'Correa', 'Otro'];
+const DROP_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
+const PRIORIDAD_OPTIONS = ['A', 'B', 'C'];
+const COMPLEJIDAD_OPTIONS = ['Baja', 'Media', 'Alta', 'Muy Alta'];
+const MONTAJE_OPTIONS = ['No aplica', 'Drapeado', 'Descole', 'Prensados'];
+const EMPAQUE_OPTIONS = ['Individual', 'Doble', 'Set'];
+
+const CLASIFICACION_OPTIONS = [
+  { value: 'Sólida', label: 'Sólida' },
+  { value: 'Mod. Arte', label: 'Modificación de Arte' },
+  { value: 'Ubicación Trazo', label: 'Ubicación en Trazo' },
+];
+
+// Roles de personas involucradas en el ciclo de vida
+const ROLES_EQUIPO = [
+  { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '1.1 Perfilamiento', requerido: true },
+  { key: 'patronista', label: 'Patronista / Moldería', fase: '1.3 Moldería Base', requerido: false },
+  { key: 'disenadorTecnico', label: 'Diseñador(a) Técnico(a)', fase: '3.3 Escalado y Consumos', requerido: false },
+  { key: 'cortador', label: 'Cortador(a)', fase: '2.2 Corte Muestra', requerido: false },
+  { key: 'modista', label: 'Modista / Confección', fase: '2.3 Confección Muestra', requerido: false },
+  { key: 'bordadora', label: 'Bordadora / Proceso Especial', fase: '2.4 Procesos Especiales', requerido: false },
+  { key: 'trazador', label: 'Trazador(a)', fase: '3.4 Trazos Producción', requerido: false },
+  { key: 'equipoConsumos', label: 'Equipo Consumos / Validación', fase: '4.2 Contramuestra', requerido: false },
+];
+
+// ── Toggle chip ──────────────────────────────────────────────
+function ChipToggle({ active, onChange, children }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!active)}
+      className={`chip-toggle ${active ? 'chip-toggle-active' : ''}`}
+    >
+      {active && <CheckCircle size={13} />}
+      {children}
+    </button>
+  );
+}
+
+// ── Sección colapsable del formulario ────────────────────────
+function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(--primary-500)' }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="detalle-seccion" style={{ borderLeftColor: accentColor }}>
-      <button className="detalle-seccion-header" onClick={() => setOpen(!open)}>
-        <div className="detalle-seccion-titulo">
-          {icono}
-          <span>{titulo}</span>
-        </div>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+    <div className="form-seccion" style={{ borderLeftColor: accentColor }}>
+      <button type="button" className="form-seccion-header" onClick={() => setOpen(!open)}>
+        <span className="form-seccion-titulo">{titulo}</span>
+        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
-      {open && <div className="detalle-seccion-body">{children}</div>}
+      {open && <div className="form-seccion-body">{children}</div>}
     </div>
   );
 }
 
+// ── Componente principal ─────────────────────────────────────
 export default function FichaTecnicaForm() {
-  const personas = getPersonasActivas();
-  const [codigoMD] = useState(() => generarCodigoMD());
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    // Identificación
     coleccion: '',
-    codigoMD: '',
-    codigoPT: '',
     nombre: '',
+    tipoPrenda: '',
     color: '',
     codigoColor: '',
     linea: '',
     sublinea: '',
-    tipoPrenda: '',
     tallaje: '',
     largo: '',
     closure: '',
     clasificacion: 'Sólida',
-    referente: '',
-    prioridadFirstBuy: '',
-    dropEntrega: '',
+    // Comercial
+    prioridadFirstBuy: 'A',
+    dropEntrega: 'A',
     enviarMaquila: false,
+    complejidadCorte: 'Media',
+    complejidadConfeccion: 'Media',
+    // Procesos (toggle: null = no aplica, true = aplica)
     tieneBordado: false,
     tieneSemielaborado: false,
-    montajeManiqui: '',
-    tieneEstampado: false,
-    tieneProcesoExterno: false,
-    tienePlizado: false,
-    creativo: '',
-    tecnico: '',
+    montajeManiqui: 'No aplica',
+    tirasContinuas: false,
+    includes: '',
+    tipoEmpaque: 'Individual',
+    referente: '',
+    // Equipo
+    disenadorCreativo: '',
+    patronista: '',
+    disenadorTecnico: '',
     cortador: '',
     modista: '',
-    especificadora: '',
+    bordadora: '',
     trazador: '',
-    telas: [],
-    insumos: [],
-    bordado: { proveedor: '', descripcion: '', costo: '', estado: '' },
-    estampado: { proveedor: '', descripcion: '', costo: '', estado: '' },
-    semielaborado: { proveedor: '', descripcion: '', costo: '', estado: '' },
-    procesoExterno: { tipo: '', proveedor: '', proceso: '', costo: '' },
-    plizado: { descripcion: '', anchoSesgo: '', sentido: '' },
-    observaciones: '',
+    equipoConsumos: '',
+    // Boceto
+    boceto: null,
   });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-      codigoMD: codigoMD
-    }));
-  };
+  const [guardado, setGuardado] = useState(false);
+  const [errors, setErrors] = useState({});
 
-  const handleTelaChange = (index, field, value) => {
-    const nuevasTelas = [...formData.telas];
-    nuevasTelas[index] = { ...nuevasTelas[index], [field]: value };
-    setFormData(prev => ({ ...prev, telas: nuevasTelas }));
-  };
+  const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInput = (e) => set(e.target.name, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
 
-  const agregarTela = () => {
-    setFormData(prev => ({
-      ...prev,
-      telas: [...prev.telas, { codigo: '', descripcion: '', ancho: '', baseTextil: '', usoEnPrenda: '' }]
-    }));
-  };
-
-  const eliminarTela = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      telas: prev.telas.filter((_, i) => i !== index)
-    }));
-  };
-
-  const handleInsumoChange = (index, field, value) => {
-    const nuevosInsumos = [...formData.insumos];
-    nuevosInsumos[index] = { ...nuevosInsumos[index], [field]: value };
-    setFormData(prev => ({ ...prev, insumos: nuevosInsumos }));
-  };
-
-  const agregarInsumo = () => {
-    setFormData(prev => ({
-      ...prev,
-      insumos: [...prev.insumos, { codigo: '', descripcion: '', cantidad: 1, unidad: 'Unidad' }]
-    }));
-  };
-
-  const eliminarInsumo = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      insumos: prev.insumos.filter((_, i) => i !== index)
-    }));
+  const validate = () => {
+    const err = {};
+    if (!formData.coleccion) err.coleccion = 'Requerido';
+    if (!formData.tipoPrenda) err.tipoPrenda = 'Requerido';
+    if (!formData.nombre) err.nombre = 'Requerido';
+    if (!formData.color) err.color = 'Requerido';
+    if (!formData.disenadorCreativo) err.disenadorCreativo = 'El diseñador creativo es obligatorio';
+    setErrors(err);
+    return Object.keys(err).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Guardando ficha...', formData);
-    alert('Ficha Técnica guardada exitosamente (Simulación)');
+    if (!validate()) return;
+
+    // Simular guardado y generar código MD
+    const nuevoMD = `MD-${Math.floor(Math.random() * 900) + 100}`;
+    const nuevoPT = `PT0${Math.floor(Math.random() * 9000) + 1000}`;
+    console.log('Nueva referencia guardada:', { ...formData, codigoMD: nuevoMD, codigoPT: nuevoPT, faseActual: 1.1 });
+    setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT });
   };
 
-  return (
-    <div className="fade-in">
-      <nav className="breadcrumb mb-4">
-        <Link to="/ficha-nueva" className="breadcrumb-link">Nueva Ficha Técnica</Link>
-        <ChevronRight size={14} className="breadcrumb-separator" />
-        <span className="breadcrumb-current">{codigoMD || 'Nuevo'}</span>
-      </nav>
+  const handleReset = () => {
+    setGuardado(false);
+    setErrors({});
+    setFormData(prev => ({ ...prev, nombre: '', color: '', codigoColor: '' }));
+  };
 
-      <div className="card card-glass mb-6">
-        <div className="card-header">
-          <h2 className="card-title">Nueva Ficha Técnica</h2>
-          <span className="badge badge-primary">Crear Referencia</span>
-        </div>
-
-        <form onSubmit={handleSubmit} className="card-body">
-          <SeccionColapsable titulo="Identificación y Perfil" icono={<Tag size={18} />} accentColor="var(--primary-color)" defaultOpen={true}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label form-label-required">Colección</label>
-                <select className="form-select" name="coleccion" value={formData.coleccion} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  <option value="WINTER SUN 2026">Winter Sun 2026</option>
-                  <option value="FALL WINTER 2026">Fall Winter 2026</option>
-                  <option value="SPRING SUMMER 2026">Spring Summer 2026</option>
-                  <option value="SUMMER VACATION 2026">Summer Vacation 2026</option>
-                  <option value="RESORT RTW 2026">Resort RTW 2026</option>
-                  <option value="PREFALL RTW 2026">PreFall RTW 2026</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Código MD</label>
-                <input type="text" className="form-input" value={codigoMD} readOnly style={{ background: 'var(--gray-100)', fontWeight: 700 }} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Código PT</label>
-                <input type="text" className="form-input" name="codigoPT" value={formData.codigoPT} onChange={handleChange} placeholder="Se asignará al aprobar" />
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Nombre Referencia</label>
-                <input type="text" className="form-input" name="nombre" value={formData.nombre} onChange={handleChange} placeholder="Ej. ECRU FEMININITY DRAMATIC PANT" required />
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Color</label>
-                <input type="text" className="form-input" name="color" value={formData.color} onChange={handleChange} placeholder="Ej. Ecru/Sand" required />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Código Color</label>
-                <input type="text" className="form-input" name="codigoColor" value={formData.codigoColor} onChange={handleChange} placeholder="Ej. EC-04" />
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Línea</label>
-                <select className="form-select" name="linea" value={formData.linea} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {opcionesLinea.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Sublínea</label>
-                <select className="form-select" name="sublinea" value={formData.sublinea} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {opcionesSublinea.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Tipo Prenda</label>
-                <input type="text" className="form-input" name="tipoPrenda" value={formData.tipoPrenda} onChange={handleChange} placeholder="Ej. Vestido, Pantalón, Jacket" required />
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Tallaje</label>
-                <select className="form-select" name="tallaje" value={formData.tallaje} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {opcionesTallaje.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Largo</label>
-                <select className="form-select" name="largo" value={formData.largo} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {opcionesLargo.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Closure</label>
-                <select className="form-select" name="closure" value={formData.closure} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {opcionesClosure.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Clasificación de Prenda" icono={<BookMarked size={18} />} accentColor="var(--primary-500)" defaultOpen={true}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label form-label-required">Clasificación</label>
-                <div className="flex flex-wrap gap-3 mt-2">
-                  {opcionesClasificacion.map(clas => (
-                    <label key={clas} className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="clasificacion" value={clas} checked={formData.clasificacion === clas} onChange={handleChange} />
-                      <span className="text-sm">{clas}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Referente</label>
-                <input type="text" className="form-input" name="referente" value={formData.referente} onChange={handleChange} placeholder="Código PT o nombre" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Prioridad First Buy</label>
-                <select className="form-select" name="prioridadFirstBuy" value={formData.prioridadFirstBuy} onChange={handleChange}>
-                  <option value="">Selecciona...</option>
-                  {opcionesPrioridad.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Drop de Entrega</label>
-                <select className="form-select" name="dropEntrega" value={formData.dropEntrega} onChange={handleChange}>
-                  <option value="">Selecciona...</option>
-                  {opcionesDrop.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="flex items-center gap-2 cursor-pointer mt-6">
-                  <input type="checkbox" name="enviarMaquila" checked={formData.enviarMaquila} onChange={handleChange} />
-                  <span className="font-medium text-sm">Enviar a Maquila</span>
-                </label>
-              </div>
-              <div className="form-group">
-                <label className="flex items-center gap-2 cursor-pointer mt-6">
-                  <input type="checkbox" name="tieneBordado" checked={formData.tieneBordado} onChange={handleChange} />
-                  <span className="font-medium text-sm">Tiene Bordado</span>
-                </label>
-              </div>
-              <div className="form-group">
-                <label className="flex items-center gap-2 cursor-pointer mt-6">
-                  <input type="checkbox" name="tieneSemielaborado" checked={formData.tieneSemielaborado} onChange={handleChange} />
-                  <span className="font-medium text-sm">Tiene Semielaborado</span>
-                </label>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Montaje en Maniquí</label>
-                <select className="form-select" name="montajeManiqui" value={formData.montajeManiqui} onChange={handleChange}>
-                  <option value="">Selecciona...</option>
-                  {opcionesMontajeManiqui.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Asignación de Responsables" icono={<Users size={18} />} accentColor="var(--success-color)" defaultOpen={true}>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="form-group">
-                <label className="form-label form-label-required">Diseñador Creativo</label>
-                <select className="form-select" name="creativo" value={formData.creativo} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {personas.creativos.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Diseñador Técnico</label>
-                <select className="form-select" name="tecnico" value={formData.tecnico} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {personas.tecnicos.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Cortador</label>
-                <select className="form-select" name="cortador" value={formData.cortador} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {personas.cortadores.map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Modista</label>
-                <select className="form-select" name="modista" value={formData.modista} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {personas.modistas.map(m => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Especificadora</label>
-                <select className="form-select" name="especificadora" value={formData.especificadora} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {personas.especificadoras.map(e => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label form-label-required">Trazador</label>
-                <select className="form-select" name="trazador" value={formData.trazador} onChange={handleChange} required>
-                  <option value="">Selecciona...</option>
-                  {personas.trazadores.map(t => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
-                </select>
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Tela e Insumos" icono={<Scissors size={18} />} accentColor="var(--warning-color)" defaultOpen={true}>
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">Telas</h4>
-                <button type="button" className="btn btn-outline btn-sm" onClick={agregarTela}>
-                  <Plus size={16} /> Agregar Tela
-                </button>
-              </div>
-              {formData.telas.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">No hay telas registradas. Agrega una para continuar.</p>
-              ) : (
-                <div className="table-container">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Código</th>
-                        <th>Descripción</th>
-                        <th>Ancho</th>
-                        <th>Base Textil</th>
-                        <th>Uso en Prenda</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.telas.map((tela, index) => (
-                        <tr key={index}>
-                          <td><input type="text" className="form-input" value={tela.codigo} onChange={(e) => handleTelaChange(index, 'codigo', e.target.value)} placeholder="Código" /></td>
-                          <td><input type="text" className="form-input" value={tela.descripcion} onChange={(e) => handleTelaChange(index, 'descripcion', e.target.value)} placeholder="Descripción" /></td>
-                          <td><input type="text" className="form-input" value={tela.ancho} onChange={(e) => handleTelaChange(index, 'ancho', e.target.value)} placeholder="Ancho" style={{ width: '80px' }} /></td>
-                          <td>
-                            <select className="form-select" value={tela.baseTextil} onChange={(e) => handleTelaChange(index, 'baseTextil', e.target.value)}>
-                              <option value="">Selecciona...</option>
-                              {opcionesBaseTextil.map(b => <option key={b} value={b}>{b}</option>)}
-                            </select>
-                          </td>
-                          <td>
-                            <select className="form-select" value={tela.usoEnPrenda} onChange={(e) => handleTelaChange(index, 'usoEnPrenda', e.target.value)}>
-                              <option value="">Selecciona...</option>
-                              {opcionesUsoTela.map(u => <option key={u} value={u}>{u}</option>)}
-                            </select>
-                          </td>
-                          <td><button type="button" className="btn btn-ghost btn-sm text-red-500" onClick={() => eliminarTela(index)}><Trash2 size={16} /></button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold">Insumos</h4>
-                <button type="button" className="btn btn-outline btn-sm" onClick={agregarInsumo}>
-                  <Plus size={16} /> Agregar Insumo
-                </button>
-              </div>
-              {formData.insumos.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">No hay insumos registrados.</p>
-              ) : (
-                <div className="table-container">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Código</th>
-                        <th>Descripción</th>
-                        <th>Cantidad</th>
-                        <th>Unidad</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.insumos.map((insumo, index) => (
-                        <tr key={index}>
-                          <td><input type="text" className="form-input" value={insumo.codigo} onChange={(e) => handleInsumoChange(index, 'codigo', e.target.value)} placeholder="Código" /></td>
-                          <td><input type="text" className="form-input" value={insumo.descripcion} onChange={(e) => handleInsumoChange(index, 'descripcion', e.target.value)} placeholder="Descripción" /></td>
-                          <td><input type="number" className="form-input" value={insumo.cantidad} onChange={(e) => handleInsumoChange(index, 'cantidad', e.target.value)} style={{ width: '80px' }} /></td>
-                          <td><input type="text" className="form-input" value={insumo.unidad} onChange={(e) => handleInsumoChange(index, 'unidad', e.target.value)} placeholder="Unidad" style={{ width: '100px' }} /></td>
-                          <td><button type="button" className="btn btn-ghost btn-sm text-red-500" onClick={() => eliminarInsumo(index)}><Trash2 size={16} /></button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Bordado" icono={<Palette size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label">Proveedor</label>
-                <input type="text" className="form-input" name="bordado_proveedor" value={formData.bordado.proveedor} onChange={(e) => setFormData(prev => ({ ...prev, bordado: { ...prev.bordado, proveedor: e.target.value } }))} placeholder="Nombre del proveedor" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <input type="text" className="form-input" name="bordado_descripcion" value={formData.bordado.descripcion} onChange={(e) => setFormData(prev => ({ ...prev, bordado: { ...prev.bordado, descripcion: e.target.value } }))} placeholder="Tipo de bordado" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Costo</label>
-                <input type="number" className="form-input" name="bordado_costo" value={formData.bordado.costo} onChange={(e) => setFormData(prev => ({ ...prev, bordado: { ...prev.bordado, costo: e.target.value } }))} placeholder="0" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Estado</label>
-                <select className="form-select" name="bordado_estado" value={formData.bordado.estado} onChange={(e) => setFormData(prev => ({ ...prev, bordado: { ...prev.bordado, estado: e.target.value } }))}>
-                  <option value="">Selecciona...</option>
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="En Proceso">En Proceso</option>
-                  <option value="Terminado">Terminado</option>
-                </select>
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Estampado" icono={<Stamp size={18} />} accentColor="var(--temp-cold-border)" defaultOpen={false}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label">Proveedor</label>
-                <input type="text" className="form-input" name="estampado_proveedor" value={formData.estampado.proveedor} onChange={(e) => setFormData(prev => ({ ...prev, estampado: { ...prev.estampado, proveedor: e.target.value } }))} placeholder="Nombre del proveedor" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <input type="text" className="form-input" name="estampado_descripcion" value={formData.estampado.descripcion} onChange={(e) => setFormData(prev => ({ ...prev, estampado: { ...prev.estampado, descripcion: e.target.value } }))} placeholder="Tipo de estampado" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Costo</label>
-                <input type="number" className="form-input" name="estampado_costo" value={formData.estampado.costo} onChange={(e) => setFormData(prev => ({ ...prev, estampado: { ...prev.estampado, costo: e.target.value } }))} placeholder="0" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Estado</label>
-                <select className="form-select" name="estampado_estado" value={formData.estampado.estado} onChange={(e) => setFormData(prev => ({ ...prev, estampado: { ...prev.estampado, estado: e.target.value } }))}>
-                  <option value="">Selecciona...</option>
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="En Proceso">En Proceso</option>
-                  <option value="Terminado">Terminado</option>
-                </select>
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Semielaborados" icono={<Layers size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label">Proveedor</label>
-                <input type="text" className="form-input" name="semielaborado_proveedor" value={formData.semielaborado.proveedor} onChange={(e) => setFormData(prev => ({ ...prev, semielaborado: { ...prev.semielaborado, proveedor: e.target.value } }))} placeholder="Nombre del proveedor" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <input type="text" className="form-input" name="semielaborado_descripcion" value={formData.semielaborado.descripcion} onChange={(e) => setFormData(prev => ({ ...prev, semielaborado: { ...prev.semielaborado, descripcion: e.target.value } }))} placeholder="Tipo de semielaborado" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Costo</label>
-                <input type="number" className="form-input" name="semielaborado_costo" value={formData.semielaborado.costo} onChange={(e) => setFormData(prev => ({ ...prev, semielaborado: { ...prev.semielaborado, costo: e.target.value } }))} placeholder="0" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Estado</label>
-                <select className="form-select" name="semielaborado_estado" value={formData.semielaborado.estado} onChange={(e) => setFormData(prev => ({ ...prev, semielaborado: { ...prev.semielaborado, estado: e.target.value } }))}>
-                  <option value="">Selecciona...</option>
-                  <option value="Pendiente">Pendiente</option>
-                  <option value="En Proceso">En Proceso</option>
-                  <option value="Terminado">Terminado</option>
-                </select>
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Proceso Externo" icono={<Layers size={18} />} accentColor="var(--primary-500)" defaultOpen={false}>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label">Tipo de Proceso</label>
-                <select className="form-select" name="proceso_externo_tipo" value={formData.procesoExterno.tipo} onChange={(e) => setFormData(prev => ({ ...prev, procesoExterno: { ...prev.procesoExterno, tipo: e.target.value } }))}>
-                  <option value="">Selecciona...</option>
-                  {opcionesProcesoExterno.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Proveedor</label>
-                <input type="text" className="form-input" name="proceso_externo_proveedor" value={formData.procesoExterno.proveedor} onChange={(e) => setFormData(prev => ({ ...prev, procesoExterno: { ...prev.procesoExterno, proveedor: e.target.value } }))} placeholder="Nombre del proveedor" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Proceso</label>
-                <input type="text" className="form-input" name="proceso_externo_proceso" value={formData.procesoExterno.proceso} onChange={(e) => setFormData(prev => ({ ...prev, procesoExterno: { ...prev.procesoExterno, proceso: e.target.value } }))} placeholder="Descripción del proceso" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Costo</label>
-                <input type="number" className="form-input" name="proceso_externo_costo" value={formData.procesoExterno.costo} onChange={(e) => setFormData(prev => ({ ...prev, procesoExterno: { ...prev.procesoExterno, costo: e.target.value } }))} placeholder="0" />
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Plizado" icono={<Layers size={18} />} accentColor="var(--temp-cold-border)" defaultOpen={false}>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <input type="text" className="form-input" name="plizado_descripcion" value={formData.plizado.descripcion} onChange={(e) => setFormData(prev => ({ ...prev, plizado: { ...prev.plizado, descripcion: e.target.value } }))} placeholder="Tipo de plizado" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Ancho del Sesgo</label>
-                <input type="text" className="form-input" name="plizado_ancho" value={formData.plizado.anchoSesgo} onChange={(e) => setFormData(prev => ({ ...prev, plizado: { ...prev.plizado, anchoSesgo: e.target.value } }))} placeholder="Ej. 2cm" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Sentido</label>
-                <input type="text" className="form-input" name="plizado_sentido" value={formData.plizado.sentido} onChange={(e) => setFormData(prev => ({ ...prev, plizado: { ...prev.plizado, sentido: e.target.value } }))} placeholder="Vertical/Horizontal" />
-              </div>
-            </div>
-          </SeccionColapsable>
-
-          <SeccionColapsable titulo="Observaciones" icono={<FileText size={18} />} accentColor="var(--gray-500)" defaultOpen={false}>
-            <div className="form-group">
-              <textarea className="form-textarea" name="observaciones" value={formData.observaciones} onChange={handleChange} rows={4} placeholder="Observaciones adicionales sobre la referencia..." />
-            </div>
-          </SeccionColapsable>
-
-          <div className="flex justify-end gap-4 mt-8 pt-4 border-t">
-            <Link to="/ficha-nueva" className="btn btn-secondary">Cancelar</Link>
-            <button type="submit" className="btn btn-primary">
-              <Save size={18} /> Crear Ficha Técnica
+  // ── Vista de éxito ──────────────────────────────────────────
+  if (guardado) {
+    return (
+      <div className="fade-in" style={{ maxWidth: 560, margin: '4rem auto', textAlign: 'center' }}>
+        <div className="card" style={{ padding: '3rem' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>✅</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)', marginBottom: 8 }}>
+            ¡Referencia Creada!
+          </h2>
+          <p style={{ color: 'var(--gray-500)', marginBottom: 24 }}>
+            La referencia ha sido registrada en <strong>Fase 1.1 · Perfilamiento</strong>.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 24 }}>
+            <span className="code-badge code-md" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoMD}</span>
+            <span className="code-badge code-pt" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoPT}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button className="btn btn-primary" onClick={() => navigate('/colecciones')}>
+              Ver en Colecciones
+            </button>
+            <button className="btn btn-secondary" onClick={handleReset}>
+              Nueva Referencia
             </button>
           </div>
-        </form>
+        </div>
       </div>
+    );
+  }
+
+  // ── Formulario ───────────────────────────────────────────────
+  return (
+    <div className="fade-in">
+      <div className="ficha-form-header">
+        <div>
+          <h2 className="ficha-form-titulo">Nueva Ficha Técnica</h2>
+          <p className="ficha-form-subtitulo">Fase 1.1 · Perfilamiento y creación de referencia</p>
+        </div>
+        <span className="badge badge-primary">Área Creativa</span>
+      </div>
+
+      <form onSubmit={handleSubmit} noValidate>
+
+        {/* ── SECCIÓN 1: Identificación básica ── */}
+        <FormSeccion titulo="📋  Identificación y Perfil" accentColor="var(--temp-cold-border)">
+          <div className="ficha-grid-3">
+            {/* Colección */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Colección</label>
+              <select name="coleccion" className={`form-select ${errors.coleccion ? 'input-error' : ''}`}
+                value={formData.coleccion} onChange={handleInput} required>
+                <option value="">Selecciona...</option>
+                {COLECCIONES_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {errors.coleccion && <span className="form-error">{errors.coleccion}</span>}
+            </div>
+
+            {/* Tipo de Prenda */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Tipo de Prenda</label>
+              <select name="tipoPrenda" className={`form-select ${errors.tipoPrenda ? 'input-error' : ''}`}
+                value={formData.tipoPrenda} onChange={handleInput} required>
+                <option value="">Selecciona...</option>
+                {TIPO_PRENDA_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+              {errors.tipoPrenda && <span className="form-error">{errors.tipoPrenda}</span>}
+            </div>
+
+            {/* Nombre / Descripción */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Nombre de la Referencia</label>
+              <input type="text" name="nombre" className={`form-input ${errors.nombre ? 'input-error' : ''}`}
+                value={formData.nombre} onChange={handleInput}
+                placeholder="Ej. IVORY DRAMATIC MAXI DRESS" />
+              {errors.nombre && <span className="form-error">{errors.nombre}</span>}
+            </div>
+
+            {/* Color */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Color</label>
+              <input type="text" name="color" className={`form-input ${errors.color ? 'input-error' : ''}`}
+                value={formData.color} onChange={handleInput} placeholder="Ej. Ecru/Sand, Ivory..." />
+              {errors.color && <span className="form-error">{errors.color}</span>}
+            </div>
+
+            {/* Código color */}
+            <div className="form-group">
+              <label className="form-label">Código de Color</label>
+              <input type="text" name="codigoColor" className="form-input"
+                value={formData.codigoColor} onChange={handleInput} placeholder="Ej. EC-04" />
+            </div>
+
+            {/* Referente */}
+            <div className="form-group">
+              <label className="form-label">Referente Base (Opcional)</label>
+              <input type="text" name="referente" className="form-input"
+                value={formData.referente} onChange={handleInput} placeholder="Ej. PT03402" />
+              <span className="form-help">Si aplica, heredará moldería base.</span>
+            </div>
+
+            {/* Línea */}
+            <div className="form-group">
+              <label className="form-label">Línea</label>
+              <select name="linea" className="form-select" value={formData.linea} onChange={handleInput}>
+                <option value="">Selecciona...</option>
+                {LINEA_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Sublínea */}
+            <div className="form-group">
+              <label className="form-label">Sublínea</label>
+              <select name="sublinea" className="form-select" value={formData.sublinea} onChange={handleInput}>
+                <option value="">Selecciona...</option>
+                {SUBLINEA_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Clasificación */}
+            <div className="form-group">
+              <label className="form-label">Clasificación de Trazo</label>
+              <select name="clasificacion" className="form-select" value={formData.clasificacion} onChange={handleInput}>
+                {CLASIFICACION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            {/* Tallaje */}
+            <div className="form-group">
+              <label className="form-label">Tallaje</label>
+              <select name="tallaje" className="form-select" value={formData.tallaje} onChange={handleInput}>
+                <option value="">Selecciona...</option>
+                {TALLAJE_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Largo */}
+            <div className="form-group">
+              <label className="form-label">Largo</label>
+              <select name="largo" className="form-select" value={formData.largo} onChange={handleInput}>
+                <option value="">Selecciona...</option>
+                {LARGO_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Closure */}
+            <div className="form-group">
+              <label className="form-label">Closure / Cierre</label>
+              <select name="closure" className="form-select" value={formData.closure} onChange={handleInput}>
+                <option value="">Selecciona...</option>
+                {CLOSURE_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </FormSeccion>
+
+        {/* ── SECCIÓN 2: Datos Comerciales ── */}
+        <FormSeccion titulo="💼  Datos Comerciales y Complejidad" accentColor="var(--primary-500)">
+          <div className="ficha-grid-3">
+            <div className="form-group">
+              <label className="form-label">Prioridad First Buy</label>
+              <div className="chip-group">
+                {PRIORIDAD_OPTIONS.map(o => (
+                  <ChipToggle key={o} active={formData.prioridadFirstBuy === o}
+                    onChange={() => set('prioridadFirstBuy', o)}>{o}</ChipToggle>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Drop de Entrega</label>
+              <div className="chip-group">
+                {DROP_OPTIONS.map(o => (
+                  <ChipToggle key={o} active={formData.dropEntrega === o}
+                    onChange={() => set('dropEntrega', o)}>{o}</ChipToggle>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">¿Enviar a Maquila?</label>
+              <div className="chip-group">
+                <ChipToggle active={formData.enviarMaquila === false}
+                  onChange={() => set('enviarMaquila', false)}>No aplica</ChipToggle>
+                <ChipToggle active={formData.enviarMaquila === true}
+                  onChange={() => set('enviarMaquila', true)}>Sí, enviar</ChipToggle>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Complejidad de Corte</label>
+              <div className="chip-group">
+                {COMPLEJIDAD_OPTIONS.map(o => (
+                  <ChipToggle key={o} active={formData.complejidadCorte === o}
+                    onChange={() => set('complejidadCorte', o)}>{o}</ChipToggle>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Complejidad de Confección</label>
+              <div className="chip-group">
+                {COMPLEJIDAD_OPTIONS.map(o => (
+                  <ChipToggle key={o} active={formData.complejidadConfeccion === o}
+                    onChange={() => set('complejidadConfeccion', o)}>{o}</ChipToggle>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Tipo de Empaque</label>
+              <div className="chip-group">
+                {EMPAQUE_OPTIONS.map(o => (
+                  <ChipToggle key={o} active={formData.tipoEmpaque === o}
+                    onChange={() => set('tipoEmpaque', o)}>{o}</ChipToggle>
+                ))}
+              </div>
+            </div>
+          </div>
+        </FormSeccion>
+
+        {/* ── SECCIÓN 3: Procesos Especiales ── */}
+        <FormSeccion titulo="⚙️  Procesos Especiales" accentColor="var(--temp-warm-border)">
+          <p className="form-help" style={{ marginBottom: 16 }}>
+            Indica si aplica cada proceso. Los ítems marcados como "Aplica" generarán una subfase de seguimiento.
+          </p>
+          <div className="ficha-grid-3">
+
+            <div className="form-group">
+              <label className="form-label">Bordado en Prenda</label>
+              <div className="chip-group">
+                <ChipToggle active={!formData.tieneBordado} onChange={() => set('tieneBordado', false)}>No aplica</ChipToggle>
+                <ChipToggle active={formData.tieneBordado} onChange={() => set('tieneBordado', true)}>Aplica</ChipToggle>
+              </div>
+              {formData.tieneBordado && (
+                <input type="text" className="form-input mt-2" placeholder="Descripción del bordado..."
+                  name="descripcionBordado" onChange={handleInput} />
+              )}
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Semielaborados</label>
+              <div className="chip-group">
+                <ChipToggle active={!formData.tieneSemielaborado} onChange={() => set('tieneSemielaborado', false)}>No aplica</ChipToggle>
+                <ChipToggle active={formData.tieneSemielaborado} onChange={() => set('tieneSemielaborado', true)}>Aplica</ChipToggle>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Montaje en Maniquí</label>
+              <div className="chip-group" style={{ flexWrap: 'wrap' }}>
+                {MONTAJE_OPTIONS.map(o => (
+                  <ChipToggle key={o} active={formData.montajeManiqui === o}
+                    onChange={() => set('montajeManiqui', o)}>{o}</ChipToggle>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Tiras Continuas</label>
+              <div className="chip-group">
+                <ChipToggle active={!formData.tirasContinuas} onChange={() => set('tirasContinuas', false)}>No aplica</ChipToggle>
+                <ChipToggle active={formData.tirasContinuas} onChange={() => set('tirasContinuas', true)}>Aplica</ChipToggle>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Includes (Accesorios)</label>
+              <input type="text" name="includes" className="form-input"
+                value={formData.includes} onChange={handleInput}
+                placeholder="Ej. Cinturón, Broche, Bolso... (vacío = No aplica)" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Boceto / Imagen Inicial</label>
+              <label className="boceto-upload">
+                <ImageIcon size={20} />
+                <span>{formData.boceto ? formData.boceto.name : 'Subir boceto o foto'}</span>
+                <input type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={(e) => set('boceto', e.target.files[0])} />
+              </label>
+            </div>
+
+          </div>
+        </FormSeccion>
+
+        {/* ── SECCIÓN 4: Equipo de Trabajo ── */}
+        <FormSeccion titulo="👥  Equipo de Trabajo" accentColor="var(--temp-hot-border)">
+          <p className="form-help" style={{ marginBottom: 16 }}>
+            El diseñador creativo es obligatorio. Los demás roles se asignan a medida que la referencia avanza por cada área.
+          </p>
+          <div className="ficha-grid-2">
+            {ROLES_EQUIPO.map(rol => (
+              <div key={rol.key} className={`form-group equipo-rol-card ${rol.requerido ? 'rol-requerido' : ''}`}>
+                <label className={`form-label ${rol.requerido ? 'form-label-required' : ''}`}>
+                  <User size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                  {rol.label}
+                </label>
+                <span className="rol-fase-tag">{rol.fase}</span>
+                <input
+                  type="text"
+                  name={rol.key}
+                  className={`form-input ${errors[rol.key] ? 'input-error' : ''}`}
+                  value={formData[rol.key]}
+                  onChange={handleInput}
+                  placeholder={rol.requerido ? 'Nombre requerido...' : 'Asignar cuando aplique...'}
+                />
+                {errors[rol.key] && <span className="form-error">{errors[rol.key]}</span>}
+              </div>
+            ))}
+          </div>
+        </FormSeccion>
+
+        {/* ── Acciones ── */}
+        <div className="ficha-form-actions">
+          <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
+            Cancelar
+          </button>
+          <button type="submit" className="btn btn-primary">
+            <Save size={18} />
+            Crear y Asignar Código MD
+          </button>
+        </div>
+
+      </form>
     </div>
   );
 }
