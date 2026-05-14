@@ -9,6 +9,7 @@ import ColeccionesExplorer from './pages/ColeccionesExplorer';
 import ReferenciaDetalle from './pages/ReferenciaDetalle';
 import Dashboard from './pages/Dashboard';
 import ReferentesView from './pages/ReferentesView';
+import ConfiguracionPersonas from './pages/ConfiguracionPersonas';
 
 function App() {
   return (
@@ -28,7 +29,7 @@ function App() {
             <Route path="/produccion/consumos" element={<ConsumosView />} />
             <Route path="/produccion/ficha-final" element={<FichaFinalView />} />
             <Route path="/referentes" element={<ReferentesView />} />
-            <Route path="/configuracion" element={<div className="text-center mt-10"><h2>Configuración (En desarrollo)</h2></div>} />
+            <Route path="/configuracion" element={<ConfiguracionPersonas />} />
           </Routes>
         </div>
       </main>
