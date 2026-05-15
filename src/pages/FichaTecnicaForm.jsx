@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { colecciones } from '../data/colecciones';
+import { getPersonas } from '../data/personas';
 
 // ── Catálogos ────────────────────────────────────────────────
 const COLECCIONES_OPTIONS = colecciones.map(c => ({
@@ -33,14 +34,14 @@ const CLASIFICACION_OPTIONS = [
 
 // Roles de personas involucradas en el ciclo de vida
 const ROLES_EQUIPO = [
-  { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '1.1 Perfilamiento', requerido: true },
-  { key: 'patronista', label: 'Patronista / Moldería', fase: '1.3 Moldería Base', requerido: false },
-  { key: 'disenadorTecnico', label: 'Diseñador(a) Técnico(a)', fase: '3.3 Escalado y Consumos', requerido: false },
-  { key: 'cortador', label: 'Cortador(a)', fase: '2.2 Corte Muestra', requerido: false },
-  { key: 'modista', label: 'Modista / Confección', fase: '2.3 Confección Muestra', requerido: false },
-  { key: 'bordadora', label: 'Bordadora / Proceso Especial', fase: '2.4 Procesos Especiales', requerido: false },
-  { key: 'trazador', label: 'Trazador(a)', fase: '3.4 Trazos Producción', requerido: false },
-  { key: 'equipoConsumos', label: 'Equipo Consumos / Validación', fase: '4.2 Contramuestra', requerido: false },
+  { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '1.1 Perfilamiento', requerido: true, area: 'creativos' },
+  { key: 'patronista', label: 'Patronista / Moldería', fase: '1.3 Moldería Base', requerido: false, area: 'tecnicos' },
+  { key: 'disenadorTecnico', label: 'Diseñador(a) Técnico(a)', fase: '3.3 Escalado y Consumos', requerido: false, area: 'tecnicos' },
+  { key: 'cortador', label: 'Cortador(a)', fase: '2.2 Corte Muestra', requerido: false, area: 'cortadores' },
+  { key: 'modista', label: 'Modista / Confección', fase: '2.3 Confección Muestra', requerido: false, area: 'modistas' },
+  { key: 'bordadora', label: 'Bordadora / Proceso Especial', fase: '2.4 Procesos Especiales', requerido: false, area: 'bordadoras' },
+  { key: 'trazador', label: 'Trazador(a)', fase: '3.4 Trazos Producción', requerido: false, area: 'trazadores' },
+  { key: 'equipoConsumos', label: 'Equipo Consumos / Validación', fase: '4.2 Contramuestra', requerido: false, area: 'especificadoras' },
 ];
 
 // ── Toggle chip ──────────────────────────────────────────────
@@ -74,6 +75,7 @@ function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(
 // ── Componente principal ─────────────────────────────────────
 export default function FichaTecnicaForm() {
   const navigate = useNavigate();
+  const personas = getPersonas();
 
   const [formData, setFormData] = useState({
     // Identificación
@@ -189,7 +191,7 @@ export default function FichaTecnicaForm() {
         <span className="badge badge-primary">Área Creativa</span>
       </div>
 
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={handleSubmit} noValidate className="ficha-form-body">
 
         {/* ── SECCIÓN 1: Identificación básica ── */}
         <FormSeccion titulo="📋  Identificación y Perfil" accentColor="var(--temp-cold-border)">
@@ -439,24 +441,30 @@ export default function FichaTecnicaForm() {
             El diseñador creativo es obligatorio. Los demás roles se asignan a medida que la referencia avanza por cada área.
           </p>
           <div className="ficha-grid-2">
-            {ROLES_EQUIPO.map(rol => (
+            {ROLES_EQUIPO.map(rol => {
+                const personasArea = (personas[rol.area] || []).filter(p => p.activo !== false);
+                return (
               <div key={rol.key} className={`form-group equipo-rol-card ${rol.requerido ? 'rol-requerido' : ''}`}>
                 <label className={`form-label ${rol.requerido ? 'form-label-required' : ''}`}>
                   <User size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
                   {rol.label}
                 </label>
                 <span className="rol-fase-tag">{rol.fase}</span>
-                <input
-                  type="text"
+                <select
                   name={rol.key}
-                  className={`form-input ${errors[rol.key] ? 'input-error' : ''}`}
+                  className={`form-select ${errors[rol.key] ? 'input-error' : ''}`}
                   value={formData[rol.key]}
                   onChange={handleInput}
-                  placeholder={rol.requerido ? 'Nombre requerido...' : 'Asignar cuando aplique...'}
-                />
+                >
+                  <option value="">{rol.requerido ? 'Selecciona...' : 'Sin asignar...'}</option>
+                  {personasArea.map(p => (
+                    <option key={p.id} value={p.nombre}>{p.nombre}</option>
+                  ))}
+                </select>
                 {errors[rol.key] && <span className="form-error">{errors[rol.key]}</span>}
               </div>
-            ))}
+                );
+              })}
           </div>
         </FormSeccion>
 

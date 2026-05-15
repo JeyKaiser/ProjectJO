@@ -44,6 +44,13 @@ export default function ColeccionesExplorer() {
                 {/* Barra de Temperatura */}
                 <TemperatureBar subfase={ref.faseActual} />
 
+                {/* Imagen de Referencia */}
+                {ref.imagen && (
+                  <div className="referencia-card-imagen">
+                    <img src={ref.imagen} alt={ref.nombre} />
+                  </div>
+                )}
+
                 {/* Encabezado */}
                 <div className="referencia-card-header">
                   <div className="referencia-codes">

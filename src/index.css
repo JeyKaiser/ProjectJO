@@ -1138,6 +1138,28 @@ a:hover {
   transform: translateY(-3px);
 }
 
+.referencia-card-imagen {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  height: 200px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+}
+
+.referencia-card-imagen img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  transition: transform var(--transition-base);
+}
+
+.referencia-card:hover .referencia-card-imagen img {
+  transform: scale(1.05);
+}
+
 .referencia-card-header {
   display: flex;
   justify-content: space-between;
@@ -1848,5 +1870,327 @@ a:hover {
 
   .coleccion-row-stats {
     flex-wrap: wrap;
+  }
+}
+
+/* ============================================
+   MÓDULO: FICHA TÉCNICA FORM (NUEVA UX/UI)
+   ============================================ */
+
+/* Contenedor principal para encapsular estilos */
+.ficha-form-body {
+  margin-top: var(--space-4);
+}
+
+/* Header */
+.ficha-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--gray-100);
+}
+
+.ficha-form-titulo {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  color: var(--gray-900);
+  margin: 0 0 4px 0;
+}
+
+.ficha-form-subtitulo {
+  color: var(--gray-500);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+/* Secciones Colapsables Estilo Glass/Card */
+.form-seccion {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--gray-200);
+  border-left: 4px solid;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: var(--space-5);
+  transition: box-shadow var(--transition-fast);
+}
+
+.form-seccion:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.form-seccion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4) var(--space-6);
+  background: var(--gray-50);
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  font-family: var(--font-sans);
+  transition: background var(--transition-fast);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.form-seccion-header:hover {
+  background: var(--gray-100);
+}
+
+.form-seccion-titulo {
+  font-weight: 700;
+  font-size: var(--text-base);
+  color: var(--gray-900);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.form-seccion-body {
+  padding: var(--space-6);
+  background: var(--white);
+}
+
+/* Grillas */
+.ficha-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.ficha-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+/* Campos de formulario - Estilo Detalle (Clean UX) */
+.ficha-form-body .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-100);
+  transition: all var(--transition-fast);
+  margin-bottom: 0; /* Override global form-group margin */
+}
+
+.ficha-form-body .form-group:focus-within {
+  background: var(--white);
+  border-color: var(--primary-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.ficha-form-body .form-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gray-500);
+  margin-bottom: 0;
+}
+
+.ficha-form-body .form-input,
+.ficha-form-body .form-select,
+.ficha-form-body .form-textarea {
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--gray-900);
+  box-shadow: none !important;
+  width: 100%;
+}
+
+.ficha-form-body .form-input:focus,
+.ficha-form-body .form-select:focus,
+.ficha-form-body .form-textarea:focus {
+  outline: none;
+  border: none;
+  box-shadow: none !important;
+  background: transparent;
+}
+
+/* Eliminar outline default en selects para webkit */
+.ficha-form-body .form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: 16px;
+  padding-right: 24px;
+}
+
+/* Errores */
+.ficha-form-body .form-group.has-error {
+  border-color: var(--error);
+  background: var(--error-light);
+}
+
+.ficha-form-body .form-error {
+  display: block;
+  color: var(--error-dark);
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Chip toggle (Botones de opción) */
+.chip-group {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-sans);
+}
+
+.chip-toggle:hover {
+  border-color: var(--primary-400);
+  color: var(--primary-600);
+  background: var(--primary-50);
+}
+
+.chip-toggle-active {
+  background: var(--primary-600);
+  border-color: var(--primary-600);
+  color: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Equipo de trabajo - Tarjetas */
+.equipo-rol-card {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  transition: all var(--transition-fast);
+}
+
+.equipo-rol-card:focus-within {
+  background: var(--white);
+  border-color: var(--primary-300);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.equipo-rol-card .form-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-700);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.rol-requerido {
+  background: #fefce8; /* warning-50 */
+  border-color: #fde047; /* warning-300 */
+}
+
+.rol-fase-tag {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--white);
+  background: var(--primary-600);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.equipo-rol-card .form-input,
+.equipo-rol-card .form-select {
+  border: 1px solid var(--gray-200) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-2) var(--space-3) !important;
+  background: var(--white) !important;
+}
+
+.equipo-rol-card .form-input:focus,
+.equipo-rol-card .form-select:focus {
+  border-color: var(--primary-400) !important;
+  box-shadow: 0 0 0 3px var(--primary-100) !important;
+}
+
+/* Upload de Boceto */
+.boceto-upload {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 2px dashed var(--gray-300);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  cursor: pointer;
+  color: var(--gray-500);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  justify-content: center;
+  height: 100%;
+  min-height: 80px;
+}
+
+.boceto-upload:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
+/* Acciones Footer Fix */
+.ficha-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  margin-top: var(--space-6);
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  bottom: 24px;
+  z-index: 10;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .ficha-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ficha-grid-3,
+  .ficha-grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .ficha-form-actions {
+    position: static;
   }
 }
