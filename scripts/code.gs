@@ -59,7 +59,7 @@ var CONFIG = {
   ALERTA_UMBRAL: 5,
 
   // Carpeta de Drive para imagenes
-  DRIVE_FOLDER_NAME: 'AtelierData_Fotos',
+  DRIVE_FOLDER_NAME: 'NUEVA ESTRUCTURA JO/JO - Fotos Maestro',
 
   // Email para alertas
   ALERT_EMAIL: 'jeferson.chacon@johannaortiz.com',
@@ -80,7 +80,9 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(ui.createMenu('Fotos')
       .addItem('Subir foto de referencia', 'subirFotoReferencia')
-      .addItem('Subir foto de tela', 'subirFotoTela'))
+      .addItem('Subir foto de tela', 'subirFotoTela')
+      .addItem('Escanear PRENDAS', 'escanearCarpetaFotos')
+      .addItem('Escanear TELAS', 'escanearCarpetaTelas'))
     .addSeparator()
     .addSubMenu(ui.createMenu('Consumos')
       .addItem('Nueva version de consumo', 'nuevaVersionConsumo')
@@ -200,6 +202,88 @@ function validarPermiso(rol, sheetName, range, e) {
 
   return true;
 }
+
+
+// ── ESCANEO DE CARPETA DE FOTOS ───────────────────────────────────────────────
+
+function escanearCarpetaFotos() {
+  var refSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.REFERENCIAS);
+  if (!refSheet) {
+    SpreadsheetApp.getUi().alert('Error: No se encontro la hoja REFERENCIAS');
+    return;
+  }
+  var folder = getOrCreateDriveFolder(); // raiz: JO - Fotos Maestro
+  var files = folder.getFiles();
+  var procesados = 0, saltados = 0, sinMatch = 0;
+
+  while (files.hasNext()) {
+    var file = files.next();
+    var name = file.getName();
+    // Solo PRENDA: WS27_5_PRENDA.jpg
+    var match = name.match(/^(WS27|FW26|RS26|SS26|SV26|PF26)_(\d+)_PRENDA\./i);
+    if (!match) { saltados++; continue; }
+
+    var refCode = match[2];
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var url = file.getUrl();
+
+    var data = refSheet.getDataRange().getValues();
+    var found = false;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === refCode) { // Col B = REF
+        refSheet.getRange(i + 1, 3).setValue(url); // Col C = FOTO_URL
+        found = true; break;
+      }
+    }
+    if (found) procesados++;
+    else { sinMatch++; Logger.log('PRENDA sin match: ' + name + ' (REF=' + refCode + ')'); }
+  }
+
+  var msg = 'Escaneo PRENDAS: ' + procesados + ' fotos registradas.';
+  if (saltados > 0) msg += '\n' + saltados + ' archivos saltados (nombre invalido).';
+  if (sinMatch > 0) msg += '\n' + sinMatch + ' archivos sin match (ver Logs).';
+  SpreadsheetApp.getUi().alert(msg, SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function escanearCarpetaTelas() {
+  var telaSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.TELAS);
+  if (!telaSheet) {
+    SpreadsheetApp.getUi().alert('Error: No se encontro la hoja TELAS_X_REFERENCIA');
+    return;
+  }
+  var folder = getOrCreateDriveFolder(); // raiz: JO - Fotos Maestro
+  var files = folder.getFiles();
+  var procesados = 0, saltados = 0, sinMatch = 0;
+
+  while (files.hasNext()) {
+    var file = files.next();
+    var name = file.getName();
+    // Solo TELA: WS27_TE00007842_TELA.png
+    var match = name.match(/^(WS27|FW26|RS26|SS26|SV26|PF26)_([A-Z0-9]+)_TELA\./i);
+    if (!match) { saltados++; continue; }
+
+    var refCode = match[2];
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var url = file.getUrl();
+
+    var data = telaSheet.getDataRange().getValues();
+    var found = false;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][3]) === refCode) { // Col D = CODIGO_TELA
+        telaSheet.getRange(i + 1, 7).setValue(url); // Col G = TELA_FOTO_URL
+        found = true; break;
+      }
+    }
+    if (found) procesados++;
+    else { sinMatch++; Logger.log('TELA sin match: ' + name + ' (CODIGO=' + refCode + ')'); }
+  }
+
+  var msg = 'Escaneo TELAS: ' + procesados + ' fotos registradas.';
+  if (saltados > 0) msg += '\n' + saltados + ' archivos saltados (nombre invalido).';
+  if (sinMatch > 0) msg += '\n' + sinMatch + ' archivos sin match (ver Logs).';
+  SpreadsheetApp.getUi().alert(msg, SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
 
 // ── AUTO-COMPLETADO ────────────────────────────────────────────────────────
 
@@ -331,22 +415,43 @@ function subirFotoReferencia() {
 
   var ref = sheet.getRange(row, 2).getValue();
   var html = HtmlService.createHtmlOutput(
-    '<form>' +
-    '<input type="file" name="foto" accept="image/*" onchange="google.script.run.withSuccessHandler(google.script.host.close).uploadFoto(this.parentNode, ' + row + ');">' +
-    '</form>'
-  ).setWidth(300).setHeight(100);
+    '<input type="file" id="f" accept="image/*" onchange="document.getElementById(\'btn\').disabled=false"><br><br>' +
+    '<button id="btn" onclick="enviar()" disabled style="padding:8px 24px;cursor:pointer;background:#2C3E50;color:white;border:none;border-radius:4px;font-size:14px;">Subir Foto</button>' +
+    '<p id="msg"></p>' +
+    '<script>' +
+    'function enviar(){' +
+    '  var input=document.getElementById("f");' +
+    '  if(!input.files[0])return;' +
+    '  var file=input.files[0];' +
+    '  var reader=new FileReader();' +
+    '  reader.onload=function(e){' +
+    '    var base64=e.target.result.split(",")[1];' +
+    '    var mime=file.type;' +
+    '    var name=file.name;' +
+    '    document.getElementById("msg").innerHTML="Subiendo...";' +
+    '    google.script.run' +
+    '      .withSuccessHandler(function(url){google.script.host.close()})' +
+    '      .withFailureHandler(function(e){document.getElementById("msg").innerHTML="<span style=color:red>Error: "+e.message+"</span>"})' +
+    '      .uploadFotoBytes(base64,name,mime,' + row + ');' +
+    '  };' +
+    '  reader.readAsDataURL(file);' +
+    '}' +
+    '</script>'
+  ).setWidth(380).setHeight(160);
 
   ui.showModalDialog(html, 'Subir foto - Ref ' + ref);
 }
 
-function uploadFoto(form, row) {
-  var blob = form.foto;
+function uploadFotoBytes(base64data, filename, mimetype, row) {
+  var decoded = Utilities.base64Decode(base64data);
+  var blob = Utilities.newBlob(decoded, mimetype, filename);
   var folder = getOrCreateDriveFolder();
   var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.REFERENCIAS);
-  sheet.getRange(row, 3).setValue(file.getUrl()); // Col C = FOTO_URL
+  sheet.getRange(row, 3).setValue(file.getUrl());
+  return file.getUrl();
 }
 
 function subirFotoTela() {
@@ -360,28 +465,58 @@ function subirFotoTela() {
   }
 
   var html = HtmlService.createHtmlOutput(
-    '<form>' +
-    '<input type="file" name="foto" accept="image/*" onchange="google.script.run.withSuccessHandler(google.script.host.close).uploadFotoTela(this.parentNode, ' + row + ');">' +
-    '</form>'
-  ).setWidth(300).setHeight(100);
+    '<input type="file" id="f" accept="image/*" onchange="document.getElementById(\'btn\').disabled=false"><br><br>' +
+    '<button id="btn" onclick="enviar()" disabled style="padding:8px 24px;cursor:pointer;background:#2C3E50;color:white;border:none;border-radius:4px;font-size:14px;">Subir Foto</button>' +
+    '<p id="msg"></p>' +
+    '<script>' +
+    'function enviar(){' +
+    '  var input=document.getElementById("f");' +
+    '  if(!input.files[0])return;' +
+    '  var file=input.files[0];' +
+    '  var reader=new FileReader();' +
+    '  reader.onload=function(e){' +
+    '    var base64=e.target.result.split(",")[1];' +
+    '    var mime=file.type;' +
+    '    var name=file.name;' +
+    '    document.getElementById("msg").innerHTML="Subiendo...";' +
+    '    google.script.run' +
+    '      .withSuccessHandler(function(url){google.script.host.close()})' +
+    '      .withFailureHandler(function(e){document.getElementById("msg").innerHTML="<span style=color:red>Error: "+e.message+"</span>"})' +
+    '      .uploadFotoTelaBytes(base64,name,mime,' + row + ');' +
+    '  };' +
+    '  reader.readAsDataURL(file);' +
+    '}' +
+    '</script>'
+  ).setWidth(380).setHeight(160);
 
   ui.showModalDialog(html, 'Subir foto de tela');
 }
 
-function uploadFotoTela(form, row) {
-  var blob = form.foto;
+function uploadFotoTelaBytes(base64data, filename, mimetype, row) {
+  var decoded = Utilities.base64Decode(base64data);
+  var blob = Utilities.newBlob(decoded, mimetype, filename);
   var folder = getOrCreateDriveFolder();
   var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEETS.TELAS);
-  sheet.getRange(row, 7).setValue(file.getUrl()); // Col G = TELA_FOTO_URL
+  sheet.getRange(row, 7).setValue(file.getUrl());
+  return file.getUrl();
 }
 
-function getOrCreateDriveFolder() {
-  var folders = DriveApp.getFoldersByName(CONFIG.DRIVE_FOLDER_NAME);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(CONFIG.DRIVE_FOLDER_NAME);
+function getOrCreateDriveFolder(subFolder) {
+  var rootFolders = DriveApp.getFoldersByName(CONFIG.DRIVE_FOLDER_NAME);
+  var root = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(CONFIG.DRIVE_FOLDER_NAME);
+  if (!subFolder) return root;
+  
+  // Buscar ignorando mayusculas/minusculas (DriveApp es case-sensitive)
+  var allFolders = root.getFolders();
+  while (allFolders.hasNext()) {
+    var f = allFolders.next();
+    if (f.getName().toUpperCase() === subFolder.toUpperCase()) return f;
+  }
+  // Si no existe, crearla con el nombre exacto dado
+  return root.createFolder(subFolder);
 }
 
 // ── GESTION DE CONSUMOS ────────────────────────────────────────────────────
