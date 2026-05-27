@@ -1,15 +1,18 @@
 import { Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import FichaTecnicaForm from './pages/FichaTecnicaForm';
-import TallerKanban from './pages/TallerKanban';
-import ConsumosView from './pages/ConsumosView';
-import FichaFinalView from './pages/FichaFinalView';
+import { lazy, Suspense } from 'react';
+// ── EAGER: páginas más visitadas (carga instantánea, sin demora visual) ──
+import Dashboard from './pages/Dashboard';
 import ColeccionesExplorer from './pages/ColeccionesExplorer';
 import ReferenciaDetalle from './pages/ReferenciaDetalle';
-import Dashboard from './pages/Dashboard';
-import ReferentesView from './pages/ReferentesView';
-import ConfiguracionPersonas from './pages/ConfiguracionPersonas';
+// ── LAZY: páginas pesadas o poco frecuentes ──
+const FichaTecnicaForm = lazy(() => import('./pages/FichaTecnicaForm'));
+const TallerKanban = lazy(() => import('./pages/TallerKanban'));
+const ConsumosView = lazy(() => import('./pages/ConsumosView'));
+const FichaFinalView = lazy(() => import('./pages/FichaFinalView'));
+const ReferentesView = lazy(() => import('./pages/ReferentesView'));
+const ConfiguracionPersonas = lazy(() => import('./pages/ConfiguracionPersonas'));
 
 function App() {
   return (
@@ -18,6 +21,7 @@ function App() {
       <main className="main-content">
         <Header />
         <div className="content">
+          <Suspense fallback={<div className="p-4 text-center">Cargando...</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/ficha-nueva" element={<FichaTecnicaForm />} />
@@ -31,6 +35,7 @@ function App() {
             <Route path="/referentes" element={<ReferentesView />} />
             <Route path="/configuracion" element={<ConfiguracionPersonas />} />
           </Routes>
+          </Suspense>
         </div>
       </main>
     </div>

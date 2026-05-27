@@ -343,6 +343,50 @@ a:hover {
   font-weight: 600;
 }
 
+/* ── Contenedor de contenido de nav-item ── */
+.nav-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-item-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  display: block;
+}
+
+.nav-item-role {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  opacity: 0.7;
+  display: block;
+}
+
+/* ── Estilo especial para items de Producción ── */
+.nav-item-production .nav-item-role {
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+.nav-item-production:hover {
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.5), rgba(255, 237, 213, 0.5));
+  color: var(--gray-800);
+}
+
+.nav-item-production.active {
+  background: linear-gradient(135deg, var(--temp-hot-border) 0%, var(--temp-fire-border) 100%);
+  color: var(--temp-fire-text);
+  box-shadow: 0 0 0 3px var(--temp-hot), var(--shadow-lg);
+}
+
+.nav-item-production.active .nav-item-role {
+  color: currentColor;
+  opacity: 1;
+  font-weight: 600;
+}
+
 /* Main Content */
 .main-content {
   flex: 1;

@@ -64,9 +64,16 @@ export default function Sidebar() {
           )}
 
           {(isAdmin || isTrazador) && (
-            <NavLink to="/produccion/consumos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <NavLink 
+              to="/produccion/consumos" 
+              className={({ isActive }) => `nav-item nav-item-production ${isActive ? 'active' : ''}`}
+              title="Validar consumos de materiales en producción (Rol: Trazador)"
+            >
               <span className="nav-item-icon"><PackageCheck size={20} /></span>
-              <span>Validación de Consumos</span>
+              <span className="nav-item-content">
+                <span className="nav-item-label">Validación de Consumos</span>
+                <span className="nav-item-role">Producción</span>
+              </span>
             </NavLink>
           )}
 

@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, AlertTriangle, CheckCircle, Clock, Package,
@@ -63,7 +65,7 @@ function calcularMetricasGlobales() {
 }
 
 // ── Sub-componentes ─────────────────────────────────────────
-function KpiCard({ titulo, valor, subtitulo, icono, color, bgColor }) {
+const KpiCard = React.memo (function KpiCard ({ titulo, valor, subtitulo, icono, color, bgColor }) {
   return (
     <div className="kpi-card" style={{ borderTopColor: color }}>
       <div className="kpi-card-top">
@@ -78,9 +80,9 @@ function KpiCard({ titulo, valor, subtitulo, icono, color, bgColor }) {
       </div>
     </div>
   );
-}
+});
 
-function ColeccionRow({ col, navigate }) {
+const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
   const anio2026 = col.anios.find(a => a.anio === 2026);
   if (!anio2026) return null;
   const progreso = calcularProgreso(anio2026);
@@ -119,15 +121,17 @@ function ColeccionRow({ col, navigate }) {
       <ChevronRight size={18} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
     </div>
   );
-}
+});
+
+const faseLabels = { 1: 'Ideación', 2: 'Laboratorio', 3: 'Validación', 4: 'Industrializ.' };
+const faseTempVars = { 1: 'cold', 2: 'warm', 3: 'hot', 4: 'fire' };
+
 
 // ── Página principal del Dashboard ──────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal } = calcularMetricasGlobales();
-
-  const faseLabels = { 1: 'Ideación', 2: 'Laboratorio', 3: 'Validación', 4: 'Industrializ.' };
-  const faseTempVars = { 1: 'cold', 2: 'warm', 3: 'hot', 4: 'fire' };
+  const { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal } = useMemo(() => calcularMetricasGlobales(), []);
+  
   const maxFase = Math.max(...Object.values(refsPorFase));
 
   return (
