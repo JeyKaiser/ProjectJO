@@ -1,0 +1,204 @@
+{
+  "project": "AtelierData - Validacion de Telas WS27",
+  "version": "2.0",
+  "description": "Estructura relacional multi-hoja para control de telas, consumos e insumos por referencia",
+  "sheets": {
+    "RESUMEN": {
+      "description": "Dashboard ejecutivo con KPIs, alertas y estado general de la colección",
+      "columns": {
+        "A": {"name": "METRICA", "type": "text", "description": "Nombre del KPI"},
+        "B": {"name": "VALOR", "type": "formula", "description": "Valor calculado del KPI"},
+        "C": {"name": "TENDENCIA", "type": "text", "description": "Flecha indicadora de tendencia"}
+      },
+      "conditionalFormatting": [
+        {"range": "B2:B20", "type": "COLOR_SCALE", "min": "red", "mid": "yellow", "max": "green"}
+      ]
+    },
+    "REFERENCIAS": {
+      "description": "Maestro de referencias. Una fila por referencia.",
+      "columns": {
+        "A": {"name": "ID_REFERENCIA", "type": "number", "pk": true, "description": "Identificador único auto-numérico"},
+        "B": {"name": "REF", "type": "number", "description": "Número de referencia (ej: 1, 2, 3...)"},
+        "C": {"name": "FOTO_URL", "type": "url", "description": "URL o ID de Google Drive de la foto principal"},
+        "D": {"name": "NOMBRE_SISTEMA", "type": "text", "description": "Nombre en sistema"},
+        "E": {"name": "STATUS", "type": "dropdown", "source": "PARAMETROS!STATUS", "description": "APROBADO, CANCELADO, EN_PROCESO, RECHAZADO, PENDIENTE"},
+        "F": {"name": "MOD_ARTE", "type": "dropdown", "source": "PARAMETROS!SI_NO", "description": "¿Requiere modulación de arte?"},
+        "G": {"name": "UBI_TRAZO", "type": "dropdown", "source": "PARAMETROS!SI_NO", "description": "¿Requiere ubicación en trazo?"},
+        "H": {"name": "VARIACION_COLOR_1", "type": "text", "description": "Color primario"},
+        "I": {"name": "VARIACION_COLOR_2", "type": "text", "description": "Color secundario"},
+        "J": {"name": "LARGO", "type": "text", "description": "Largo de la prenda"},
+        "K": {"name": "OCULTO", "type": "checkbox", "description": "TRUE si cancelada. Automatiza el ocultamiento sin eliminar filas."},
+        "L": {"name": "FECHA_COSTEO", "type": "date", "description": "Fecha de cierre de costeo"},
+        "M": {"name": "FECHA_CREACION", "type": "date", "description": "Timestamp de creación (automático)"},
+        "N": {"name": "ULTIMA_MODIFICACION", "type": "date", "description": "Timestamp de última modificación (automático)"},
+        "O": {"name": "USUARIO_MODIFICACION", "type": "text", "description": "Email del usuario que modificó (automático)"}
+      },
+      "dataValidation": [
+        {"column": "E", "criteria": "PARAMETROS!A2:A10", "helpText": "Seleccione el estado de la referencia"},
+        {"column": "F", "criteria": "PARAMETROS!SI_NO", "helpText": "SI o NO"},
+        {"column": "G", "criteria": "PARAMETROS!SI_NO"}
+      ],
+      "protectedRanges": [
+        {"range": "A:A", "description": "ID autogenerado, no editable"},
+        {"range": "M:O", "description": "Timestamps automáticos"}
+      ]
+    },
+    "TELAS_X_REFERENCIA": {
+      "description": "Detalle de telas por referencia. Una fila por tela. Sin celdas combinadas.",
+      "columns": {
+        "A": {"name": "ID_TELA", "type": "number", "pk": true},
+        "B": {"name": "ID_REFERENCIA", "type": "number", "fk": "REFERENCIAS!A:A"},
+        "C": {"name": "USO_EN_PRENDA", "type": "text", "description": "Ej: TELA LUCIR, TELA FORRO, FUSIONABLE, SESGOS"},
+        "D": {"name": "CODIGO_TELA", "type": "dropdown", "source": "PARAMETROS!CODIGOS_TELA", "description": "Código de tela del catálogo"},
+        "E": {"name": "DESCRIPCION_TELA", "type": "text", "description": "Auto-completado desde PARAMETROS al seleccionar código"},
+        "F": {"name": "ANCHO", "type": "number", "description": "Ancho de la tela"},
+        "G": {"name": "TELA_FOTO_URL", "type": "url", "description": "URL de foto de la tela"},
+        "H": {"name": "CONSUMO_BASE", "type": "number", "description": "Consumo base de referencia"},
+        "I": {"name": "ACTIVO", "type": "checkbox", "description": "FALSE = tela descontinuada (reemplaza fila gris). TRUE por defecto."},
+        "J": {"name": "FECHA_CAMBIO", "type": "date", "description": "Fecha cuando se descontinuó/cambió la tela"},
+        "K": {"name": "MOTIVO_CAMBIO", "type": "dropdown", "source": "PARAMETROS!MOTIVOS_CAMBIO", "description": "SIN_STOCK, COSTO_ELEVADO, CALIDAD, OTRO"},
+        "L": {"name": "TELA_REEMPLAZO_ID", "type": "number", "fk": "TELAS_X_REFERENCIA!A:A", "description": "ID de la tela que reemplaza a esta"},
+        "M": {"name": "ORDEN", "type": "number", "description": "Orden de visualización"}
+      },
+      "conditionalFormatting": [
+        {"range": "A:M", "formula": "=$I2=FALSE", "background": "#b7b7b7", "description": "Fila gris si tela descontinuada"}
+      ],
+      "protectedRanges": [
+        {"range": "A:A", "description": "ID autogenerado"}
+      ]
+    },
+    "CONSUMOS": {
+      "description": "Consumos unificados de todas las áreas (CREATIVO, TECNICO, TRAZO_Y_CORTE). Una fila por versión de consumo. Trazable.",
+      "columns": {
+        "A": {"name": "ID_CONSUMO", "type": "number", "pk": true},
+        "B": {"name": "ID_TELA", "type": "number", "fk": "TELAS_X_REFERENCIA!A:A"},
+        "C": {"name": "ID_REFERENCIA", "type": "number", "fk": "REFERENCIAS!A:A"},
+        "D": {"name": "AREA", "type": "dropdown", "source": "PARAMETROS!AREAS", "description": "CREATIVO, TECNICO, TRAZO_Y_CORTE"},
+        "E": {"name": "TIPO_TELA", "type": "dropdown", "source": "PARAMETROS!TIPOS_TELA", "description": "SOLIDO, MOD_ARTE, UBICACION_TRAZO"},
+        "F": {"name": "VERSION", "type": "number", "description": "1, 2, 3... (reemplaza columnas adyacentes a la derecha)"},
+        "G": {"name": "TALLA", "type": "text", "description": "Talla de referencia para el consumo"},
+        "H": {"name": "UND", "type": "number", "description": "Unidades"},
+        "I": {"name": "CONSUMO_VALOR", "type": "number", "description": "Valor del consumo en metros"},
+        "J": {"name": "OBSERVACIONES", "type": "text", "description": "Notas/comentarios del área"},
+        "K": {"name": "DISEÑADOR", "type": "text", "description": "Diseñador asignado (CREATIVO o TECNICO)"},
+        "L": {"name": "CAMBIO_MOLDERIA", "type": "dropdown", "source": "PARAMETROS!SI_NO", "description": "Solo para área CREATIVO"},
+        "M": {"name": "ES_FINAL", "type": "checkbox", "description": "TRUE = consumo definitivo de costeo. Solo un TRUE por tela/área."},
+        "N": {"name": "FECHA_REGISTRO", "type": "date", "description": "Timestamp automático"},
+        "O": {"name": "USUARIO_REGISTRO", "type": "text", "description": "Email automático"}
+      },
+      "dataValidation": [
+        {"column": "D", "criteria": "PARAMETROS!AREAS"},
+        {"column": "E", "criteria": "PARAMETROS!TIPOS_TELA"}
+      ],
+      "protectedRanges": [
+        {"range": "A:A", "description": "ID autogenerado"},
+        {"range": "N:O", "description": "Timestamps automáticos"}
+      ]
+    },
+    "CONSUMOS_CONTRAMUESTRA": {
+      "description": "Consumos post-costeo verificados con contramuestra. Misma estructura que CONSUMOS pero separado para comparación limpia.",
+      "columns": {
+        "A": {"name": "ID_CONSUMO", "type": "number", "pk": true},
+        "B": {"name": "ID_TELA", "type": "number", "fk": "TELAS_X_REFERENCIA!A:A"},
+        "C": {"name": "ID_REFERENCIA", "type": "number", "fk": "REFERENCIAS!A:A"},
+        "D": {"name": "TIPO_TELA", "type": "dropdown", "source": "PARAMETROS!TIPOS_TELA"},
+        "E": {"name": "VERSION", "type": "number"},
+        "F": {"name": "TALLA", "type": "text"},
+        "G": {"name": "UND", "type": "number"},
+        "H": {"name": "CONSUMO_VALOR", "type": "number"},
+        "I": {"name": "OBSERVACIONES", "type": "text"},
+        "J": {"name": "FECHA_REGISTRO", "type": "date"},
+        "K": {"name": "USUARIO_REGISTRO", "type": "text"}
+      }
+    },
+    "INSUMOS": {
+      "description": "Insumos no textiles por referencia (elásticos, resortes, cintas, hebillas, etc.)",
+      "columns": {
+        "A": {"name": "ID_INSUMO", "type": "number", "pk": true},
+        "B": {"name": "ID_REFERENCIA", "type": "number", "fk": "REFERENCIAS!A:A"},
+        "C": {"name": "NOMBRE_INSUMO", "type": "text", "description": "Nombre del insumo"},
+        "D": {"name": "CONSUMO_CREATIVO", "type": "number"},
+        "E": {"name": "CONSUMO_TECNICO", "type": "number"},
+        "F": {"name": "CONSUMO_TRAZO", "type": "number"},
+        "G": {"name": "CONSUMO_CONTRAMUESTRA", "type": "number"},
+        "H": {"name": "OBSERVACIONES", "type": "text"}
+      }
+    },
+    "PARAMETROS": {
+      "description": "Catálogos maestros para dropdowns. Importados desde PARAMETROS original. Un rango nombrado por catálogo.",
+      "ranges": {
+        "STATUS": "A2:A10",
+        "SI_NO": "B2:B4",
+        "AREAS": "C2:C5",
+        "TIPOS_TELA": "D2:D5",
+        "MOTIVOS_CAMBIO": "E2:E6",
+        "CODIGOS_TELA": "F2:F200",
+        "DESCRIPCIONES_TELA": "G2:G200",
+        "DISEÑADORES_CREATIVOS": "H2:H50",
+        "DISEÑADORES_TECNICOS": "I2:I50",
+        "ROLES": "J2:J10"
+      }
+    },
+    "HISTORIAL": {
+      "description": "Bitácora de cambios automática. Alimentada por onEdit().",
+      "columns": {
+        "A": {"name": "FECHA", "type": "date"},
+        "B": {"name": "USUARIO", "type": "text"},
+        "C": {"name": "HOJA", "type": "text"},
+        "D": {"name": "ID_REGISTRO", "type": "number"},
+        "E": {"name": "CAMPO", "type": "text"},
+        "F": {"name": "VALOR_ANTERIOR", "type": "text"},
+        "G": {"name": "VALOR_NUEVO", "type": "text"}
+      }
+    },
+    "ALERTAS": {
+      "description": "Registro de alertas generadas por comparación costeo vs contramuestra.",
+      "columns": {
+        "A": {"name": "ID_ALERTA", "type": "number"},
+        "B": {"name": "FECHA", "type": "date"},
+        "C": {"name": "ID_REFERENCIA", "type": "number", "fk": "REFERENCIAS!A:A"},
+        "D": {"name": "ID_TELA", "type": "number", "fk": "TELAS_X_REFERENCIA!A:A"},
+        "E": {"name": "CONSUMO_COSTEO", "type": "number"},
+        "F": {"name": "CONSUMO_CONTRAMUESTRA", "type": "number"},
+        "G": {"name": "DIFERENCIA_PORCENTAJE", "type": "number"},
+        "H": {"name": "ENVIADA", "type": "checkbox"},
+        "I": {"name": "FECHA_ENVIO", "type": "date"}
+      }
+    }
+  },
+  "validationRules": {
+    "R01": {"rule": "STATUS=APROBADO requiere al menos 1 tela con CODIGO_TELA no vacío", "severity": "CRITICA"},
+    "R02": {"rule": "CONSUMO_VALOR no puede ser 0 en referencias con STATUS != CANCELADO", "severity": "ALTA"},
+    "R03": {"rule": "Si ES_FINAL=TRUE en CONSUMOS, no puede haber más versiones para esa tela/área", "severity": "ALTA"},
+    "R04": {"rule": "Diferencia CONSUMOS(ES_FINAL) vs CONSUMOS_CONTRAMUESTRA > 5% genera ALERTA", "severity": "MEDIA"},
+    "R05": {"rule": "CODIGO_TELA debe existir en PARAMETROS!CODIGOS_TELA", "severity": "ALTA"},
+    "R06": {"rule": "FECHA_COSTEO debe ser posterior a FECHA_CREACION", "severity": "BAJA"}
+  },
+  "roles": {
+    "CREATIVO": {
+      "editableSheets": ["CONSUMOS"],
+      "editableColumns": {"CONSUMOS": ["I","J","L"]},
+      "condition": "AREA=CREATIVO"
+    },
+    "TECNICO": {
+      "editableSheets": ["CONSUMOS"],
+      "editableColumns": {"CONSUMOS": ["I","J"]},
+      "condition": "AREA=TECNICO"
+    },
+    "TRAZO_Y_CORTE": {
+      "editableSheets": ["CONSUMOS", "CONSUMOS_CONTRAMUESTRA"],
+      "editableColumns": {"CONSUMOS": ["I","J","M"], "CONSUMOS_CONTRAMUESTRA": ["H","I"]},
+      "condition": "AREA=TRAZO_Y_CORTE OR sheet=CONSUMOS_CONTRAMUESTRA"
+    },
+    "ADMIN": {
+      "editableSheets": ["ALL"],
+      "editableColumns": {},
+      "condition": "ALWAYS"
+    },
+    "CONSULTA": {
+      "editableSheets": [],
+      "editableColumns": {},
+      "condition": "NEVER"
+    }
+  }
+}

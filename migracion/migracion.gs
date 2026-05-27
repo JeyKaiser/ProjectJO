@@ -1,8 +1,4 @@
 
-jeferson rengifo <jeykokaiser2023@gmail.com>
-6:03 (hace 1 hora)
-para mí
-
 /**
  * AtelierData - Script de Migracion (Ejecutar UNA SOLA VEZ)
  *

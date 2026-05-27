@@ -1,0 +1,120 @@
+═══ VALIDACION DE TELAS v3.0 — INSTRUCCIONES POR ROL ═══
+
+Este archivo reemplaza al antiguo 1.VALIDACION DE TELAS.html.
+Tiene 5 hojas en vez de 1 sola. Así cada rol solo ve lo que necesita.
+
+═══════════════════════════════════════════════════
+PASOS PARA EMPEZAR (solo ADMIN, una sola vez)
+═══════════════════════════════════════════════════
+
+1. Sube VALIDACION_DE_TELAS_v3.0.xlsx a Google Drive
+2. Abrelo con Google Sheets
+3. Ve a Extensiones > Apps Script
+4. Pega el contenido de code_sincronizacion.gs
+5. Guarda (Ctrl+S), vuelve al Sheet, recarga la pagina
+6. Haz clic en "Validacion Telas v3" > "Inicializar todo" (NO existe como
+   boton de menu, debes ejecutar manualmente la funcion desde Apps Script:
+   selecciona "inicializarTodo" en el dropdown y haz clic en Ejecutar)
+7. Concede permisos cuando te los pida
+8. Vuelve al Sheet. Todas las hojas estaran pobladas.
+9. Comparte el archivo con tu equipo.
+10. Diles a cada rol que SIGA LAS INSTRUCCIONES DE ABAJO.
+
+═══════════════════════════════════════════════════
+CREATIVO — Tu hoja es "CREATIVO" (pestana verde)
+═══════════════════════════════════════════════════
+
+QUE VES:
+  Columnas grises: REF, FOTO, NOMBRE, STATUS, MOD.ARTE, UBI.TRAZO
+                    NO las puedes editar. Son solo para que sepas cual
+                    referencia estas tocando.
+
+  Columnas azules: USO PRENDA, CODIGO TELA, DESC TELA, ANCHO, TELA FOTO,
+                    CONS BASE
+                    NO las puedes editar. Es la info del material al que
+                    le vas a poner consumo.
+
+  Columnas verdes: DISEÑADOR CREATIVO, CAMBIO MOLDERIA, CONS 1, CONS 2,
+                    CONS 3, OBSERVACIONES
+                    SI las puedes editar. Aqui pones tus consumos.
+
+QUE HACES:
+  1. Busca tu referencia por el numero REF
+  2. Mira que tela es (CODIGO TELA, DESC TELA)
+  3. En la misma fila, pon tus consumos en CONS 1, CONS 2, CONS 3
+  4. Si no ves tu nombre en DISEÑADOR CREATIVO, ponselo
+
+SI INTENTAS EDITAR UNA COLUMNA GRIS O AZUL:
+  El sistema te mostrara un mensaje de error y no te dejara.
+  Si necesitas cambiar un material, pidela a un ADMIN.
+
+═══════════════════════════════════════════════════
+TECNICO — Tu hoja es "TECNICO" (pestana amarilla)
+═══════════════════════════════════════════════════
+
+QUE VES:
+  Columnas grises: REF, FOTO, NOMBRE, STATUS, MOD.ARTE, UBI.TRAZO
+  Columnas azules: USO PRENDA, CODIGO TELA, DESC TELA, ANCHO, TELA FOTO,
+                    CONS BASE
+  Columnas amarillas: DISEÑADOR TECNICO, SOLIDO (TALLA, UNDS, CONS1-3),
+                       MOD ARTE (TALLA, UNDS, CONS1-3),
+                       UBI TRAZO (TALLA, UNDS, CONS1-3), OBSERVACIONES
+
+QUE HACES:
+  1. Busca tu referencia por el numero REF
+  2. Mira la tela asignada y el MOD.ARTE / UBI.TRAZO
+  3. Si es SOLIDO (MOD.ARTE=NO y UBI.TRAZO=NO): llena SOLO las columnas SOLIDO
+  4. Si es MOD ARTE (MOD.ARTE=SI): llena SOLO las columnas MOD ARTE
+  5. Si es UBI TRAZO (UBI.TRAZO=SI): llena SOLO las columnas UBI TRAZO
+
+═══════════════════════════════════════════════════
+TRAZO Y CORTE — Tu hoja es "TRAZO_Y_CORTE" (pestana naranja)
+═══════════════════════════════════════════════════
+
+QUE VES:
+  Columnas grises: contexto (solo lectura)
+  Columnas azules: materiales (solo lectura)
+  Columnas naranjas: SOLIDO (TALLA, UNDS, CONS1-4),
+                      MOD ARTE (TALLA, UNDS, CONS1-4),
+                      UBI TRAZO (TALLA, UNDS, CONS1-2), OBSERVACIONES
+
+QUE HACES:
+  Igual que el tecnico pero con tus columnas naranjas.
+  Si es SOLIDO: llena SOLO SOLIDO. Si es MOD ARTE: llena SOLO MOD ARTE.
+  Si es UBI TRAZO: llena SOLO UBI TRAZO.
+
+═══════════════════════════════════════════════════
+COORDINADOR / ADMIN — Tu hoja es "COORDINACION"
+═══════════════════════════════════════════════════
+
+QUE VES:
+  Las 73 columnas completas, igual que el archivo antiguo.
+  Puedes editar TODO.
+
+ATAJOS DEL MENU "Validacion Telas v3":
+  "Ir a CREATIVO"  -> salta a las columnas del creativo
+  "Ir a TECNICO"   -> salta a las columnas del tecnico
+  "Ir a TRAZO..."  -> salta a las columnas del trazo
+  "Ir a CONTRAM..."-> salta a la seccion de contramuestra
+
+═══════════════════════════════════════════════════
+PREGUNTAS FRECUENTES
+═══════════════════════════════════════════════════
+
+P: ¿Que pasa si edito en COORDINACION?
+R: El cambio se refleja automaticamente en _MAESTRA y en las hojas de rol.
+
+P: ¿Que pasa si edito en CREATIVO / TECNICO / TRAZO_Y_CORTE?
+R: El cambio va a _MAESTRA y a COORDINACION. Todos ven lo mismo.
+
+P: ¿Puedo romper algo?
+R: Las columnas grises y azules estan protegidas por script.
+   Si intentas editarlas, el sistema te frena.
+
+P: ¿Que es la pestana _MAESTRA?
+R: Esta oculta. Es la fuente unica de verdad. No la necesitas tocar.
+   El script la mantiene actualizada sola.
+
+P: ¿Y si necesito agregar una referencia nueva?
+R: Hacelo desde COORDINACION. Luego ejecuta "Sincronizar todo ahora"
+   desde el menu para que aparezca en las hojas de rol.
