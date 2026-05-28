@@ -223,7 +223,7 @@ export const subfaseToProgress = {
 
 // Determinar fase macro desde subfase
 export const getFaseMacro = (subfase) => {
-  if (subfase < 2) return { fase: 1, nombre: 'Ideación y Diseño', tempVar: 'cold' };
+  if (subfase < 2) return { fase: 1, nombre: 'Creación y Diseño', tempVar: 'cold' };
   if (subfase < 3) return { fase: 2, nombre: 'Laboratorio', tempVar: 'warm' };
   if (subfase < 4) return { fase: 3, nombre: 'Validación Técnica', tempVar: 'hot' };
   return { fase: 4, nombre: 'Industrialización', tempVar: 'fire' };

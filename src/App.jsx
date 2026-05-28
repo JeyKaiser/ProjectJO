@@ -12,6 +12,7 @@ const TallerKanban = lazy(() => import('./pages/TallerKanban'));
 const ConsumosView = lazy(() => import('./pages/ConsumosView'));
 const FichaFinalView = lazy(() => import('./pages/FichaFinalView'));
 const ReferentesView = lazy(() => import('./pages/ReferentesView'));
+const ImportarCSV = lazy(() => import('./pages/ImportarCSV'));
 const ConfiguracionPersonas = lazy(() => import('./pages/ConfiguracionPersonas'));
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
             <Route path="/produccion/consumos" element={<ConsumosView />} />
             <Route path="/produccion/ficha-final" element={<FichaFinalView />} />
             <Route path="/referentes" element={<ReferentesView />} />
+            <Route path="/importar" element={<ImportarCSV />} />
             <Route path="/configuracion" element={<ConfiguracionPersonas />} />
           </Routes>
           </Suspense>

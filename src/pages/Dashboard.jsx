@@ -5,7 +5,7 @@ import {
   TrendingUp, AlertTriangle, CheckCircle, Clock, Package,
   Pause, Flame, BarChart2, ChevronRight, Activity
 } from 'lucide-react';
-import { colecciones, subfaseToProgress, getFaseMacro } from '../data/colecciones';
+import { useDashboardData, subfaseToProgress, getFaseMacro } from '../lib/api';
 import TemperatureBar from '../components/TemperatureBar';
 
 // ── Helpers de cálculo ──────────────────────────────────────
@@ -40,12 +40,12 @@ function getAlerts(coleccion) {
 }
 
 // ── Cálculo global ──────────────────────────────────────────
-function calcularMetricasGlobales() {
+function calcularMetricasGlobales(colecciones) {
   let totalRefs = 0, enProceso = 0, completadas = 0, pausadas = 0;
   let refsPorFase = { 1: 0, 2: 0, 3: 0, 4: 0 };
   let alertas = [];
 
-  colecciones.forEach(col => {
+  (colecciones || []).forEach(col => {
     col.anios.forEach(a => {
       totalRefs += a.resumen.total;
       enProceso += a.resumen.enProceso;
@@ -59,7 +59,7 @@ function calcularMetricasGlobales() {
     });
   });
 
-  const progresoGlobal = Math.round((completadas / totalRefs) * 100);
+  const progresoGlobal = totalRefs > 0 ? Math.round((completadas / totalRefs) * 100) : 0;
 
   return { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal };
 }
@@ -123,16 +123,25 @@ const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
   );
 });
 
-const faseLabels = { 1: 'Ideación', 2: 'Laboratorio', 3: 'Validación', 4: 'Industrializ.' };
+const faseLabels = { 1: 'Creación', 2: 'Laboratorio', 3: 'Validación', 4: 'Industrializ.' };
 const faseTempVars = { 1: 'cold', 2: 'warm', 3: 'hot', 4: 'fire' };
 
 
 // ── Página principal del Dashboard ──────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal } = useMemo(() => calcularMetricasGlobales(), []);
-  
-  const maxFase = Math.max(...Object.values(refsPorFase));
+  const { data, loading, error } = useDashboardData();
+  const colecciones = data?.colecciones || [];
+
+  const { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal } = useMemo(
+    () => calcularMetricasGlobales(colecciones),
+    [data]
+  );
+
+  const maxFase = Math.max(...Object.values(refsPorFase), 1);
+
+  if (loading) return <div className="fade-in p-8 text-center text-gray-400">Cargando datos desde Supabase...</div>;
+  if (error) return <div className="fade-in p-8 text-center text-red-500">Error al cargar datos: {error.message}</div>;
 
   return (
     <div className="fade-in">

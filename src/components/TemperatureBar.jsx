@@ -1,5 +1,5 @@
 import React from 'react';
-import { subfaseToProgress } from '../data/colecciones';
+import { subfaseToProgress } from '../lib/api';
 
 export default React.memo(function TemperatureBar({ subfase, showLabel = true }) {
   const progress = subfaseToProgress[subfase] || 0;

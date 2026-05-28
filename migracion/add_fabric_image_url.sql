@@ -1,0 +1,1 @@
+ALTER TABLE jo.fabrics ADD COLUMN IF NOT EXISTS image_url TEXT;

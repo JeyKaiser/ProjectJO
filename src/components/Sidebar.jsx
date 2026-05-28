@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock } from 'lucide-react';
-import { useAuth, ROLES } from '../context/AuthContext';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar() {
-  const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
+  const { isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
 
   return (
     <aside className="sidebar">
@@ -64,16 +64,9 @@ export default function Sidebar() {
           )}
 
           {(isAdmin || isTrazador) && (
-            <NavLink 
-              to="/produccion/consumos" 
-              className={({ isActive }) => `nav-item nav-item-production ${isActive ? 'active' : ''}`}
-              title="Validar consumos de materiales en producción (Rol: Trazador)"
-            >
+            <NavLink to="/produccion/consumos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <span className="nav-item-icon"><PackageCheck size={20} /></span>
-              <span className="nav-item-content">
-                <span className="nav-item-label">Validación de Consumos</span>
-                <span className="nav-item-role">Producción</span>
-              </span>
+              <span>Validación de Consumos</span>
             </NavLink>
           )}
 
@@ -93,6 +86,11 @@ export default function Sidebar() {
           <NavLink to="/referentes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <span className="nav-item-icon"><BookMarked size={20} /></span>
             <span>Referentes</span>
+          </NavLink>
+
+          <NavLink to="/importar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <span className="nav-item-icon"><Upload size={20} /></span>
+            <span>Importar</span>
           </NavLink>
 
           {(isAdmin) && (

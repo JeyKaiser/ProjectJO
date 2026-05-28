@@ -1,191 +1,409 @@
-import { useState } from 'react';
-import { Save, Plus, FileSpreadsheet, Lock } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Save, Plus, FileSpreadsheet, Lock, Info, Ruler, Scissors, PenTool, CheckCircle2, Clock, Tag } from 'lucide-react';
+
+const ROLE_CONFIG = {
+  CREATIVO: { label: 'Equipo Creativo', color: 'primary', shortLabel: 'CR' },
+  TECNICO: { label: 'Diseñador Técnico', color: 'secondary', shortLabel: 'TC' },
+  TRAZADOR: { label: 'Equipo Trazo y Corte', color: 'success', shortLabel: 'TZ' },
+};
+
+const INITIAL_MATERIALES = [
+  {
+    id: 1,
+    uso: 'TELA LUCIR',
+    codigo: 'TE00008887',
+    descripcion: 'SAND LINEN BLEND',
+    baseTextil: 'Lino/Algodón',
+    ancho: '1.50m',
+    creativo_consumo: '2.16',
+    tecnico_talla: '8',
+    tecnico_solido: '2.09',
+    tecnico_modArte: '',
+    tecnico_ubicTrazo: '',
+    trazador_talla: '',
+    trazador_solido: '',
+    trazador_modArte: '',
+    trazador_ubicTrazo: '',
+    explosion_consumo: '',
+  },
+  {
+    id: 2,
+    uso: 'TELA FORRO',
+    codigo: 'TEN0007502',
+    descripcion: 'ECRU CUPRO LINING',
+    baseTextil: 'Cupro',
+    ancho: '1.40m',
+    creativo_consumo: '0.23',
+    tecnico_talla: '8',
+    tecnico_solido: '1.42',
+    tecnico_modArte: '',
+    tecnico_ubicTrazo: '',
+    trazador_talla: '',
+    trazador_solido: '',
+    trazador_modArte: '',
+    trazador_ubicTrazo: '',
+    explosion_consumo: '',
+  },
+  {
+    id: 3,
+    uso: 'ENTERTELA',
+    codigo: 'EN00003210',
+    descripcion: 'FUSIBLE LIGHT WEIGHT',
+    baseTextil: 'Poliéster',
+    ancho: '1.00m',
+    creativo_consumo: '0.85',
+    tecnico_talla: '8',
+    tecnico_solido: '0.78',
+    tecnico_modArte: '',
+    tecnico_ubicTrazo: '',
+    trazador_talla: '',
+    trazador_solido: '',
+    trazador_modArte: '',
+    trazador_ubicTrazo: '',
+    explosion_consumo: '',
+  },
+  {
+    id: 4,
+    uso: 'CINTA SESGO',
+    codigo: 'CI0005612',
+    descripcion: 'BIAS BINDING ECRU',
+    baseTextil: 'Algodón',
+    ancho: '1.20cm',
+    creativo_consumo: '1.50',
+    tecnico_talla: '-',
+    tecnico_solido: '1.45',
+    tecnico_modArte: '',
+    tecnico_ubicTrazo: '',
+    trazador_talla: '',
+    trazador_solido: '',
+    trazador_modArte: '',
+    trazador_ubicTrazo: '',
+    explosion_consumo: '',
+  },
+  {
+    id: 5,
+    uso: 'FORRO BOLSILLO',
+    codigo: 'FB0009100',
+    descripcion: 'ECRU BAMBINI POPLIN',
+    baseTextil: 'Algodón/Poliéster',
+    ancho: '1.45m',
+    creativo_consumo: '0.18',
+    tecnico_talla: '8',
+    tecnico_solido: '0.15',
+    tecnico_modArte: '',
+    tecnico_ubicTrazo: '',
+    trazador_talla: '',
+    trazador_solido: '',
+    trazador_modArte: '',
+    trazador_ubicTrazo: '',
+    explosion_consumo: '',
+  },
+];
 
 export default function ConsumosView() {
-  // Simulamos un estado global donde seleccionamos un Rol para probar la UI
   const [currentUserRole, setCurrentUserRole] = useState('TRAZADOR');
-  
-  // Simulamos el perfil de la referencia (ej. PT03402)
+  const [materiales, setMateriales] = useState(INITIAL_MATERIALES);
+
   const referenciaActual = {
     codigo: 'PT03402',
+    codigoMD: 'MD-002',
     nombre: 'ECRU/SAND FEMININITY DRAMATIC PANT',
-    clasificacion: 'SÓLIDA', // Esto significa que los campos de Mod Arte y Trazo deben bloquearse
+    tipoPrenda: 'Pantalón',
+    color: 'Ecru/Sand',
+    temporada: 'WS26',
+    clasificacion: 'SÓLIDA',
+    tieneBordado: false,
+    tieneProcesoExterno: false,
+    tieneSemielaborado: false,
   };
-
-  // Datos simulados de la tabla
-  const [materiales, setMateriales] = useState([
-    {
-      id: 1,
-      uso: 'TELA LUCIR',
-      codigo: 'TE00008887',
-      creativo_consumo: '2.16',
-      tecnico_talla: '8',
-      tecnico_solido: '2.09',
-      tecnico_modArte: '',
-      tecnico_ubicTrazo: '',
-      trazador_talla: '',
-      trazador_solido: '',
-      trazador_modArte: '',
-      trazador_ubicTrazo: '',
-      explosion_consumo: '',
-    },
-    {
-      id: 2,
-      uso: 'TELA FORRO',
-      codigo: 'TEN0007502',
-      creativo_consumo: '0.23',
-      tecnico_talla: '8',
-      tecnico_solido: '1.42',
-      tecnico_modArte: '',
-      tecnico_ubicTrazo: '',
-      trazador_talla: '',
-      trazador_solido: '',
-      trazador_modArte: '',
-      trazador_ubicTrazo: '',
-      explosion_consumo: '',
-    }
-  ]);
 
   const esSolida = referenciaActual.clasificacion === 'SÓLIDA';
-  
-  // Helper para determinar si una celda es editable
-  const isEditable = (colRol) => {
-    return currentUserRole === colRol;
-  };
+
+  const kpis = useMemo(() => {
+    const total = materiales.length;
+    const pendientes = materiales.filter(m => !m.trazador_solido && m.creativo_consumo).length;
+    const confirmados = materiales.filter(m => m.trazador_solido).length;
+    return { total, pendientes, confirmados };
+  }, [materiales]);
+
+  const isEditable = (colRol) => currentUserRole === colRol;
 
   const handleCellChange = (id, field, value) => {
     setMateriales(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
   };
 
+  const roleConfig = ROLE_CONFIG[currentUserRole];
+
   return (
-    <div className="fade-in">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Validación de Telas y Consumos</h2>
-          <p className="text-gray-500 text-sm">Referencia: <span className="font-bold text-primary-600">{referenciaActual.codigo}</span> - {referenciaActual.nombre}</p>
-          <div className="mt-1">
-            <span className="badge badge-warning text-[10px]">Clasificación: {referenciaActual.clasificacion}</span>
+    <div className={`fade-in consumos-active-role-${roleConfig.color}`}>
+      {/* ── Header ── */}
+      <div className="consumos-header">
+        <div className="consumos-header-info">
+          <h2>Validación de Consumos</h2>
+          <p>
+            Referencia: <strong style={{ color: 'var(--primary-600)' }}>{referenciaActual.codigoMD}</strong>
+            {' / '}
+            <strong>{referenciaActual.codigo}</strong>
+            {' — '}
+            {referenciaActual.nombre}
+          </p>
+          <div className="consumos-header-badges">
+            <span className={`badge ${esSolida ? 'badge-success' : 'badge-warning'}`}>
+              <Tag size={10} />
+              {referenciaActual.clasificacion}
+            </span>
+            {referenciaActual.tieneBordado && (
+              <span className="badge badge-secondary" style={{ background: 'var(--secondary-100)', color: 'var(--secondary-700)' }}>Bordado</span>
+            )}
+            {referenciaActual.tieneProcesoExterno && (
+              <span className="badge badge-warning">Proc. Externo</span>
+            )}
           </div>
         </div>
-        
-        <div className="flex gap-4 items-center">
-          <div className="bg-white p-2 rounded-lg border border-gray-200 flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-500">Simular Rol:</span>
-            <select 
-              className="text-sm font-bold border-none outline-none text-primary-700 bg-transparent"
-              value={currentUserRole}
-              onChange={(e) => setCurrentUserRole(e.target.value)}
-            >
+        <div className="consumos-header-actions">
+          <div className="consumos-role-selector">
+            <span>Rol:</span>
+            <select value={currentUserRole} onChange={(e) => setCurrentUserRole(e.target.value)}>
               <option value="CREATIVO">Equipo Creativo</option>
               <option value="TECNICO">Diseñador Técnico</option>
-              <option value="TRAZADOR">Equipo Trazadores</option>
+              <option value="TRAZADOR">Equipo Trazo y Corte</option>
             </select>
           </div>
-          <button className="btn btn-primary"><Save size={16} /> Guardar Consumos</button>
+          <button className="btn btn-primary">
+            <Save size={16} /> Guardar Consumos
+          </button>
         </div>
       </div>
 
-      <div className="card p-0 overflow-hidden shadow-lg border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-gray-50">
-              {/* Encabezados Superiores (Agrupación) */}
+      {/* ── Reference Card ── */}
+      <div className="consumos-ref-card">
+        <div className="consumos-ref-left">
+          <div className="consumos-ref-codes">
+            <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              <span className="code-badge code-md" style={{ fontSize: 13, padding: '3px 10px' }}>{referenciaActual.codigoMD}</span>
+              <span className="code-badge code-pt" style={{ fontSize: 13, padding: '3px 10px' }}>{referenciaActual.codigo}</span>
+            </div>
+          </div>
+          <div className="consumos-ref-info">
+            <span className="consumos-ref-name">{referenciaActual.tipoPrenda} · {referenciaActual.color}</span>
+            <span className="consumos-ref-meta">Temporada {referenciaActual.temporada} · {referenciaActual.clasificacion}</span>
+          </div>
+        </div>
+        <div className="consumos-ref-right">
+          <div className="consumos-ref-indicators">
+            {esSolida && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: 'var(--success-dark)', background: 'var(--success-light)', padding: '3px 10px', borderRadius: 'var(--radius-md)' }}>
+                <CheckCircle2 size={12} /> Sólida — Mod. Arte y Trazo bloqueados
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI Strip ── */}
+      <div className="consumos-kpi-grid">
+        <div className="consumos-kpi-card" style={{ borderTopColor: 'var(--primary-600)' }}>
+          <div className="consumos-kpi-card-left">
+            <span className="consumos-kpi-label">Total Telas</span>
+            <span className="consumos-kpi-value" style={{ color: 'var(--primary-600)' }}>{kpis.total}</span>
+            <span className="consumos-kpi-sub">materiales registrados</span>
+          </div>
+          <div className="consumos-kpi-icon" style={{ background: 'var(--primary-100)', color: 'var(--primary-600)' }}>
+            <FileSpreadsheet size={20} />
+          </div>
+        </div>
+        <div className="consumos-kpi-card" style={{ borderTopColor: 'var(--warning)' }}>
+          <div className="consumos-kpi-card-left">
+            <span className="consumos-kpi-label">Pendientes</span>
+            <span className="consumos-kpi-value" style={{ color: 'var(--warning-dark)' }}>{kpis.pendientes}</span>
+            <span className="consumos-kpi-sub">sin consumo trazador</span>
+          </div>
+          <div className="consumos-kpi-icon" style={{ background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>
+            <Clock size={20} />
+          </div>
+        </div>
+        <div className="consumos-kpi-card" style={{ borderTopColor: 'var(--success)' }}>
+          <div className="consumos-kpi-card-left">
+            <span className="consumos-kpi-label">Confirmados</span>
+            <span className="consumos-kpi-value" style={{ color: 'var(--success-dark)' }}>{kpis.confirmados}</span>
+            <span className="consumos-kpi-sub">consumos completos</span>
+          </div>
+          <div className="consumos-kpi-icon" style={{ background: 'var(--success-light)', color: 'var(--success-dark)' }}>
+            <CheckCircle2 size={20} />
+          </div>
+        </div>
+        <div className="consumos-kpi-card" style={{ borderTopColor: 'var(--secondary-500)' }}>
+          <div className="consumos-kpi-card-left">
+            <span className="consumos-kpi-label">Tipo</span>
+            <span className="consumos-kpi-value" style={{ color: 'var(--secondary-700)', fontSize: 'var(--text-lg)' }}>{referenciaActual.clasificacion}</span>
+            <span className="consumos-kpi-sub">{esSolida ? 'Sin mod. arte ni trazo' : 'Incluye variantes'}</span>
+          </div>
+          <div className="consumos-kpi-icon" style={{ background: 'var(--secondary-100)', color: 'var(--secondary-700)' }}>
+            <Tag size={20} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Consumption Table ── */}
+      <div className="consumos-table-card">
+        <div className="consumos-table-wrapper">
+          <table className="consumos-table">
+            <thead>
+              {/* Super headers (grouping) */}
               <tr>
-                <th colSpan="2" className="px-4 py-3 border-b border-r bg-white text-gray-800 text-center"><FileSpreadsheet size={16} className="inline mr-2"/> Material</th>
-                <th colSpan="1" className="px-4 py-3 border-b border-r bg-primary-50 text-primary-800 text-center">Equipo Creativo</th>
-                <th colSpan="4" className="px-4 py-3 border-b border-r bg-secondary-50 text-secondary-800 text-center">Diseñador Técnico</th>
-                <th colSpan="4" className="px-4 py-3 border-b border-r bg-warning-light text-warning-dark text-center">Equipo Trazo y Corte</th>
-                <th colSpan="1" className="px-4 py-3 border-b bg-gray-100 text-gray-700 text-center">Explosión</th>
+                <th colSpan="2" className="consumos-th-material">
+                  <FileSpreadsheet size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  Material
+                </th>
+                <th colSpan="1" className="consumos-th-creativo">
+                  <PenTool size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  Equipo Creativo
+                </th>
+                <th colSpan="4" className="consumos-th-tecnico">
+                  <Ruler size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  Diseñador Técnico
+                </th>
+                <th colSpan="4" className="consumos-th-trazador">
+                  <Scissors size={14} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                  Equipo Trazo y Corte
+                </th>
+                <th colSpan="1" className="consumos-th-explosion">Explosión</th>
               </tr>
-              {/* Sub-encabezados */}
-              <tr className="text-[10px] text-gray-500 border-b">
-                <th className="px-4 py-2 border-r bg-white min-w-[150px]">Uso en Prenda</th>
-                <th className="px-4 py-2 border-r bg-white min-w-[120px]">Código</th>
-                
-                <th className="px-4 py-2 border-r bg-primary-50">Consumo Base</th>
-                
-                <th className="px-4 py-2 border-r bg-secondary-50">Talla</th>
-                <th className="px-4 py-2 border-r bg-secondary-50">Sólido</th>
-                <th className="px-4 py-2 border-r bg-secondary-50 text-gray-400">Mod. Arte</th>
-                <th className="px-4 py-2 border-r bg-secondary-50 text-gray-400">Ubic. Trazo</th>
+              {/* Sub headers */}
+              <tr>
+                <th className="consumos-th-material" style={{ textAlign: 'left', paddingLeft: 'var(--space-4)' }}>Uso en Prenda</th>
+                <th className="consumos-th-material" style={{ textAlign: 'left' }}>Código</th>
 
-                <th className="px-4 py-2 border-r bg-warning-light">Talla</th>
-                <th className="px-4 py-2 border-r bg-warning-light">Sólido</th>
-                <th className="px-4 py-2 border-r bg-warning-light text-gray-400">Mod. Arte</th>
-                <th className="px-4 py-2 border-r bg-warning-light text-gray-400">Ubic. Trazo</th>
+                <th className="consumos-th-creativo">Consumo Base</th>
 
-                <th className="px-4 py-2 bg-gray-100">Consumo Contramuestra</th>
+                <th className="consumos-th-tecnico">Talla</th>
+                <th className="consumos-th-tecnico">Sólido</th>
+                <th className="consumos-th-tecnico" style={esSolida ? { opacity: 0.4 } : {}}>Mod. Arte</th>
+                <th className="consumos-th-tecnico" style={esSolida ? { opacity: 0.4 } : {}}>Ubic. Trazo</th>
+
+                <th className="consumos-th-trazador">Talla</th>
+                <th className="consumos-th-trazador">Sólido</th>
+                <th className="consumos-th-trazador" style={esSolida ? { opacity: 0.4 } : {}}>Mod. Arte</th>
+                <th className="consumos-th-trazador" style={esSolida ? { opacity: 0.4 } : {}}>Ubic. Trazo</th>
+
+                <th className="consumos-th-explosion">Contramuestra</th>
               </tr>
             </thead>
             <tbody>
               {materiales.map((row) => (
-                <tr key={row.id} className="border-b hover:bg-gray-50 bg-white">
-                  {/* Info Material (Fija) */}
-                  <td className="px-4 py-2 border-r font-semibold">{row.uso}</td>
-                  <td className="px-4 py-2 border-r text-gray-500">{row.codigo}</td>
-                  
+                <tr key={row.id}>
+                  {/* Info Material */}
+                  <td className="consumos-cell-info">{row.uso}</td>
+                  <td className="consumos-cell-info-code">{row.codigo}</td>
+
                   {/* CREATIVO */}
-                  <td className="px-0 py-0 border-r bg-primary-50/30">
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
-                      value={row.creativo_consumo} 
+                  <td className="consumos-cell-creativo">
+                    <input
+                      type="text"
+                      className="consumos-table-input"
+                      value={row.creativo_consumo}
                       disabled={!isEditable('CREATIVO')}
-                      onChange={(e) => handleCellChange(row.id, 'creativo_consumo', e.target.value)} />
+                      onChange={(e) => handleCellChange(row.id, 'creativo_consumo', e.target.value)}
+                    />
                   </td>
 
                   {/* TÉCNICO */}
-                  <td className="px-0 py-0 border-r bg-secondary-50/30">
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
-                      value={row.tecnico_talla} disabled={!isEditable('TECNICO')} 
-                      onChange={(e) => handleCellChange(row.id, 'tecnico_talla', e.target.value)}/>
+                  <td className="consumos-cell-tecnico">
+                    <input type="text" className="consumos-table-input"
+                      value={row.tecnico_talla} disabled={!isEditable('TECNICO')}
+                      onChange={(e) => handleCellChange(row.id, 'tecnico_talla', e.target.value)} />
                   </td>
-                  <td className="px-0 py-0 border-r bg-secondary-50/30">
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center font-bold" 
+                  <td className="consumos-cell-tecnico consumos-cell-bold">
+                    <input type="text" className="consumos-table-input"
                       value={row.tecnico_solido} disabled={!isEditable('TECNICO')}
                       onChange={(e) => handleCellChange(row.id, 'tecnico_solido', e.target.value)} />
                   </td>
-                  <td className={`px-0 py-0 border-r ${esSolida ? 'bg-gray-100' : 'bg-secondary-50/30'}`}>
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
-                      value={row.tecnico_modArte} disabled={!isEditable('TECNICO') || esSolida} title={esSolida ? 'Bloqueado por Perfil Sólido' : ''} />
+                  <td className={esSolida ? 'consumos-cell-tecnico consumos-cell-locked' : 'consumos-cell-tecnico'}>
+                    <input type="text" className="consumos-table-input"
+                      value={row.tecnico_modArte} disabled={!isEditable('TECNICO') || esSolida}
+                      onChange={(e) => handleCellChange(row.id, 'tecnico_modArte', e.target.value)} />
+                    {esSolida && <Lock size={12} className="consumos-locked-icon" />}
                   </td>
-                  <td className={`px-0 py-0 border-r ${esSolida ? 'bg-gray-100' : 'bg-secondary-50/30'}`}>
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
-                      value={row.tecnico_ubicTrazo} disabled={!isEditable('TECNICO') || esSolida} />
+                  <td className={esSolida ? 'consumos-cell-tecnico consumos-cell-locked' : 'consumos-cell-tecnico'}>
+                    <input type="text" className="consumos-table-input"
+                      value={row.tecnico_ubicTrazo} disabled={!isEditable('TECNICO') || esSolida}
+                      onChange={(e) => handleCellChange(row.id, 'tecnico_ubicTrazo', e.target.value)} />
+                    {esSolida && <Lock size={12} className="consumos-locked-icon" />}
                   </td>
 
                   {/* TRAZADOR */}
-                  <td className="px-0 py-0 border-r bg-warning-light/30">
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
+                  <td className="consumos-cell-trazador">
+                    <input type="text" className="consumos-table-input"
                       value={row.trazador_talla} disabled={!isEditable('TRAZADOR')}
                       onChange={(e) => handleCellChange(row.id, 'trazador_talla', e.target.value)} />
                   </td>
-                  <td className="px-0 py-0 border-r bg-warning-light/30">
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center font-bold" 
+                  <td className="consumos-cell-trazador consumos-cell-bold">
+                    <input type="text" className="consumos-table-input"
                       value={row.trazador_solido} disabled={!isEditable('TRAZADOR')}
-                      onChange={(e) => handleCellChange(row.id, 'trazador_solido', e.target.value)} placeholder="0.00" />
+                      onChange={(e) => handleCellChange(row.id, 'trazador_solido', e.target.value)}
+                      placeholder="0.00" />
                   </td>
-                  <td className={`px-0 py-0 border-r ${esSolida ? 'bg-gray-200' : 'bg-warning-light/30'}`}>
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
-                      value={row.trazador_modArte} disabled={!isEditable('TRAZADOR') || esSolida} />
-                    {esSolida && <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none"><Lock size={12}/></div>}
+                  <td className={esSolida ? 'consumos-cell-trazador consumos-cell-locked' : 'consumos-cell-trazador'}>
+                    <input type="text" className="consumos-table-input"
+                      value={row.trazador_modArte} disabled={!isEditable('TRAZADOR') || esSolida}
+                      onChange={(e) => handleCellChange(row.id, 'trazador_modArte', e.target.value)} />
+                    {esSolida && <Lock size={12} className="consumos-locked-icon" />}
                   </td>
-                  <td className={`px-0 py-0 border-r ${esSolida ? 'bg-gray-200' : 'bg-warning-light/30'}`}>
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center" 
-                      value={row.trazador_ubicTrazo} disabled={!isEditable('TRAZADOR') || esSolida} />
+                  <td className={esSolida ? 'consumos-cell-trazador consumos-cell-locked' : 'consumos-cell-trazador'}>
+                    <input type="text" className="consumos-table-input"
+                      value={row.trazador_ubicTrazo} disabled={!isEditable('TRAZADOR') || esSolida}
+                      onChange={(e) => handleCellChange(row.id, 'trazador_ubicTrazo', e.target.value)} />
+                    {esSolida && <Lock size={12} className="consumos-locked-icon" />}
                   </td>
 
                   {/* EXPLOSION */}
-                  <td className="px-0 py-0 border-r bg-gray-50">
-                    <input type="text" className="w-full h-full p-2 bg-transparent outline-none text-center text-gray-500" 
-                      value={row.explosion_consumo} disabled placeholder="Calculado SAP..." />
+                  <td className="consumos-cell-calculated">
+                    <input type="text" className="consumos-table-input consumos-table-input-placeholder"
+                      value={row.explosion_consumo} disabled placeholder="SAP..." />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        
-        <div className="p-4 border-t border-gray-100 bg-gray-50">
-          <button className="btn btn-outline btn-sm text-gray-600"><Plus size={14}/> Añadir Insumo (Sesgo, Cinta, etc.)</button>
+
+        {/* ── Table Footer ── */}
+        <div className="consumos-table-footer">
+          <button className="btn btn-outline btn-sm" style={{ borderColor: 'var(--gray-300)', color: 'var(--gray-600)' }}>
+            <Plus size={14} /> Añadir Insumo
+          </button>
+          <div className="consumos-legend">
+            <div className="consumos-legend-item">
+              <div className="consumos-legend-dot consumos-legend-dot--creativo" />
+              Creativo
+            </div>
+            <div className="consumos-legend-item">
+              <div className="consumos-legend-dot consumos-legend-dot--tecnico" />
+              Técnico
+            </div>
+            <div className="consumos-legend-item">
+              <div className="consumos-legend-dot consumos-legend-dot--trazador" />
+              Trazador
+            </div>
+            {esSolida && (
+              <div className="consumos-legend-item">
+                <Lock size={12} style={{ opacity: 0.4 }} />
+                Bloqueado (Sólida)
+              </div>
+            )}
+            <div className="consumos-legend-item">
+              <div className="consumos-legend-dot consumos-legend-dot--calculated" />
+              Calculado SAP
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Info Note ── */}
+      <div className="consumos-info-note">
+        <Info size={16} />
+        <div>
+          Los campos de <strong>Mod. Arte</strong> y <strong>Ubic. Trazo</strong> están bloqueados porque esta referencia está clasificada como <strong>Sólida</strong>. Las columnas de Explosión (Contramuestra) se calculan automáticamente desde SAP.
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
 ## 1. Fases Macro del Ciclo de Vida (Enfoque de Servicios)
 Las fases actúan como "Áreas que ofrecen un servicio". Cada servicio tiene fechas de recepción, finalización y responsables, permitiendo trazar el tiempo de vida (event sourcing) de la prenda. Cabe destacar que desde el nacimiento de la referencia se le asignan simultáneamente los códigos **MD (Muestra Diseño)** y **PT (Producto Terminado)**.
 
-**FASE 1: Ideación y Diseño (Área Creativa)**
+**FASE 1: Creación y Diseño (Área Creativa)**
 * 1.1 Perfilamiento: Creación de Ficha, asignación simultánea de códigos MD/PT y definición de complejidad.
 * 1.2 Consumo Base: Estimación visual de tela por el creativo.
 * 1.3 Moldería Base: Primer patrón digital/papel.

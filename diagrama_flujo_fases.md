@@ -3,7 +3,7 @@
 ## Sistema de Colores por Temperatura de Avance
 | Fase | Color | Significado |
 |------|-------|-------------|
-| Fase 1: Ideación y Diseño | 🔵 Azul Claro (Frío) | La referencia apenas nace, está "fría" |
+| Fase 1: Creación y Diseño | 🔵 Azul Claro (Frío) | La referencia apenas nace, está "fría" |
 | Fase 2: Laboratorio y Prototipado | 🟡 Ámbar (Tibio) | La prenda ya es un objeto físico, se está "calentando" |
 | Fase 3: Validación Técnica | 🟠 Naranja (Caliente) | Los consumos se están definiendo, la prenda se acerca a producción |
 | Fase 4: Industrialización | 🔴 Rojo (Muy Caliente) | La referencia está lista para masificarse |
@@ -13,10 +13,10 @@ graph TD
     Start((Inicio)) --> F1_1
 
     %% ═══════════════════════════════════════════
-    %% FASE 1: IDEACIÓN Y DISEÑO (Área Creativa)
+    %% FASE 1: CREACIÓN Y DISEÑO (Área Creativa)
     %% Color: Azul Claro (Frío)
     %% ═══════════════════════════════════════════
-    subgraph FASE_1 ["🔵 FASE 1: Ideación y Diseño"]
+    subgraph FASE_1 ["🔵 FASE 1: Creación y Diseño"]
         F1_1["1.1 Perfilamiento<br/>Creación de Ficha + Códigos MD/PT"]
         F1_2["1.2 Consumo Base<br/>Estimación visual por Creativo"]
         F1_3["1.3 Moldería Base<br/>Primer patrón digital/papel"]

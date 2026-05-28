@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { colecciones } from '../data/colecciones';
+import { useDashboardData } from '../lib/api';
 import { getPersonas } from '../data/personas';
 
 // ── Catálogos ────────────────────────────────────────────────
-const COLECCIONES_OPTIONS = colecciones.map(c => ({
-  value: c.id,
-  label: `${c.nombre} 2026`,
-}));
-
 const TIPO_PRENDA_OPTIONS = [
   'Vestido', 'Pantalón', 'Falda', 'Blazer', 'Jacket', 'Abrigo',
   'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Otro',
@@ -76,6 +71,11 @@ function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(
 export default function FichaTecnicaForm() {
   const navigate = useNavigate();
   const personas = getPersonas();
+  const { data } = useDashboardData();
+  const COLECCIONES_OPTIONS = (data?.colecciones || []).map(c => ({
+    value: c.id,
+    label: `${c.nombre} 2026`,
+  }));
 
   const [formData, setFormData] = useState({
     // Identificación
