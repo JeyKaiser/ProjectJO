@@ -1,25 +1,12 @@
 import { useState, useMemo } from 'react';
 import {
   Save, Tag, AlertTriangle, CheckCircle, Droplets, FileText,
-  Info, Plus, X, ChevronDown, ChevronUp, ShieldCheck, Clock,
+  Info, Plus, X, ShieldCheck, Clock,
   Package
 } from 'lucide-react';
+import SeccionColapsable from '../components/SeccionColapsable';
 
-function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="detalle-seccion" style={{ borderLeftColor: accentColor }}>
-      <button className="detalle-seccion-header" onClick={() => setOpen(!open)}>
-        <div className="detalle-seccion-titulo">
-          {icono}
-          <span>{titulo}</span>
-        </div>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {open && <div className="detalle-seccion-body">{children}</div>}
-    </div>
-  );
-}
+
 
 const CONTRAMUESTRA_STATUS = {
   pendiente: { label: 'Pendiente', class: 'fichafinal-contramuestra-status--pendiente', icon: Clock },

@@ -1,26 +1,12 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, ChevronDown, ChevronUp, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle } from 'lucide-react';
+import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle } from 'lucide-react';
 import { useDashboardData, getFaseMacro } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
+import SeccionColapsable from '../components/SeccionColapsable';
 
-function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="detalle-seccion" style={{ borderLeftColor: accentColor }}>
-      <button className="detalle-seccion-header" onClick={() => setOpen(!open)}>
-        <div className="detalle-seccion-titulo">
-          {icono}
-          <span>{titulo}</span>
-        </div>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {open && <div className="detalle-seccion-body">{children}</div>}
-    </div>
-  );
-}
 
 function EstadoBadge({ estado }) {
   const map = {

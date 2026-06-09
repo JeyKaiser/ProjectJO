@@ -1,25 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRef } from 'react';
-import { Plus, Trash2, Edit2, Save, X, ChevronDown, ChevronUp, Image as ImageIcon, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase, { STORAGE_BUCKET, getImageUrl } from '../lib/supabase';
 import { useFabrics, useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos } from '../lib/api';
 
-function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="detalle-seccion" style={{ borderLeftColor: accentColor }}>
-      <button className="detalle-seccion-header" onClick={() => setOpen(!open)}>
-        <div className="detalle-seccion-titulo">
-          {icono}
-          <span>{titulo}</span>
-        </div>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {open && <div className="detalle-seccion-body">{children}</div>}
-    </div>
-  );
-}
 
 export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const { role } = useAuth();
