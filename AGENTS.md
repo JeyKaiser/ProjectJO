@@ -1,4 +1,4 @@
-# 📚 CLAUDE.md - Documentación del Proyecto
+# 📚 AGENTS.md - Documentación del Proyecto
 
 ## Proyecto: Gestión de Colecciones de Moda (JO)
 

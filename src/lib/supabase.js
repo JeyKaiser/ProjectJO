@@ -25,4 +25,13 @@ export async function uploadImage(file, folder = 'referencias') {
   return getImageUrl(data.path);
 }
 
+export async function getCollections() {
+  const { data, error } = await client
+    .from('collections')
+    .select('id, name, code')
+    .eq('active', true)
+    .order('name');
+  return { data: data || [], error };
+}
+
 export default supabase;
