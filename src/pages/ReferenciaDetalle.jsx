@@ -284,7 +284,7 @@ export default function ReferenciaDetalle() {
         </SeccionColapsable>
 
         {/* SECCIÓN 5: Mediciones */}
-        <SeccionColapsable titulo="Mediciones y Tallaje" icono={<Shirt size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
+        <SeccionColapsable titulo="Mediciones" icono={<Shirt size={18} />} accentColor="var(--temp-cold-border)" defaultOpen={false}>
           {ref.mediciones && ref.mediciones.length > 0 ? (
             <div className="table-container">
               <table className="table">
@@ -308,9 +308,9 @@ export default function ReferenciaDetalle() {
           )}
         </SeccionColapsable>
 
-        {/* SECCIÓN 6: Procesos Especiales */}
+        {/* SECCIÓN 6: Bordado */}
         {ref.procesosEspeciales && ref.procesosEspeciales.length > 0 && (
-          <SeccionColapsable titulo="Procesos Especiales" icono={<AlertCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
+          <SeccionColapsable titulo="Bordado" icono={<AlertCircle size={18} />} accentColor="var(--temp-cold-border)" defaultOpen={false}>
             <div className="table-container">
               <table className="table">
                 <thead>
@@ -371,7 +371,7 @@ export default function ReferenciaDetalle() {
         </SeccionColapsable>
 
         {/* SECCIÓN 8: Contramuestra y SAP */}
-        <SeccionColapsable titulo="Contramuestra y Nota SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={false}>
+        <SeccionColapsable titulo="Industrializacion · Contramuestra y SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
           {ref.contramuestra ? (
             <div className="detalle-grid-info">
               {[

@@ -32,24 +32,91 @@ export function borderFromName(name) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Fase tracking (mocked — usando secuencia lineal basada en status)
+// Fase tracking — 6 Fases con Procesos y Actividades
+//   faseActual = F.Pro  (ej: 2.3 = Diseño / Corte)
+//   actividad  = F.Pro.Act (ej: 2.3.1 = Diseño / Corte / Corte MD)
 // ═══════════════════════════════════════════════════════════════
+
+// Progreso de cada proceso (F.Pro → porcentaje acumulado)
 export const subfaseToProgress = {
-  1.1: 5, 1.2: 12, 1.3: 20,
-  2.1: 28, 2.2: 38, 2.3: 48, 2.4: 58,
-  3.1: 65, 3.2: 72, 3.3: 80, 3.4: 88,
-  4.1: 92, 4.2: 96, 4.3: 100,
+  // Fase 1: Concepto
+  1.1: 4,  1.2: 8,  1.3: 12,
+  // Fase 2: Diseño
+  2.1: 16, 2.2: 19, 2.3: 22, 2.4: 26,
+  2.5: 30, 2.6: 33, 2.7: 36, 2.8: 38,
+  // Fase 3: Costeo
+  3.1: 42, 3.2: 48, 3.3: 52,
+  3.4: 56, 3.5: 59, 3.6: 62,
+  // Fase 4: Industrialización
+  4.1: 65, 4.2: 68, 4.3: 72, 4.4: 75,
+  4.5: 78, 4.6: 81, 4.7: 84, 4.8: 85,
+  // Fase 5: Producción
+  5.1: 89, 5.2: 93, 5.3: 96,
+  // Fase 6: Comercial
+  6.1: 98, 6.2: 100,
 };
 
+// Nombres de procesos
+export const PROCESO_NOMBRES = {
+  // Fase 1: Concepto
+  1.1: 'Aprobacion de Diseños',
+  1.2: 'Solicitud Sampling / Labs',
+  1.3: 'Llegada de Sampling',
+  // Fase 2: Diseño
+  2.1: 'Inicio de Coleccion',
+  2.2: 'Prototipos (Moldería MD)',
+  2.3: 'Corte',
+  2.4: 'Confeccion',
+  2.5: 'Bordado',
+  2.6: 'Medicion',
+  2.7: 'Fotos Internas',
+  2.8: 'Despacho Muestras Diseño',
+  // Fase 3: Costeo
+  3.1: 'Foto Producto',
+  3.2: 'Costeo',
+  3.3: 'Cierre Costeo',
+  3.4: 'Modificaciones de Arte',
+  3.5: 'Ubicaciones de Trazo',
+  3.6: 'Cierre de Coleccion',
+  // Fase 4: Industrialización
+  4.1: 'Final Buy',
+  4.2: 'Alistamiento',
+  4.3: 'Industrializacion (Explosion)',
+  4.4: 'Corte',
+  4.5: 'Confeccion',
+  4.6: 'Bordado',
+  4.7: 'Medicion',
+  4.8: 'Inventario',
+  // Fase 5: Producción
+  5.1: 'Entrega a Produccion',
+  5.2: 'Produccion',
+  5.3: 'Feedback Produccion',
+  // Fase 6: Comercial
+  6.1: 'Entrega a Comercial',
+  6.2: 'Feed Comercial',
+};
+
+// Configuración de las 6 macro fases
+const FASES_CONFIG = [
+  { fase: 1, nombre: 'Concepto',             tempVar: 'frost' },
+  { fase: 2, nombre: 'Diseño',               tempVar: 'cold' },
+  { fase: 3, nombre: 'Costeo',               tempVar: 'warm' },
+  { fase: 4, nombre: 'Industrializacion',    tempVar: 'hot' },
+  { fase: 5, nombre: 'Produccion',           tempVar: 'fire' },
+  { fase: 6, nombre: 'Comercial',            tempVar: 'blaze' },
+];
+
 export function getFaseMacro(subfase) {
-  if (subfase < 2) return { fase: 1, nombre: 'Creacion y Diseno', tempVar: 'cold' };
-  if (subfase < 3) return { fase: 2, nombre: 'Laboratorio', tempVar: 'warm' };
-  if (subfase < 4) return { fase: 3, nombre: 'Validacion Tecnica', tempVar: 'hot' };
-  return { fase: 4, nombre: 'Industrializacion', tempVar: 'fire' };
+  const f = Math.floor(subfase);
+  return FASES_CONFIG[f - 1] || FASES_CONFIG[0];
+}
+
+export function getProcesoNombre(subfase) {
+  return PROCESO_NOMBRES[subfase] || '';
 }
 
 // Mapea status_id a subfase aproximada
-const STATUS_TO_SUBFASE = { 1: 1.1, 2: 4.3, 3: 0, 4: 4.3, 5: 0, 6: 1.1 };
+const STATUS_TO_SUBFASE = { 1: 1.1, 2: 6.2, 3: 0, 4: 6.2, 5: 0, 6: 1.1 };
 
 // ═══════════════════════════════════════════════════════════════
 // Hook: useDashboardData — fetch collections + references
@@ -112,7 +179,7 @@ export function useDashboardData() {
               largo: '',
               closure: '',
               faseActual: sf,
-              subfaseNombre: fm.nombre,
+              subfaseNombre: getProcesoNombre(sf),
               responsable: '',
               tiempoFase: '',
               clasificacion,
@@ -213,7 +280,7 @@ export function useReferenciaDetalle(refId) {
           codigoMD: `MD-${String(refData.reference_number).padStart(3, '0')}`,
           codigoPT: `PT03${String(refData.reference_number).padStart(3, '0')}`,
           faseActual: sf,
-          subfaseNombre: fm.nombre,
+          subfaseNombre: getProcesoNombre(sf),
           coleccionNombre: refData.collections?.name || '',
           coleccionCode: refData.collections?.code || '',
           statusNombre: refData.reference_statuses?.status || 'EN_PROCESO',

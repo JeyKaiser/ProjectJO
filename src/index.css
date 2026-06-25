@@ -125,29 +125,39 @@
   --header-height: 70px;
   --max-width: 1400px;
 
-  /* ── Sistema de Temperatura (Frío → Caliente) ── */
-  /* Fase 1: Azul Claro (Frío / Nacimiento) */
+  /* ── Sistema de Temperatura (6 Fases) ── */
+  /* Fase 1: Concepto - Azul Hielo */
+  --temp-frost: #f0f9ff;
+  --temp-frost-border: #bae6fd;
+  --temp-frost-text: #0369a1;
+
+  /* Fase 2: Diseño - Azul Claro */
   --temp-cold: #e0f2fe;
   --temp-cold-border: #7dd3fc;
-  --temp-cold-text: #0369a1;
+  --temp-cold-text: #0284c7;
 
-  /* Fase 2: Ámbar (Tibio / Prototipado) */
+  /* Fase 3: Costeo - Ámbar */
   --temp-warm: #fef3c7;
   --temp-warm-border: #fbbf24;
   --temp-warm-text: #92400e;
 
-  /* Fase 3: Naranja (Caliente / Validación) */
+  /* Fase 4: Industrialización - Naranja */
   --temp-hot: #ffedd5;
   --temp-hot-border: #f97316;
   --temp-hot-text: #9a3412;
 
-  /* Fase 4: Rojo (Muy Caliente / Producción) */
+  /* Fase 5: Producción - Rojo */
   --temp-fire: #fee2e2;
   --temp-fire-border: #ef4444;
   --temp-fire-text: #991b1b;
 
-  /* Gradiente Completo de Progreso */
-  --gradient-temperature: linear-gradient(90deg, var(--temp-cold-border) 0%, var(--temp-warm-border) 33%, var(--temp-hot-border) 66%, var(--temp-fire-border) 100%);
+  /* Fase 6: Comercial - Púrpura */
+  --temp-blaze: #f3e8ff;
+  --temp-blaze-border: #a855f7;
+  --temp-blaze-text: #6b21a8;
+
+  /* Gradiente Completo de Progreso (6 paradas) */
+  --gradient-temperature: linear-gradient(90deg, var(--temp-frost-border) 0%, var(--temp-cold-border) 20%, var(--temp-warm-border) 40%, var(--temp-hot-border) 60%, var(--temp-fire-border) 80%, var(--temp-blaze-border) 100%);
 }
 
 /* ============================================

@@ -20,10 +20,12 @@ export default React.memo(function TemperatureBar({ subfase, showLabel = true })
       </div>
       {showLabel && (
         <div className="temperature-bar-labels">
-          <span style={{ color: 'var(--temp-cold-text)', fontSize: '9px', fontWeight: 700 }}>F1</span>
-          <span style={{ color: 'var(--temp-warm-text)', fontSize: '9px', fontWeight: 700 }}>F2</span>
-          <span style={{ color: 'var(--temp-hot-text)', fontSize: '9px', fontWeight: 700 }}>F3</span>
-          <span style={{ color: 'var(--temp-fire-text)', fontSize: '9px', fontWeight: 700 }}>F4</span>
+          <span style={{ color: 'var(--temp-frost-text)', fontSize: '9px', fontWeight: 700 }}>F1</span>
+          <span style={{ color: 'var(--temp-cold-text)', fontSize: '9px', fontWeight: 700 }}>F2</span>
+          <span style={{ color: 'var(--temp-warm-text)', fontSize: '9px', fontWeight: 700 }}>F3</span>
+          <span style={{ color: 'var(--temp-hot-text)', fontSize: '9px', fontWeight: 700 }}>F4</span>
+          <span style={{ color: 'var(--temp-fire-text)', fontSize: '9px', fontWeight: 700 }}>F5</span>
+          <span style={{ color: 'var(--temp-blaze-text)', fontSize: '9px', fontWeight: 700 }}>F6</span>
         </div>
       )}
     </div>
@@ -51,10 +53,12 @@ export default React.memo(function TemperatureBar({ subfase, showLabel = true })
 //       </div>
 //       {showLabel && (
 //         <div className="temperature-bar-labels">
-//           <span style={{ color: 'var(--temp-cold-text)', fontSize: '9px', fontWeight: 700 }}>F1</span>
-//           <span style={{ color: 'var(--temp-warm-text)', fontSize: '9px', fontWeight: 700 }}>F2</span>
-//           <span style={{ color: 'var(--temp-hot-text)', fontSize: '9px', fontWeight: 700 }}>F3</span>
-//           <span style={{ color: 'var(--temp-fire-text)', fontSize: '9px', fontWeight: 700 }}>F4</span>
+//           <span style={{ color: 'var(--temp-frost-text)', fontSize: '9px', fontWeight: 700 }}>F1</span>
+//           <span style={{ color: 'var(--temp-cold-text)', fontSize: '9px', fontWeight: 700 }}>F2</span>
+//           <span style={{ color: 'var(--temp-warm-text)', fontSize: '9px', fontWeight: 700 }}>F3</span>
+//           <span style={{ color: 'var(--temp-hot-text)', fontSize: '9px', fontWeight: 700 }}>F4</span>
+//           <span style={{ color: 'var(--temp-fire-text)', fontSize: '9px', fontWeight: 700 }}>F5</span>
+//           <span style={{ color: 'var(--temp-blaze-text)', fontSize: '9px', fontWeight: 700 }}>F6</span>
 //         </div>
 //       )}
 //     </div>

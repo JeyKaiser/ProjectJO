@@ -274,7 +274,7 @@ export default function ConsumosView() {
                 <th className="consumos-th-material" style={{ textAlign: 'left', paddingLeft: 'var(--space-4)' }}>Uso en Prenda</th>
                 <th className="consumos-th-material" style={{ textAlign: 'left' }}>Código</th>
 
-                <th className="consumos-th-creativo">Consumo Base</th>
+                <th className="consumos-th-creativo">Consumo Creativo</th>
 
                 <th className="consumos-th-tecnico">Talla</th>
                 <th className="consumos-th-tecnico">Sólido</th>

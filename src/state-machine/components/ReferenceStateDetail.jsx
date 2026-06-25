@@ -6,6 +6,7 @@ import AlertBadge from './AlertBadge';
 import StateFlowGraph from './StateFlowGraph';
 import StateTimeline from './StateTimeline';
 import TransitionModal from './TransitionModal';
+import LifecycleGraph from './LifecycleGraph';
 
 function InfoRow({ label, value, color }) {
   return (
@@ -212,11 +213,9 @@ export default function ReferenceStateDetail({
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <StateFlowGraph
-          currentState={stateRecord.current_state}
-          subStates={stateRecord.sub_states}
-          completedSubStates={stateRecord.completed_sub_states}
-          alertLevel={stateRecord.alert_level}
+        <LifecycleGraph
+          referenceId={referenceId}
+          referenceNumber={referenceNumber}
         />
       </div>
 

@@ -32,7 +32,7 @@ function getAlerts(coleccion) {
     if (a.resumen.pausadas > 0)
       alerts.push({ tipo: 'pausada', msg: `${a.resumen.pausadas} ref(s) pausadas en ${coleccion.nombre} ${a.anio}` });
     a.referencias.forEach(r => {
-      if (r.faseActual <= 1.2 && a.resumen.enProceso > 10)
+      if (r.faseActual < 2 && a.resumen.enProceso > 10)
         alerts.push({ tipo: 'riesgo', msg: `${r.codigoMD} aún en fase inicial con colección activa` });
     });
   });
@@ -42,7 +42,7 @@ function getAlerts(coleccion) {
 // ── Cálculo global ──────────────────────────────────────────
 function calcularMetricasGlobales(colecciones) {
   let totalRefs = 0, enProceso = 0, completadas = 0, pausadas = 0;
-  let refsPorFase = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let refsPorFase = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
   let alertas = [];
 
   (colecciones || []).forEach(col => {
@@ -123,8 +123,8 @@ const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
   );
 });
 
-const faseLabels = { 1: 'Creación', 2: 'Laboratorio', 3: 'Validación', 4: 'Industrializ.' };
-const faseTempVars = { 1: 'cold', 2: 'warm', 3: 'hot', 4: 'fire' };
+const faseLabels = { 1: 'Concepto', 2: 'Diseño', 3: 'Costeo', 4: 'Industrializ.', 5: 'Producción', 6: 'Comercial' };
+const faseTempVars = { 1: 'frost', 2: 'cold', 3: 'warm', 4: 'hot', 5: 'fire', 6: 'blaze' };
 
 
 // ── Página principal del Dashboard ──────────────────────────
@@ -207,7 +207,7 @@ export default function Dashboard() {
             </span>
             <p style={{ color: 'var(--gray-500)', fontSize: 13, marginTop: 0 }}>de referencias completadas</p>
           </div>
-          <TemperatureBar subfase={progresoGlobal >= 96 ? 4.3 : progresoGlobal >= 65 ? 3.1 : progresoGlobal >= 28 ? 2.1 : 1.1} showLabel={true} />
+          <TemperatureBar subfase={progresoGlobal >= 98 ? 6.1 : progresoGlobal >= 89 ? 5.1 : progresoGlobal >= 65 ? 4.1 : progresoGlobal >= 42 ? 3.1 : progresoGlobal >= 16 ? 2.1 : 1.1} showLabel={true} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, fontSize: 12, color: 'var(--gray-500)' }}>
             <span>🔵 Inicio</span>
             <span>🔴 Finalización</span>
@@ -220,7 +220,7 @@ export default function Dashboard() {
             <h4 className="card-title"><BarChart2 size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />Distribución por Fase</h4>
           </div>
           <div className="fase-chart">
-            {[1, 2, 3, 4].map(f => (
+            {[1, 2, 3, 4, 5, 6].map(f => (
               <div key={f} className="fase-bar-item">
                 <div className="fase-bar-label">{faseLabels[f]}</div>
                 <div className="fase-bar-track">

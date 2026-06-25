@@ -18,5 +18,12 @@
         "paths": [
             ".agents/skills"
         ]
+    },
+    "mcp": {
+    "supabase": {
+      "type": "remote",
+      "url": "https://mcp.supabase.com/mcp?project_ref=tstxmyowfesgaczlgjxp",
+      "enabled": true
     }
+  }
 }

@@ -7,10 +7,10 @@ import {
 } from 'lucide-react';
 
 const COLUMN_CONFIG = {
-  corte: { title: '2.2 Corte Muestra', tempPhase: 'cold', icon: Scissors, emptyText: 'No hay prendas en corte' },
-  confeccion: { title: '2.3 Confección Muestra', tempPhase: 'warm', icon: Shirt, emptyText: 'No hay prendas en confección' },
-  procesoExterno: { title: '2.4 Procesos Especiales', tempPhase: 'hot', icon: Sparkles, emptyText: 'No hay procesos externos activos' },
-  medicion: { title: '3.1 Medición y Tallaje', tempPhase: 'fire', icon: Ruler, emptyText: 'No hay prendas en medición' },
+  corte: { title: '2.3 Corte', tempPhase: 'cold', icon: Scissors, emptyText: 'No hay prendas en corte' },
+  confeccion: { title: '2.4 Confeccion', tempPhase: 'cold', icon: Shirt, emptyText: 'No hay prendas en confección' },
+  procesoExterno: { title: '2.5 Bordado', tempPhase: 'warm', icon: Sparkles, emptyText: 'No hay procesos externos activos' },
+  medicion: { title: '2.6 Medicion', tempPhase: 'warm', icon: Ruler, emptyText: 'No hay prendas en medición' },
 };
 
 const PRIORITY_CONFIG = {
@@ -314,10 +314,10 @@ export default function TallerKanban() {
                   value={formData.columna}
                   onChange={e => handleFormChange('columna', e.target.value)}
                 >
-                  <option value="corte">2.2 Corte Muestra</option>
-                  <option value="confeccion">2.3 Confección Muestra</option>
-                  <option value="procesoExterno">2.4 Procesos Especiales</option>
-                  <option value="medicion">3.1 Medición y Tallaje</option>
+                  <option value="corte">2.3 Corte</option>
+                  <option value="confeccion">2.4 Confeccion</option>
+                  <option value="procesoExterno">2.5 Bordado</option>
+                  <option value="medicion">2.6 Medicion</option>
                 </select>
               </div>
 

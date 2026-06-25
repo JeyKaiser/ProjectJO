@@ -40,8 +40,8 @@ export default function FichaFinalView() {
     color: 'Ecru/Sand',
     temporada: 'WS26',
     clasificacion: 'Sólida',
-    faseActual: 4.1,
-    subfaseNombre: 'Cierre Ficha Final',
+    faseActual: 4.3,
+    subfaseNombre: 'Industrializacion',
   };
 
   const [composicion, setComposicion] = useState([
@@ -344,9 +344,9 @@ export default function FichaFinalView() {
           </div>
         </SeccionColapsable>
 
-        {/* CONTRAMUESTRA Y NOTA SAP */}
+        {/* INDUSTRIALIZACION / CONTRAMUESTRA */}
         <SeccionColapsable
-          titulo="Contramuestra y Nota SAP"
+          titulo="Industrializacion · Contramuestra y SAP"
           icono={<FileText size={18} />}
           accentColor="var(--temp-hot-border)"
           defaultOpen={false}

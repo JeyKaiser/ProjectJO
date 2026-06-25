@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage';
 import InboxPage from './pages/InboxPage';
 import ReferencePage from './pages/ReferencePage';
 import AlertsPage from './pages/AlertsPage';
+import ProcessMapPage from './pages/ProcessMapPage';
 
 export function StateMachineShell() {
   return (
@@ -14,6 +15,7 @@ export function StateMachineShell() {
         <Route path="inbox" element={<InboxPage />} />
         <Route path="reference/:refId" element={<ReferencePage />} />
         <Route path="alerts" element={<AlertsPage />} />
+        <Route path="process-map" element={<ProcessMapPage />} />
       </Route>
     </Routes>
   );

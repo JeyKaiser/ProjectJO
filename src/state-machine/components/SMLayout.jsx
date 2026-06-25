@@ -4,6 +4,7 @@ import { useInbox } from '../hooks/useInbox';
 const NAV_ITEMS = [
   { to: '/v2/sm/dashboard', icon: '📊', label: 'Dashboard', end: true },
   { to: '/v2/sm/inbox', icon: '📥', label: 'Bandeja', end: true },
+  { to: '/v2/sm/process-map', icon: '🗺️', label: 'Mapa Procesos', end: true },
   { to: '/v2/sm/alerts', icon: '🚨', label: 'Alertas', end: true },
 ];
 
@@ -61,7 +62,7 @@ export default function SMLayout() {
           </NavLink>
         ))}
       </nav>
-      <main style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <main style={{ maxWidth: 1400, margin: '0 auto' }}>
         <Outlet />
       </main>
     </div>
