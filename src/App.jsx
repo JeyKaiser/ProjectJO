@@ -4,14 +4,18 @@ import Header from './components/Header';
 import { lazy, Suspense } from 'react';
 // ── EAGER: páginas más visitadas (carga instantánea, sin demora visual) ──
 import Dashboard from './pages/Dashboard';
+import AdminJey from './EjerciciosReact-JCR/AdminJey';
 import ColeccionesExplorer from './pages/ColeccionesExplorer';
 import ReferenciaDetalle from './pages/ReferenciaDetalle';
+import StateMachineShell from './state-machine/routes';
+
 // ── LAZY: páginas pesadas o poco frecuentes ──
 const FichaTecnicaForm = lazy(() => import('./pages/FichaTecnicaForm'));
 const TallerKanban = lazy(() => import('./pages/TallerKanban'));
 const ConsumosView = lazy(() => import('./pages/ConsumosView'));
 const FichaFinalView = lazy(() => import('./pages/FichaFinalView'));
 const ReferentesView = lazy(() => import('./pages/ReferentesView'));
+const ImportarCSV = lazy(() => import('./pages/ImportarCSV'));
 const ConfiguracionPersonas = lazy(() => import('./pages/ConfiguracionPersonas'));
 
 function App() {
@@ -33,7 +37,10 @@ function App() {
             <Route path="/produccion/consumos" element={<ConsumosView />} />
             <Route path="/produccion/ficha-final" element={<FichaFinalView />} />
             <Route path="/referentes" element={<ReferentesView />} />
+            <Route path="/importar" element={<ImportarCSV />} />
             <Route path="/configuracion" element={<ConfiguracionPersonas />} />
+            <Route path="/adminJey" element={<AdminJey />} />
+            <Route path="/v2/sm/*" element={<StateMachineShell />} />
           </Routes>
           </Suspense>
         </div>

@@ -1,15 +1,10 @@
 import { useState } from 'react';
 import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { colecciones } from '../data/colecciones';
+import { useDashboardData } from '../lib/api';
 import { getPersonas } from '../data/personas';
 
 // ── Catálogos ────────────────────────────────────────────────
-const COLECCIONES_OPTIONS = colecciones.map(c => ({
-  value: c.id,
-  label: `${c.nombre} 2026`,
-}));
-
 const TIPO_PRENDA_OPTIONS = [
   'Vestido', 'Pantalón', 'Falda', 'Blazer', 'Jacket', 'Abrigo',
   'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Otro',
@@ -34,14 +29,14 @@ const CLASIFICACION_OPTIONS = [
 
 // Roles de personas involucradas en el ciclo de vida
 const ROLES_EQUIPO = [
-  { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '1.1 Perfilamiento', requerido: true, area: 'creativos' },
-  { key: 'patronista', label: 'Patronista / Moldería', fase: '1.3 Moldería Base', requerido: false, area: 'tecnicos' },
-  { key: 'disenadorTecnico', label: 'Diseñador(a) Técnico(a)', fase: '3.3 Escalado y Consumos', requerido: false, area: 'tecnicos' },
-  { key: 'cortador', label: 'Cortador(a)', fase: '2.2 Corte Muestra', requerido: false, area: 'cortadores' },
-  { key: 'modista', label: 'Modista / Confección', fase: '2.3 Confección Muestra', requerido: false, area: 'modistas' },
-  { key: 'bordadora', label: 'Bordadora / Proceso Especial', fase: '2.4 Procesos Especiales', requerido: false, area: 'bordadoras' },
-  { key: 'trazador', label: 'Trazador(a)', fase: '3.4 Trazos Producción', requerido: false, area: 'trazadores' },
-  { key: 'equipoConsumos', label: 'Equipo Consumos / Validación', fase: '4.2 Contramuestra', requerido: false, area: 'especificadoras' },
+  { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '2.1 Inicio de Coleccion', requerido: true, area: 'creativos' },
+  { key: 'patronista',        label: 'Patronista / Moldería', fase: '2.2 Prototipos (Moldería)', requerido: false, area: 'tecnicos' },
+  { key: 'disenadorTecnico',  label: 'Diseñador(a) Técnico(a)', fase: '3.2 Costeo (Tecnicos)', requerido: false, area: 'tecnicos' },
+  { key: 'cortador',          label: 'Cortador(a)', fase: '2.3 Corte', requerido: false, area: 'cortadores' },
+  { key: 'modista',           label: 'Modista / Confección', fase: '2.4 Confeccion', requerido: false, area: 'modistas' },
+  { key: 'bordadora',         label: 'Bordadora / Proceso Especial', fase: '2.5 Bordado', requerido: false, area: 'bordadoras' },
+  { key: 'trazador',          label: 'Trazador(a)', fase: '3.5 Ubicaciones de Trazo', requerido: false, area: 'trazadores' },
+  { key: 'equipoConsumos',    label: 'Equipo Consumos / Validación', fase: '4.3 Industrializacion', requerido: false, area: 'especificadoras' },
 ];
 
 // ── Toggle chip ──────────────────────────────────────────────
@@ -76,6 +71,11 @@ function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(
 export default function FichaTecnicaForm() {
   const navigate = useNavigate();
   const personas = getPersonas();
+  const { data } = useDashboardData();
+  const COLECCIONES_OPTIONS = (data?.colecciones || []).map(c => ({
+    value: c.id,
+    label: `${c.nombre} 2026`,
+  }));
 
   const [formData, setFormData] = useState({
     // Identificación
@@ -141,7 +141,7 @@ export default function FichaTecnicaForm() {
     // Simular guardado y generar código MD
     const nuevoMD = `MD-${Math.floor(Math.random() * 900) + 100}`;
     const nuevoPT = `PT0${Math.floor(Math.random() * 9000) + 1000}`;
-    console.log('Nueva referencia guardada:', { ...formData, codigoMD: nuevoMD, codigoPT: nuevoPT, faseActual: 1.1 });
+    console.log('Nueva referencia guardada:', { ...formData, codigoMD: nuevoMD, codigoPT: nuevoPT, faseActual: 2.1 });
     setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT });
   };
 
@@ -161,7 +161,7 @@ export default function FichaTecnicaForm() {
             ¡Referencia Creada!
           </h2>
           <p style={{ color: 'var(--gray-500)', marginBottom: 24 }}>
-            La referencia ha sido registrada en <strong>Fase 1.1 · Perfilamiento</strong>.
+            La referencia ha sido registrada en <strong>Fase 2.1 · Inicio de Coleccion</strong>.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 24 }}>
             <span className="code-badge code-md" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoMD}</span>
@@ -186,7 +186,7 @@ export default function FichaTecnicaForm() {
       <div className="ficha-form-header">
         <div>
           <h2 className="ficha-form-titulo">Nueva Ficha Técnica</h2>
-          <p className="ficha-form-subtitulo">Fase 1.1 · Perfilamiento y creación de referencia</p>
+          <p className="ficha-form-subtitulo">Fase 2.1 · Inicio de Coleccion</p>
         </div>
         <span className="badge badge-primary">Área Creativa</span>
       </div>
@@ -370,8 +370,8 @@ export default function FichaTecnicaForm() {
           </div>
         </FormSeccion>
 
-        {/* ── SECCIÓN 3: Procesos Especiales ── */}
-        <FormSeccion titulo="⚙️  Procesos Especiales" accentColor="var(--temp-warm-border)">
+        {/* ── SECCIÓN 3: Bordado ── */}
+        <FormSeccion titulo="⚙️  Bordado" accentColor="var(--temp-cold-border)">
           <p className="form-help" style={{ marginBottom: 16 }}>
             Indica si aplica cada proceso. Los ítems marcados como "Aplica" generarán una subfase de seguimiento.
           </p>

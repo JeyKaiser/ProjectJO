@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock } from 'lucide-react';
-import { useAuth, ROLES } from '../context/AuthContext';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Sidebar() {
-  const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
+  const { isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
 
   return (
     <aside className="sidebar">
@@ -93,6 +93,11 @@ export default function Sidebar() {
           <NavLink to="/referentes" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <span className="nav-item-icon"><BookMarked size={20} /></span>
             <span>Referentes</span>
+          </NavLink>
+
+          <NavLink to="/importar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <span className="nav-item-icon"><Upload size={20} /></span>
+            <span>Importar</span>
           </NavLink>
 
           {(isAdmin) && (

@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, Clock, User, Tag } from 'lucide-react';
-import { colecciones, getFaseMacro } from '../data/colecciones';
+import { useDashboardData, getFaseMacro } from '../lib/api';
 import TemperatureBar from '../components/TemperatureBar';
 
 export default function ColeccionesExplorer() {
   const { coleccionId, anio } = useParams();
   const navigate = useNavigate();
+  const { data, loading, error } = useDashboardData();
+  const colecciones = data?.colecciones || [];
 
   const coleccionActual = coleccionId ? colecciones.find(c => c.id === coleccionId) : null;
   const anioActual = coleccionActual && anio ? coleccionActual.anios.find(a => a.anio === parseInt(anio)) : null;
+
+  if (loading) return <div className="fade-in p-8 text-center text-gray-400">Cargando colecciones...</div>;
+  if (error) return <div className="fade-in p-8 text-center text-red-500">Error: {error.message}</div>;
 
   // ── NIVEL 3: Referencias de una colección+año ──
   if (coleccionActual && anioActual) {

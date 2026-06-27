@@ -1,0 +1,2 @@
+- [User Role](user_role.md) — User in study mode, learning architecture and code patterns
+- [Study Focus](project_study_focus.md) — Active learning mode with structured curriculum

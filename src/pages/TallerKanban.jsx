@@ -1,157 +1,458 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import data from '../data/casos_uso_referencias.json';
-import { Scissors, Shirt, Sparkles, Ruler, Clock, GripVertical, Play, Pause, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  Scissors, Shirt, Sparkles, Ruler, Clock, Play, Pause,
+  CheckCircle2, AlertCircle, Activity, X,
+  Plus, Zap
+} from 'lucide-react';
+
+const COLUMN_CONFIG = {
+  corte: { title: '2.3 Corte', tempPhase: 'cold', icon: Scissors, emptyText: 'No hay prendas en corte' },
+  confeccion: { title: '2.4 Confeccion', tempPhase: 'cold', icon: Shirt, emptyText: 'No hay prendas en confección' },
+  procesoExterno: { title: '2.5 Bordado', tempPhase: 'warm', icon: Sparkles, emptyText: 'No hay procesos externos activos' },
+  medicion: { title: '2.6 Medicion', tempPhase: 'warm', icon: Ruler, emptyText: 'No hay prendas en medición' },
+};
+
+const PRIORITY_CONFIG = {
+  alta: { label: 'Alta', color: 'var(--error)' },
+  media: { label: 'Media', color: 'var(--warning)' },
+  baja: { label: 'Baja', color: 'var(--gray-300)' },
+};
+
+const FILTER_OPTIONS = [
+  { key: 'all', label: 'Todos', icon: null },
+  { key: 'active', label: 'En Proceso', icon: Play },
+  { key: 'paused', label: 'Pausadas', icon: Pause },
+  { key: 'waiting', label: 'En Espera', icon: Clock },
+];
+
+const KPI_CONFIG = [
+  { key: 'active', label: 'En Proceso', color: 'var(--success)', bgColor: 'var(--success-light)', icon: Activity },
+  { key: 'paused', label: 'Pausadas', color: 'var(--error)', bgColor: 'var(--error-light)', icon: Pause },
+  { key: 'waiting', label: 'En Espera', color: 'var(--warning)', bgColor: 'var(--warning-light)', icon: Clock },
+  { key: 'total', label: 'Total en Taller', color: 'var(--primary-600)', bgColor: 'var(--primary-100)', icon: Zap },
+];
+
+const AVATAR_COLOR_MAP = {
+  primary: 'taller-operator-avatar--primary',
+  purple: 'taller-operator-avatar--purple',
+  success: 'taller-operator-avatar--success',
+  warning: 'taller-operator-avatar--warning',
+  secondary: 'taller-operator-avatar--secondary',
+};
+
+const INITIAL_FORM = {
+  tipoPrenda: '',
+  coleccion: '',
+  referente: '',
+  prioridad: 'media',
+  observaciones: '',
+  columna: 'corte',
+};
 
 export default function TallerKanban() {
-  const [columns, setColumns] = useState({
-    corte: { title: '2.2 Corte Muestra', id: 'corte', tempPhase: 'cold', icon: <Scissors size={18} />, items: [] },
-    confeccion: { title: '2.3 Confección Muestra', id: 'confeccion', tempPhase: 'warm', icon: <Shirt size={18} />, items: [] },
-    procesoExterno: { title: '2.4 Procesos Especiales', id: 'externo', tempPhase: 'hot', icon: <Sparkles size={18} />, items: [] },
-    medicion: { title: '3.1 Medición y Tallaje', id: 'medicion', tempPhase: 'fire', icon: <Ruler size={18} />, items: [] },
-  });
+  const [filter, setFilter] = useState('all');
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState(INITIAL_FORM);
 
-  useEffect(() => {
-    const referencias = data.simulaciones_referencias;
-    
-    setColumns(prev => ({
-      ...prev,
-      corte: {
-        ...prev.corte,
-        items: [
-          { ...referencias.find(r => r.id_caso === 'CASO_001'), timeInStage: '0h 0m', status: 'paused', statusLabel: 'Cancelado' }
-        ]
-      },
-      confeccion: {
-        ...prev.confeccion,
-        items: [
-          { ...referencias.find(r => r.id_caso === 'CASO_002'), timeInStage: '4h 15m', status: 'active' }
-        ]
-      },
-      procesoExterno: {
-        ...prev.procesoExterno,
-        items: [
-          { ...referencias.find(r => r.id_caso === 'CASO_003'), timeInStage: '2 días', status: 'waiting', statusLabel: 'En Lavandería' }
-        ]
-      },
-      medicion: {
-        ...prev.medicion,
-        items: []
-      }
-    }));
+  const items = useMemo(() => {
+    return data.simulaciones_referencias.map(r => {
+      const td = r.tallerData || {};
+      return {
+        ...r,
+        id: r.id_caso,
+        columna: td.columna || 'corte',
+        status: td.status || 'active',
+        statusLabel: td.statusLabel || 'En Proceso',
+        prioridad: td.prioridad || 'media',
+        coleccion: td.coleccion || '',
+        temporada: td.temporada || '',
+        fechaUltimaActividad: td.fechaUltimaActividad || '',
+        estimacionFin: td.estimacionFin || null,
+        timeInStage: td.timeInStage || '0h 0m',
+        operadores: td.operadores || [],
+        tieneProcesoExterno: r.perfil_inicial?.tiene_proceso_externo || false,
+        tieneBordado: r.perfil_inicial?.tiene_bordado || false,
+        tieneSemielaborado: r.perfil_inicial?.tiene_semielaborado || false,
+        tipoPrenda: r.perfil_inicial?.tipo_prenda || 'Prenda',
+        referente: r.perfil_inicial?.referente || null,
+        esNuevo: r.perfil_inicial?.es_nuevo || false,
+      };
+    });
   }, []);
 
-  // UI Helper components
-  const StatusBadge = ({ status, label }) => {
-    if (status === 'active') return <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><Play size={10} /> EN PROCESO</span>;
-    if (status === 'paused') return <span className="flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md"><Pause size={10} /> {label || 'PAUSADO'}</span>;
-    if (status === 'waiting') return <span className="flex items-center gap-1 text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md"><Clock size={10} /> {label || 'EN ESPERA'}</span>;
+  const columns = useMemo(() => {
+    const cols = { corte: [], confeccion: [], procesoExterno: [], medicion: [] };
+    items.forEach(item => {
+      if (cols[item.columna]) {
+        cols[item.columna].push(item);
+      }
+    });
+    return cols;
+  }, [items]);
+
+  const filteredColumns = useMemo(() => {
+    if (filter === 'all') return columns;
+    const filtered = { corte: [], confeccion: [], procesoExterno: [], medicion: [] };
+    Object.entries(columns).forEach(([colId, colItems]) => {
+      filtered[colId] = colItems.filter(item => item.status === filter);
+    });
+    return filtered;
+  }, [columns, filter]);
+
+  const kpis = useMemo(() => {
+    const active = items.filter(i => i.status === 'active').length;
+    const paused = items.filter(i => i.status === 'paused').length;
+    const waiting = items.filter(i => i.status === 'waiting').length;
+    return { active, paused, waiting, total: items.length };
+  }, [items]);
+
+  const filterCounts = useMemo(() => ({
+    all: items.length,
+    active: items.filter(i => i.status === 'active').length,
+    paused: items.filter(i => i.status === 'paused').length,
+    waiting: items.filter(i => i.status === 'waiting').length,
+  }), [items]);
+
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleCreateOT = () => {
+    setShowModal(false);
+    setFormData(INITIAL_FORM);
+  };
+
+  return (
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* ── Header ── */}
+      <div className="taller-header">
+        <div className="taller-header-info">
+          <h2>Control de Taller</h2>
+          <p>Supervisión en tiempo real del flujo de producción y cuellos de botella</p>
+        </div>
+        <div className="taller-header-actions">
+          <div className="taller-shift-badge">
+            <Clock size={16} />
+            Turno: Mañana
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <Plus size={16} /> Nueva OT
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPIs ── */}
+      <div className="taller-kpi-grid">
+        {KPI_CONFIG.map(kpi => {
+          const Icon = kpi.icon;
+          const value = kpis[kpi.key];
+          const pct = kpis.total > 0 ? Math.round((value / kpis.total) * 100) : 0;
+          return (
+            <div key={kpi.key} className="taller-kpi-card" style={{ borderTopColor: kpi.color }}>
+              <div className="taller-kpi-card-left">
+                <span className="taller-kpi-label">{kpi.label}</span>
+                <span className="taller-kpi-value" style={{ color: kpi.color }}>{value}</span>
+                <span className="taller-kpi-sub">
+                  {kpi.key === 'total' ? 'órdenes activas' : `${pct}% del total`}
+                </span>
+              </div>
+              <div className="taller-kpi-icon" style={{ background: kpi.bgColor, color: kpi.color }}>
+                <Icon size={20} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Filter Bar ── */}
+      <div className="taller-filter-bar">
+        <div className="taller-filter-group">
+          {FILTER_OPTIONS.map(opt => (
+            <button
+              key={opt.key}
+              className={`taller-filter-btn ${filter === opt.key ? 'taller-filter-btn--active' : ''}`}
+              onClick={() => setFilter(opt.key)}
+            >
+              {opt.icon && <opt.icon size={14} />}
+              {opt.label}
+              <span className="taller-filter-count" style={{
+                background: filter === opt.key ? 'var(--gray-900)' : 'var(--gray-200)',
+                color: filter === opt.key ? 'var(--white)' : 'var(--gray-600)',
+              }}>
+                {filterCounts[opt.key]}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Kanban Board ── */}
+      <div className="taller-kanban">
+        {Object.entries(COLUMN_CONFIG).map(([colId, config]) => {
+          const colItems = filteredColumns[colId] || [];
+          const ColIcon = config.icon;
+          const tempVar = config.tempPhase;
+          return (
+            <div key={colId} className="taller-column">
+              {/* Column Header */}
+              <div
+                className="taller-column-header"
+                style={{
+                  borderLeftColor: `var(--temp-${tempVar}-border)`,
+                  background: `var(--temp-${tempVar})`,
+                  color: `var(--temp-${tempVar}-text)`,
+                }}
+              >
+                <div className="taller-column-header-left">
+                  <ColIcon size={18} />
+                  <span>{config.title}</span>
+                </div>
+                <span className="taller-column-count">{colItems.length}</span>
+              </div>
+
+              {/* Column Body */}
+              <div className="taller-column-body">
+                {colItems.length === 0 ? (
+                  <div className="taller-empty-state">
+                    <CheckCircle2 size={32} />
+                    <p>{config.emptyText}</p>
+                  </div>
+                ) : (
+                  colItems.map(item => <TallerCard key={item.id} item={item} />)
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Modal Nueva OT ── */}
+      {showModal && (
+        <div className="taller-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div className="taller-modal">
+            <div className="taller-modal-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h3>Nueva Orden de Trabajo</h3>
+                  <p>Crea una nueva orden para el flujo de taller</p>
+                </div>
+                <button
+                  onClick={() => setShowModal(false)}
+                  style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', cursor: 'pointer', borderRadius: 'var(--radius-md)', padding: 4, display: 'flex' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="taller-modal-body">
+              <div className="form-group">
+                <label className="form-label form-label-required">Tipo de Prenda</label>
+                <select
+                  className="form-select"
+                  value={formData.tipoPrenda}
+                  onChange={e => handleFormChange('tipoPrenda', e.target.value)}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Vestido">Vestido</option>
+                  <option value="Pantalón">Pantalón</option>
+                  <option value="Camisa">Camisa</option>
+                  <option value="Jacket">Jacket</option>
+                  <option value="Blazer">Blazer</option>
+                  <option value="Falda">Falda</option>
+                  <option value="Chaleco">Chaleco</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label form-label-required">Colección Destino</label>
+                <select
+                  className="form-select"
+                  value={formData.coleccion}
+                  onChange={e => handleFormChange('coleccion', e.target.value)}
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="WS26">WINTER SUN 2026</option>
+                  <option value="SS27">SPRING SUMMER 2027</option>
+                  <option value="FW27">FALL WINTER 2027</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Referente (si es reprogramación)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Buscar por código PT o tipo de prenda..."
+                  value={formData.referente}
+                  onChange={e => handleFormChange('referente', e.target.value)}
+                />
+                <span className="form-help">Dejar vacío si es diseño nuevo</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Prioridad</label>
+                <div className="taller-priority-group">
+                  {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
+                    <button
+                      key={key}
+                      className={`taller-priority-option ${formData.prioridad === key ? 'selected' : ''} taller-priority-option--${key}`}
+                      onClick={() => handleFormChange('prioridad', key)}
+                      type="button"
+                    >
+                      {cfg.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fase Inicial</label>
+                <select
+                  className="form-select"
+                  value={formData.columna}
+                  onChange={e => handleFormChange('columna', e.target.value)}
+                >
+                  <option value="corte">2.3 Corte</option>
+                  <option value="confeccion">2.4 Confeccion</option>
+                  <option value="procesoExterno">2.5 Bordado</option>
+                  <option value="medicion">2.6 Medicion</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Observaciones</label>
+                <textarea
+                  className="form-textarea"
+                  placeholder="Detalles adicionales sobre la orden..."
+                  value={formData.observaciones}
+                  onChange={e => handleFormChange('observaciones', e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="taller-modal-footer">
+              <button className="btn btn-secondary" onClick={() => { setShowModal(false); setFormData(INITIAL_FORM); }}>
+                Cancelar
+              </button>
+              <button className="btn btn-primary" onClick={handleCreateOT} disabled={!formData.tipoPrenda || !formData.coleccion}>
+                <Plus size={16} /> Crear Orden
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function TallerCard({ item }) {
+  const statusClass = `taller-card--${item.status}`;
+  const statusBadgeClass = `taller-card-status taller-card-status--${item.status}`;
+
+  const statusIcon = () => {
+    if (item.status === 'active') return <span className="taller-card-status-dot" />;
+    if (item.status === 'paused') return <Pause size={10} />;
+    if (item.status === 'waiting') return <Clock size={10} />;
     return null;
   };
 
   return (
-    <div className="fade-in h-full flex flex-col">
-      {/* Header Section */}
-      <div className="flex justify-between items-end mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div>
-          <h2 className="text-2xl font-black text-gray-900 tracking-tight">Control de Taller</h2>
-          <p className="text-gray-500 text-sm mt-1">Supervisión en tiempo real del flujo de producción y cuellos de botella.</p>
+    <div className={`taller-card ${statusClass}`}>
+      <div className="taller-card-priority" style={{ background: PRIORITY_CONFIG[item.prioridad]?.color || 'var(--gray-300)' }} />
+
+      {/* Header: Badges */}
+      <div className="taller-card-header">
+        <div className="taller-card-badges">
+          <span className="taller-card-md">{item.id_caso}</span>
+          <span className="taller-card-tipo">{item.tipoPrenda}</span>
+          {item.esNuevo && (
+            <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--secondary-700)', background: 'var(--secondary-50)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              Nuevo
+            </span>
+          )}
         </div>
-        <div className="flex gap-3">
-          <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600">
-            <Clock size={16} className="text-primary-500" />
-            Turno Actual: Mañana
-          </div>
-          <button className="btn btn-primary shadow-lg hover:shadow-xl transition-shadow">+ Nueva OT</button>
+        <div className="taller-card-indicators">
+          {item.tieneProcesoExterno && (
+            <span title="Requiere proceso externo" style={{ color: 'var(--warning-dark)' }}>
+              <Sparkles size={14} />
+            </span>
+          )}
+          {item.tieneBordado && (
+            <span title="Requiere bordado" style={{ color: 'var(--secondary-600)' }}>
+              <Zap size={14} />
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-6 overflow-x-auto pb-4 flex-1 items-start">
-        {Object.entries(columns).map(([colId, col]) => (
-          <div key={colId} className="flex-1 min-w-[320px] max-w-[350px] flex flex-col h-full max-h-[calc(100vh-200px)]">
-            
-            {/* Column Header */}
-            <div 
-              className="flex items-center justify-between mb-4 p-3 rounded-xl shadow-sm bg-white"
-              style={{ 
-                borderLeft: `4px solid var(--temp-${col.tempPhase}-border)`,
-                background: `var(--temp-${col.tempPhase})`,
-                color: `var(--temp-${col.tempPhase}-text)`
-              }}
-            >
-              <div className="flex items-center gap-2 font-bold">
-                {col.icon}
-                {col.title}
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.6)' }} className="px-2 py-0.5 rounded-md text-xs font-black shadow-sm">
-                {col.items.length}
-              </div>
-            </div>
-            
-            {/* Column Body */}
-            <div className="flex flex-col gap-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-              {col.items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50">
-                  <CheckCircle2 size={32} className="mb-2 text-gray-300" />
-                  <p>Columna vacía</p>
-                </div>
-              ) : (
-                col.items.map((item, idx) => {
-                  if (!item) return null;
-                  return (
-                    <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 group hover:border-primary-400 hover:shadow-md transition-all cursor-grab active:cursor-grabbing relative">
-                      
-                      {/* Drag Handle Indicator */}
-                      <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-gray-300">
-                        <GripVertical size={16} />
-                      </div>
+      {/* Status Badge */}
+      <div style={{ marginBottom: 'var(--space-2)' }}>
+        <span className={statusBadgeClass}>
+          {statusIcon()}
+          {item.statusLabel}
+        </span>
+      </div>
 
-                      <div className="pl-3">
-                        {/* Card Header */}
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="bg-gray-900 text-white text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wider">MD-{String(idx + 1).padStart(3, '0')}</span>
-                            {item.perfil_inicial?.tiene_proceso_externo && (
-                              <span title="Requiere procesos externos" className="text-orange-500"><Sparkles size={14}/></span>
-                            )}
-                          </div>
-                          <StatusBadge status={item.status} label={item.statusLabel} />
-                        </div>
+      {/* Body: Title & Meta */}
+      <div className="taller-card-body">
+        <div className="taller-card-title">{item.nombre_simulacion}</div>
+        <div className="taller-card-meta">
+          {item.referente ? (
+            <span className="taller-card-referent">{item.referente}</span>
+          ) : (
+            <span className="taller-card-referent" style={{ fontStyle: 'italic' }}>Diseño Inédito</span>
+          )}
+          {item.temporada && (
+            <span className="taller-card-collection">{item.temporada}</span>
+          )}
+        </div>
+      </div>
 
-                        {/* Card Title & Desc */}
-                        <h4 className="font-bold text-gray-900 mb-1 leading-tight">{item.nombre_simulacion}</h4>
-                        <p className="text-xs text-gray-500 mb-4 line-clamp-1">{item.perfil_inicial?.referente || 'Diseño Inédito'}</p>
-                        
-                        {/* Time tracking & Operators */}
-                        <div className="flex justify-between items-end border-t border-gray-100 pt-3">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tiempo Fase</span>
-                            <div className="flex items-center gap-1 text-xs font-bold text-gray-700">
-                              <Clock size={12} className={item.status === 'active' ? 'text-emerald-500' : 'text-gray-400'} />
-                              {item.timeInStage}
-                            </div>
-                          </div>
-                          
-                          <div className="flex -space-x-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-primary-500 to-primary-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title="Cortador Asignado">C</div>
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-purple-300 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title="Modista Asignada">M</div>
-                          </div>
-                        </div>
-
-                        {/* Quick Actions (Hover) */}
-                        <div className="mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {item.status !== 'active' && <button className="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 transition-colors"><Play size={12}/> Iniciar</button>}
-                          {item.status === 'active' && <button className="flex-1 bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 text-xs font-bold py-1.5 rounded-lg flex items-center justify-center gap-1 transition-colors"><CheckCircle2 size={12}/> Terminar</button>}
-                          <button className="bg-gray-50 text-gray-500 hover:text-red-600 hover:bg-red-50 border border-gray-200 text-xs py-1.5 px-2 rounded-lg transition-colors" title="Reportar Novedad"><AlertCircle size={14}/></button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+      {/* Footer: Time & Operators */}
+      <div className="taller-card-footer">
+        <div className="taller-card-time">
+          <span className="taller-card-time-label">Tiempo en fase</span>
+          <div className={`taller-card-time-value ${item.status === 'active' ? 'taller-card-time-value--active' : ''}`}>
+            <Clock size={12} />
+            {item.timeInStage}
           </div>
-        ))}
+        </div>
+
+        <div className="taller-card-operators">
+          {item.operadores.length > 0 ? (
+            item.operadores.map((op, i) => (
+              <div
+                key={i}
+                className={`taller-operator-avatar ${AVATAR_COLOR_MAP[op.color] || AVATAR_COLOR_MAP.primary}`}
+                title={`${op.nombre} — ${op.rol}`}
+              >
+                {op.iniciales}
+              </div>
+            ))
+          ) : (
+            <div className="taller-operator-empty" title="Sin operador asignado">?</div>
+          )}
+        </div>
+      </div>
+
+      {/* Actions (Hover) */}
+      <div className="taller-card-actions">
+        {item.status !== 'active' ? (
+          <button className="taller-action-btn taller-action-btn--start" type="button">
+            <Play size={12} /> Iniciar
+          </button>
+        ) : (
+          <button className="taller-action-btn taller-action-btn--finish" type="button">
+            <CheckCircle2 size={12} /> Terminar
+          </button>
+        )}
+        <button className="taller-action-btn taller-action-btn--alert" type="button" title="Reportar Novedad">
+          <AlertCircle size={14} />
+        </button>
       </div>
     </div>
   );

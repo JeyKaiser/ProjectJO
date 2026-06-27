@@ -1,25 +1,12 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, ChevronDown, ChevronUp, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle } from 'lucide-react';
-import { colecciones, getFaseMacro } from '../data/colecciones';
+import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle } from 'lucide-react';
+import { useDashboardData, getFaseMacro } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import TemperatureBar from '../components/TemperatureBar';
+import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
+import SeccionColapsable from '../components/SeccionColapsable';
 
-function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className="detalle-seccion" style={{ borderLeftColor: accentColor }}>
-      <button className="detalle-seccion-header" onClick={() => setOpen(!open)}>
-        <div className="detalle-seccion-titulo">
-          {icono}
-          <span>{titulo}</span>
-        </div>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
-      {open && <div className="detalle-seccion-body">{children}</div>}
-    </div>
-  );
-}
 
 function EstadoBadge({ estado }) {
   const map = {
@@ -63,9 +50,14 @@ export default function ReferenciaDetalle() {
     }));
   };
 
-  const coleccion = colecciones.find(c => c.id === coleccionId);
+  const { data, loading: dashLoading } = useDashboardData();
+  const coleccionesData = data?.colecciones || [];
+
+  const coleccion = coleccionesData.find(c => c.id === coleccionId);
   const anioData = coleccion?.anios.find(a => a.anio === parseInt(anio));
   const ref = anioData?.referencias.find(r => r.id === refId);
+
+  if (dashLoading) return <div className="fade-in p-8 text-center text-gray-400">Cargando referencia...</div>;
 
   if (!ref) return (
     <div className="text-center" style={{ marginTop: '4rem' }}>
@@ -232,44 +224,7 @@ export default function ReferenciaDetalle() {
 
         {/* SECCIÓN 2: Telas y Consumos */}
         <SeccionColapsable titulo="Telas y Consumos" icono={<Scissors size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={true}>
-          {ref.telas && ref.telas.length > 0 ? (
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Material</th>
-                    <th>Uso en Prenda</th>
-                    <th>Base Textil</th>
-                    <th>Ancho</th>
-                    <th style={{ background: '#dbeafe', color: '#1e40af' }}>Creativo</th>
-                    <th style={{ background: '#ffedd5', color: '#9a3412' }}>Técnico</th>
-                    <th style={{ background: '#dcfce7', color: '#14532d' }}>Trazador (S)</th>
-                    <th style={{ background: '#dcfce7', color: '#14532d' }}>Trazador (MA)</th>
-                    <th style={{ background: '#dcfce7', color: '#14532d' }}>Trazador (UT)</th>
-                    <th style={{ background: '#fee2e2', color: '#991b1b' }}>Contramuestra</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ref.telas.map(t => (
-                    <tr key={t.id}>
-                      <td><strong>{t.codigoMaterial}</strong><br /><small style={{ color: 'var(--gray-500)' }}>{t.descripcion}</small></td>
-                      <td>{t.usoEnPrenda}</td>
-                      <td>{t.baseTextil}</td>
-                      <td>{t.ancho}</td>
-                      <td style={{ background: '#eff6ff', textAlign: 'center', fontWeight: 700 }}>{t.consumoCreativo ?? '—'}</td>
-                      <td style={{ background: '#fff7ed', textAlign: 'center', fontWeight: 700 }}>{t.consumoTecnico ?? '—'}</td>
-                      <td style={{ background: '#f0fdf4', textAlign: 'center', fontWeight: 700 }}>{t.consumoTrazador?.solido ?? '—'}</td>
-                      <td style={{ background: '#f0fdf4', textAlign: 'center', fontWeight: 700 }}>{t.consumoTrazador?.modArte ?? '—'}</td>
-                      <td style={{ background: '#f0fdf4', textAlign: 'center', fontWeight: 700 }}>{t.consumoTrazador?.ubicTrazo ?? '—'}</td>
-                      <td style={{ background: '#fff1f2', textAlign: 'center', fontWeight: 700 }}>{t.consumoContramuestra ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="detalle-vacio">No hay telas registradas aún.</p>
-          )}
+          <AsignacionTelasConsumos refId={refId} />
         </SeccionColapsable>
 
         {/* SECCIÓN 3: Insumos No Textiles */}
@@ -329,7 +284,7 @@ export default function ReferenciaDetalle() {
         </SeccionColapsable>
 
         {/* SECCIÓN 5: Mediciones */}
-        <SeccionColapsable titulo="Mediciones y Tallaje" icono={<Shirt size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
+        <SeccionColapsable titulo="Mediciones" icono={<Shirt size={18} />} accentColor="var(--temp-cold-border)" defaultOpen={false}>
           {ref.mediciones && ref.mediciones.length > 0 ? (
             <div className="table-container">
               <table className="table">
@@ -353,9 +308,9 @@ export default function ReferenciaDetalle() {
           )}
         </SeccionColapsable>
 
-        {/* SECCIÓN 6: Procesos Especiales */}
+        {/* SECCIÓN 6: Bordado */}
         {ref.procesosEspeciales && ref.procesosEspeciales.length > 0 && (
-          <SeccionColapsable titulo="Procesos Especiales" icono={<AlertCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
+          <SeccionColapsable titulo="Bordado" icono={<AlertCircle size={18} />} accentColor="var(--temp-cold-border)" defaultOpen={false}>
             <div className="table-container">
               <table className="table">
                 <thead>
@@ -416,7 +371,7 @@ export default function ReferenciaDetalle() {
         </SeccionColapsable>
 
         {/* SECCIÓN 8: Contramuestra y SAP */}
-        <SeccionColapsable titulo="Contramuestra y Nota SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={false}>
+        <SeccionColapsable titulo="Industrializacion · Contramuestra y SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
           {ref.contramuestra ? (
             <div className="detalle-grid-info">
               {[

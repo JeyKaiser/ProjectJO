@@ -36,7 +36,21 @@
           },
           "estado_actual": "Cancelada"
         }
-      ]
+      ],
+      "tallerData": {
+        "columna": "corte",
+        "status": "paused",
+        "statusLabel": "Cancelado",
+        "prioridad": "alta",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-24T10:30:00",
+        "estimacionFin": null,
+        "timeInStage": "0h 0m",
+        "operadores": [
+          { "iniciales": "CR", "nombre": "Carlos Ruiz", "rol": "Cortador", "color": "primary" }
+        ]
+      }
     },
     {
       "id_caso": "CASO_002",
@@ -90,7 +104,22 @@
           },
           "estado_actual": "Contramuestra Aprobada. Ficha Técnica Lista. En espera de creación de Nota de Fabricación en SAP para iniciar producción"
         }
-      ]
+      ],
+      "tallerData": {
+        "columna": "confeccion",
+        "status": "active",
+        "statusLabel": "En Proceso",
+        "prioridad": "media",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-25T14:00:00",
+        "estimacionFin": "2026-04-28",
+        "timeInStage": "4h 15m",
+        "operadores": [
+          { "iniciales": "ML", "nombre": "María López", "rol": "Modista", "color": "purple" },
+          { "iniciales": "CR", "nombre": "Carlos Ruiz", "rol": "Cortador", "color": "primary" }
+        ]
+      }
     },
     {
       "id_caso": "CASO_003",
@@ -145,7 +174,189 @@
           },
           "estado_actual": "Aprobada con comentarios físicos (en cartón). Moldería regresó al creativo para ajustar el encogimiento antes de pasar a Diseño Técnico."
         }
-      ]
+      ],
+      "tallerData": {
+        "columna": "procesoExterno",
+        "status": "waiting",
+        "statusLabel": "En Lavandería",
+        "prioridad": "alta",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-23T09:00:00",
+        "estimacionFin": "2026-04-29",
+        "timeInStage": "2 días",
+        "operadores": [
+          { "iniciales": "AR", "nombre": "Ana Rodríguez", "rol": "Coordinadora Externa", "color": "warning" }
+        ]
+      }
+    },
+    {
+      "id_caso": "CASO_004",
+      "nombre_simulacion": "Camisa Slim con Bordado Pecho",
+      "perfil_inicial": {
+        "tipo_prenda": "Camisa",
+        "es_nuevo": true,
+        "referente": null,
+        "modificacion_arte": true,
+        "ubicacion_trazo": true,
+        "tiene_bordado": true,
+        "tipo_bordado": "Pecho izquierdo",
+        "tiene_semielaborado": false,
+        "tiene_proceso_externo": false,
+        "requiere_drapeado_maniqui": false
+      },
+      "historial_eventos": [
+        {
+          "fase": "Diseño Creativo",
+          "evento": "Nacimiento y Asignación",
+          "fecha_simulada": "2026-04-22",
+          "decisiones": {
+            "codigo_MD": "MD-004",
+            "basado_en": null
+          },
+          "estado_actual": "Diseño aprobado. Moldería en corte."
+        }
+      ],
+      "tallerData": {
+        "columna": "corte",
+        "status": "active",
+        "statusLabel": "En Proceso",
+        "prioridad": "alta",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-26T08:00:00",
+        "estimacionFin": "2026-04-27",
+        "timeInStage": "1h 45m",
+        "operadores": [
+          { "iniciales": "CR", "nombre": "Carlos Ruiz", "rol": "Cortador", "color": "primary" },
+          { "iniciales": "JP", "nombre": "Juan Pérez", "rol": "Auxiliar Corte", "color": "success" }
+        ]
+      }
+    },
+    {
+      "id_caso": "CASO_005",
+      "nombre_simulacion": "Falda Midi Plisada sin Referente",
+      "perfil_inicial": {
+        "tipo_prenda": "Falda",
+        "es_nuevo": true,
+        "referente": null,
+        "modificacion_arte": false,
+        "ubicacion_trazo": false,
+        "tiene_bordado": false,
+        "tiene_semielaborado": false,
+        "tiene_proceso_externo": false,
+        "requiere_drapeado_maniqui": true
+      },
+      "historial_eventos": [
+        {
+          "fase": "Diseño Creativo",
+          "evento": "Nacimiento y Asignación",
+          "fecha_simulada": "2026-04-20",
+          "decisiones": {
+            "codigo_MD": "MD-005",
+            "basado_en": null
+          },
+          "estado_actual": "Drapeado en maniquí completado. Lista para medición."
+        }
+      ],
+      "tallerData": {
+        "columna": "medicion",
+        "status": "active",
+        "statusLabel": "En Proceso",
+        "prioridad": "media",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-26T11:00:00",
+        "estimacionFin": "2026-04-27",
+        "timeInStage": "5h 30m",
+        "operadores": [
+          { "iniciales": "LV", "nombre": "Laura Vargas", "rol": "Especificadora", "color": "secondary" }
+        ]
+      }
+    },
+    {
+      "id_caso": "CASO_006",
+      "nombre_simulacion": "Blazer Oversize basado en PT03415",
+      "perfil_inicial": {
+        "tipo_prenda": "Blazer",
+        "es_nuevo": false,
+        "referente": "PT03415 ECRU/SAND STRUCTURED ELEGANCE BLAZER",
+        "coleccion_referente": "WINTER SUN 2026",
+        "modificacion_arte": false,
+        "ubicacion_trazo": false,
+        "solida": true,
+        "tiene_bordado": false,
+        "tiene_semielaborado": true,
+        "tipo_semielaborado": "Cuello y puños pre-armados",
+        "tiene_proceso_externo": false,
+        "requiere_drapeado_maniqui": false
+      },
+      "historial_eventos": [
+        {
+          "fase": "Diseño Creativo",
+          "evento": "Nacimiento y Búsqueda de Referente",
+          "fecha_simulada": "2026-04-21",
+          "decisiones": {
+            "codigo_MD": "MD-006",
+            "basado_en": "PT03415"
+          },
+          "estado_actual": "Moldería recuperada. En confección."
+        }
+      ],
+      "tallerData": {
+        "columna": "confeccion",
+        "status": "waiting",
+        "statusLabel": "Esperando Semi-elaborado",
+        "prioridad": "baja",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-25T16:00:00",
+        "estimacionFin": "2026-04-30",
+        "timeInStage": "1 día",
+        "operadores": [
+          { "iniciales": "ML", "nombre": "María López", "rol": "Modista", "color": "purple" }
+        ]
+      }
+    },
+    {
+      "id_caso": "CASO_007",
+      "nombre_simulacion": "Chaleco Acolchado con Estampado Digital",
+      "perfil_inicial": {
+        "tipo_prenda": "Chaleco",
+        "es_nuevo": true,
+        "referente": null,
+        "modificacion_arte": true,
+        "ubicacion_trazo": true,
+        "tiene_bordado": false,
+        "tiene_semielaborado": false,
+        "tiene_proceso_externo": true,
+        "tipo_proceso_externo": "Estampado Digital",
+        "requiere_drapeado_maniqui": false
+      },
+      "historial_eventos": [
+        {
+          "fase": "Diseño Creativo",
+          "evento": "Nacimiento y Asignación",
+          "fecha_simulada": "2026-04-19",
+          "decisiones": {
+            "codigo_MD": "MD-007",
+            "basado_en": null
+          },
+          "estado_actual": "Pausado por falta de tela estampada. Pendiente proveedor."
+        }
+      ],
+      "tallerData": {
+        "columna": "corte",
+        "status": "paused",
+        "statusLabel": "Sin Tela",
+        "prioridad": "media",
+        "coleccion": "WINTER SUN 2026",
+        "temporada": "WS26",
+        "fechaUltimaActividad": "2026-04-22T15:00:00",
+        "estimacionFin": null,
+        "timeInStage": "4 días",
+        "operadores": []
+      }
     }
   ]
 }
