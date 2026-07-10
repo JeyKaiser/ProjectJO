@@ -1,8 +1,10 @@
-import { Search, Bell, User } from 'lucide-react';
+import { Search, Bell, User, Sun, Moon } from 'lucide-react';
 import { useAuth, ROLES } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Header() {
   const { role, setRole } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   return (
     <header className="header">
       <div className="header-left">
@@ -37,6 +39,10 @@ export default function Header() {
             ))}
           </select>
         </div>
+        
+        <button className="header-icon-btn" onClick={toggleTheme} title={isDark ? 'Modo claro' : 'Modo oscuro'}>
+          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
         
         <button className="header-icon-btn" title="Notificaciones">
           <Bell size={20} />

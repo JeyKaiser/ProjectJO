@@ -4,6 +4,9 @@
 
 - [x] ~~[ALTA] RLS bloquea INSERT/UPDATE en navegador~~ — Corregido: politicas anon agregadas a 30 tablas
 - [ ] [MEDIA] Agregar autenticacion Supabase Auth (login real) para reemplazar mock de roles
+- [ ] [ALTA] Implementar componente PrivateRoute con verificacion de roles (RBAC)
+- [ ] [ALTA] Envolver rutas protegidas en App.jsx con PrivateRoute (ej: /configuracion solo Admin)
+- [ ] [MEDIA] Definir matriz de permisos: que rol accede a que ruta
 
 ## Fase 2: Segmentacion / Datos
 
@@ -23,6 +26,12 @@
 
 - [ ] [MEDIA] Dashboard con datos reales desglosados por coleccion (ya muestra totales)
 - [ ] [BAJA] Exportar reporte a PDF/Excel desde la app
+
+---
+
+## UI/UX
+
+- [ ] [MEDIA] Reemplazar fallback generico "Cargando..." en Suspense por componente PageSkeleton con Skeleton/Spinner animado
 
 ---
 

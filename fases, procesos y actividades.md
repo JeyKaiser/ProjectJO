@@ -25,15 +25,16 @@ En todo el analisis que hemos avanzado e identificado y clasificado las siguient
 - Moodboard Inspiracion: Desarrollo de propuestas de prints sobre biblioteca de siluetas, con el fin de generar inicio prototipos.
 - Creacion de Modelos: Creación de codificación del modelo en SAP.
 - Actualizacion de Modelos: Actualización de la información del modelo en SAP.
+- Creacion de referencias
+- Asociacion de referentes
 
 ### Proceso 2: Prototipos (muestras de coleccion (MD))
-- Asociacion de referentes
 - Creacion molderia base
   
 ### Proceso 3: Corte
 - Corte de muestras de coleccion (MD)
 - Corte de paquetes completos
-- Descarga de telas
+- Descarga de telas en inventario
 
 ### Proceso 4: Confeccion
 - Confeccion de muestras de coleccion (MD)
@@ -69,7 +70,7 @@ En todo el analisis que hemos avanzado e identificado y clasificado las siguient
     #### Proceso 2.1: Creativos
     - Creacion molderia base aprobada
     - Entrega molderia base
-    - Ingreso telas usadas y en referencias
+    - Ingreso telas usadas en referencias
     - Ingreso consumos creativos
     #### Proceso 2.2: Tecnicos  
     - Ingreso consumos tecnicos

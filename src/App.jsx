@@ -8,6 +8,7 @@ import AdminJey from './EjerciciosReact-JCR/AdminJey';
 import ColeccionesExplorer from './pages/ColeccionesExplorer';
 import ReferenciaDetalle from './pages/ReferenciaDetalle';
 import StateMachineShell from './state-machine/routes';
+import NotFoundPage from './pages/NotFoundPage';
 
 // ── LAZY: páginas pesadas o poco frecuentes ──
 const FichaTecnicaForm = lazy(() => import('./pages/FichaTecnicaForm'));
@@ -41,6 +42,7 @@ function App() {
             <Route path="/configuracion" element={<ConfiguracionPersonas />} />
             <Route path="/adminJey" element={<AdminJey />} />
             <Route path="/v2/sm/*" element={<StateMachineShell />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           </Suspense>
         </div>
