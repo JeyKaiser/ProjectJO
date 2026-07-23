@@ -1,0 +1,160 @@
+%% Flujo de Consumos y Trazos
+%% Generado a partir de "flujos de consumos.md" — v2.0 (completo)
+
+flowchart TD
+  subgraph metadata ["Flujo de Consumos y Trazos — v2.0"]
+    direction TB
+    META["Proceso completo: costeo, cambios y contramuestras para referencias textiles"]
+  end
+
+  A["1. Número de la referencia a revisar"]
+  A --> B{"2. ¿Cuántos tipos tiene asignado?"}
+
+  %% ============================================================
+  %% FLUJO: UN TIPO
+  %% ============================================================
+  B -->|"Uno"| U01
+
+  subgraph uno ["Flujo: UN Tipo (2.1)"]
+    direction TB
+    U01{"2.1.1 Escoger tipo"}
+    U01 -->|"Cuero"| U02
+    U01 -->|"Sólido"| U02
+    U01 -->|"All over"| U02
+    U01 -->|"Ubicación de trazo"| U02
+    U01 -->|"Modificación de arte"| U02
+    U02["2.1.2 Revisar parámetros de referentes"]
+    U02 --> U03["2.1.3 Trazo en Audaces\nCrear trazo Opcion1"]
+    U03 --> U04["2.1.4 MyReport\nRegistrar veces trazadas,\ncantidad de piezas y consumos\nOpcion1"]
+    U04 --> U05["2.1.5 Consumos en Drive (Costeo)\nRegistrar consumos Opcion1"]
+    U05 --> U06{"2.1.6 ¿Hay reporte\nde cambios o novedades?"}
+    U06 -->|"SI"| U07
+    U06 -->|"NO"| MERGE_UNO
+
+    U07["Trazo\nActualizar trazo\n(creado en 2.1.3.1)"]
+    U07 --> U08["MyReport\nActualizar veces trazadas,\ncantidad de piezas y consumos"]
+    U08 --> U09{"¿Ya se cerró la etapa\nde costeo?"}
+    U09 -->|"SI"| U10["Registrar consumos en Drive\n(Post-costeo / Pre-explosión)"]
+    U09 -->|"NO"| U11["Actualizar consumos en Drive\n(Costeo)"]
+    U10 --> MERGE_UNO(((" ")))
+    U11 --> MERGE_UNO(((" ")))
+  end
+
+  %% ============================================================
+  %% FLUJO: VARIOS TIPOS
+  %% ============================================================
+  B -->|"Varios"| V01
+
+  subgraph varios ["Flujo: VARIOS Tipos (2.2)"]
+    direction TB
+    V01{"2.2.1 Escoger varios tipos"}
+    V01 -->|"Cuero"| V02
+    V01 -->|"Sólido"| V02
+    V01 -->|"All over"| V02
+    V01 -->|"Ubicación de trazo"| V02
+    V01 -->|"Modificación de arte"| V02
+    V02["2.2.2 Revisar parámetros de referentes"]
+    V02 --> V03["2.2.3 Trazos en Audaces\nCrear trazo Opcion1\nCrear trazo Opcion2\nCrear trazo Opcion(n)"]
+    V03 --> V04["2.2.4 MyReport\nRegistrar veces trazadas,\ncantidad de piezas y consumos\nOpcion1, Opcion2, Opcion(n)"]
+    V04 --> V05["2.2.5 Consumos en Drive (Costeo)\nRegistrar consumos\nOpcion1, Opcion2, Opcion(n)"]
+    V05 --> V06{"2.2.6 ¿Hay reporte\nde cambios o novedades?"}
+    V06 -->|"SI"| V07
+    V06 -->|"NO"| MERGE_VARIOS
+
+    V07["Trazo\nActualizar trazo Opcion1\nActualizar trazo Opcion2\nActualizar trazo Opcion(n)"]
+    V07 --> V08["MyReport\nActualizar veces trazadas,\ncantidad de piezas y consumos\nOpcion1, Opcion2, Opcion(n)"]
+    V08 --> V09{"¿Ya se cerró la etapa\nde costeo?"}
+    V09 -->|"SI"| V10["Registrar consumos en Drive\n(Post-costeo / Pre-explosión)"]
+    V09 -->|"NO"| V11["Actualizar consumos en Drive\n(Costeo)"]
+    V10 --> MERGE_VARIOS(((" ")))
+    V11 --> MERGE_VARIOS(((" ")))
+  end
+
+  MERGE_UNO --> CONTRA_RECEP
+  MERGE_VARIOS --> V_DEF
+
+  V_DEF["2.2.6.3 Definición del tipo final\nde la referencia\n(de varios a uno solo)"]
+  V_DEF --> CONTRA_RECEP
+
+  %% ============================================================
+  %% CONTRAMUESTRAS: FLUJO COMPARTIDO
+  %% ============================================================
+  CONTRA_RECEP["2.2.7 Recepción de moldería\nde Contramuestras"]
+  CONTRA_RECEP --> CONTRA_NODE
+
+  subgraph contramuestras ["Contramuestras (2.2.8)"]
+    direction TB
+    CONTRA_NODE["2.2.8.1 Crear trazo"]
+    CONTRA_NODE --> C_Q1["Consultar presentación\nde la colección"]
+    C_Q1 --> C_Q2["Consultar MyReport\n(veces trazadas, cantidad\nde piezas y consumos)"]
+    C_Q2 --> C_Q3["Consultar drive de Costeo"]
+    C_Q3 --> C_Q4["Consultar drive de\nContramuestras"]
+    C_Q4 --> C_TIPO["Consultar el tipo definitivo\nde la referencia\n(Cuero / Sólido / All over /\nUbicación de trazo /\nModificación de arte)"]
+    C_TIPO --> C_Q5["Consultar trazo de Costeo"]
+
+    C_Q5 --> COMP{"2.2.8.2 Comparativo\nTrazo de Costeo VS\nTrazo de Contramuestra\n¿Diferente?"}
+
+    %% ----------------------------------------------------------
+    %% SI: DIFERENCIAS
+    %% ----------------------------------------------------------
+    COMP -->|"SI"| DIF
+
+    subgraph si_diferencias ["2.2.8.2.1 SI — Análisis de diferencias"]
+      direction TB
+      DIF["Diferencias detectadas"]
+      DIF --> Q1{"¿Igual veces trazada?"}
+      Q1 -->|"SI"| Q2
+      Q1 -->|"NO"| J1["Justificación:\nSe traza más veces, se logra\nmejor aprovechamiento"]
+      J1 --> Q2
+      Q2{"¿Igual cantidad\nde piezas?"}
+      Q2 -->|"SI"| Q3
+      Q2 -->|"NO"| J2["Justificación:\nAumenta/disminuye la cantidad\nde piezas a fusionar"]
+      J2 --> Q3
+      Q3{"¿Igual ancho de tela?"}
+      Q3 -->|"SI"| Q4
+      Q3 -->|"NO"| J3["Justificación:\nCambió el ancho de la tela /\nCambio de tela"]
+      J3 --> Q4
+      Q4{"¿Igual moldería?"}
+      Q4 -->|"SI"| Q5
+      Q4 -->|"NO"| J4["Justificación:\nAumento/disminución en el largo /\nRe-diseño de moldería"]
+      J4 --> Q5
+      Q5{"¿Igual consumo\nlineal (sesgos)?"}
+      Q5 -->|"SI"| Q6
+      Q5 -->|"NO"| J5["Justificación:\nAumenta/disminuye\nconsumo lineal"]
+      J5 --> Q6
+      Q6{"¿Igual ancho\nsesgo?"}
+      Q6 -->|"SI"| Q7
+      Q6 -->|"NO"| J6["Justificación:\nAumenta/disminuye\nel ancho del sesgo"]
+      J6 --> Q7
+      Q7{"¿Igual cantidad\nde telas totales?"}
+      Q7 -->|"SI"| DIF_MYR
+      Q7 -->|"NO"| J7["Justificación:\nTela añadida/eliminada\npara Contramuestras"]
+      J7 --> DIF_MYR
+
+      DIF_MYR["2.2.8.2.1.8 MyReport\nRegistrar veces trazadas,\ncantidad de piezas y consumos"]
+      DIF_MYR --> DIF_DRV["2.2.8.2.1.9 Consumos en Drive\n(Contramuestras)\nRegistrar consumos"]
+      DIF_DRV --> DIF_CAM{"2.2.8.2.1.10\n¿Hay reporte de cambios\no novedades?"}
+      DIF_CAM -->|"SI"| DIF_ACT["Actualizar trazo\n+ Actualizar MyReport"]
+      DIF_CAM -->|"NO"| FIN
+    end
+
+    %% ----------------------------------------------------------
+    %% NO: SIN DIFERENCIAS
+    %% ----------------------------------------------------------
+    COMP -->|"NO"| IGUAL
+
+    subgraph sin_diferencias ["2.2.8.2.2 NO — Sin diferencias"]
+      direction TB
+      IGUAL["Trazo igual al de Costeo"]
+      IGUAL --> IGUAL_MYR["2.2.8.2.2.1 MyReport\nRegistrar veces trazadas,\ncantidad de piezas y consumos"]
+      IGUAL_MYR --> IGUAL_DRV["2.2.8.2.2.2 Consumos en Drive\n(Contramuestras)\nRegistrar consumos"]
+      IGUAL_DRV --> IGUAL_CAM{"2.2.8.2.2.3\n¿Hay reporte de cambios\no novedades?"}
+      IGUAL_CAM -->|"SI"| IGUAL_ACT["Actualizar trazo\n+ Actualizar MyReport\n(creado en 2.2.8.1)"]
+      IGUAL_CAM -->|"NO"| FIN
+    end
+  end
+
+  DIF_ACT --> FIN
+  IGUAL_ACT --> FIN
+
+  FIN["2.2.8.2.3 FIN\n(sigue consumos de producción)"]

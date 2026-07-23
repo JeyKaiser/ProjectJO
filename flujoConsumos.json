@@ -1,0 +1,124 @@
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+{
+  "flujo_consumos": {
+    "metadata": {
+      "nombre": "Flujo de Consumos y Trazos",
+      "version": "1.0",
+      "descripcion": "Proceso de revisión, trazado y registro de consumos para referencias."
+    },
+    "pasos": [
+      {
+        "id": "paso_1",
+        "tipo": "input",
+        "titulo": "Número de la referencia a revisar",
+        "campo": "referencia_id",
+        "siguiente": "paso_2"
+      },
+      {
+        "id": "paso_2",
+        "tipo": "decision",
+        "titulo": "¿Cuántos tipos tiene asignado?",
+        "opciones": {
+          "uno": {
+            "accion": "Escoger uno (cuero, sólido, all over, ubicación de trazo o modificación de arte)",
+            "variable_guardada": "tipo_asignado",
+            "siguiente": "paso_3"
+          },
+          "varios": {
+            "accion": "Escoger varios (cuero, sólido, all over, ubicación de trazo o modificación de arte)",
+            "variable_guardada": "tipo_asignado",
+            "siguiente": "paso_3"
+          }
+        }
+      },
+      {
+        "id": "paso_3",
+        "tipo": "grupo_accion",
+        "titulo": "Crear trazo(s) en Audaces",
+        "subpasos": [
+          {
+            "id": "paso_3_1",
+            "accion": "Revisar parámetros de referentes"
+          },
+          {
+            "id": "paso_3_2",
+            "accion": "Crear trazo(s) (Opcion1, Opcion2... OpcionN según selección)"
+          }
+        ],
+        "siguiente": "paso_4"
+      },
+      {
+        "id": "paso_4",
+        "tipo": "grupo_accion",
+        "titulo": "Registrar consumos y reportes",
+        "subpasos": [
+          {
+            "id": "paso_4_1",
+            "accion": "Registrar consumos en Drive (Costeo)"
+          },
+          {
+            "id": "paso_4_2",
+            "accion": "MyReport: Registrar veces trazadas, cantidad de piezas y consumos"
+          }
+        ],
+        "siguiente": "paso_5"
+      },
+      {
+        "id": "paso_5",
+        "tipo": "decision",
+        "titulo": "¿Hay reporte de cambios o novedades?",
+        "opciones": {
+          "si": {
+            "siguiente": "paso_5_1"
+          },
+          "no": {
+            "siguiente": "paso_6"
+          }
+        }
+      },
+      {
+        "id": "paso_5_1",
+        "tipo": "grupo_accion",
+        "titulo": "Actualizar por cambios",
+        "subpasos": [
+          {
+            "id": "paso_5_1_1",
+            "accion": "Actualizar trazo(s) en Audaces"
+          },
+          {
+            "id": "paso_5_1_2",
+            "accion": "Actualizar MyReport (veces trazadas, piezas, consumos)"
+          }
+        ],
+        "siguiente": "paso_5_2"
+      },
+      {
+        "id": "paso_5_2",
+        "tipo": "decision",
+        "titulo": "¿Ya se cerró la etapa de costeo?",
+        "opciones": {
+          "si": {
+            "accion": "Registrar consumos en Drive (Post-costeo/Pre-explosion)",
+            "siguiente": "paso_6"
+          },
+          "no": {
+            "accion": "Actualizar consumos en Drive (Costeo)",
+            "siguiente": "paso_6"
+          }
+        }
+      },
+      {
+        "id": "paso_6",
+        "tipo": "accion",
+        "titulo": "Recepción de moldería de Contramuestras",
+        "siguiente": "paso_7"
+      },
+      {
+        "id": "paso_7",
+        "tipo": "fin",
+        "titulo": "Fin del flujo"
+      }
+    ]
+  }
+}

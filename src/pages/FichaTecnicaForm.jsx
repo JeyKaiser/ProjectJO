@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardData } from '../lib/api';
+import { useDashboardData, createReference, useCollectionYears } from '../lib/api';
+import supabase from '../lib/supabase';
 import { getPersonas } from '../data/personas';
 
 // ── Catálogos ────────────────────────────────────────────────
@@ -73,13 +74,17 @@ export default function FichaTecnicaForm() {
   const personas = getPersonas();
   const { data } = useDashboardData();
   const COLECCIONES_OPTIONS = (data?.colecciones || []).map(c => ({
-    value: c.id,
-    label: `${c.nombre} 2026`,
+    value: c.dbId,  // DB id para guardar en references.collection_id
+    label: c.nombre,
+    slug: c.id,
   }));
 
+  const colDbToSlug = {};
+  (data?.colecciones || []).forEach(c => { colDbToSlug[c.dbId] = c.id; });
+
   const [formData, setFormData] = useState({
-    // Identificación
     coleccion: '',
+    year: '',
     nombre: '',
     tipoPrenda: '',
     color: '',
@@ -119,6 +124,24 @@ export default function FichaTecnicaForm() {
 
   const [guardado, setGuardado] = useState(false);
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [difficultyMap, setDifficultyMap] = useState({});
+
+  const selectedColId = formData.coleccion ? parseInt(formData.coleccion) : null;
+  const { years: colYears } = useCollectionYears(selectedColId);
+
+  useEffect(() => {
+    supabase
+      .from('difficulty_levels')
+      .select('id, level')
+      .then(({ data: levels, error: _ }) => {
+        if (levels) {
+          const map = {};
+          levels.forEach(l => { map[l.level] = l.id; });
+          setDifficultyMap(map);
+        }
+      });
+  }, []);
 
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
   const handleInput = (e) => set(e.target.name, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
@@ -126,6 +149,7 @@ export default function FichaTecnicaForm() {
   const validate = () => {
     const err = {};
     if (!formData.coleccion) err.coleccion = 'Requerido';
+    if (!formData.year) err.year = 'Requerido';
     if (!formData.tipoPrenda) err.tipoPrenda = 'Requerido';
     if (!formData.nombre) err.nombre = 'Requerido';
     if (!formData.color) err.color = 'Requerido';
@@ -134,15 +158,56 @@ export default function FichaTecnicaForm() {
     return Object.keys(err).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    // Simular guardado y generar código MD
-    const nuevoMD = `MD-${Math.floor(Math.random() * 900) + 100}`;
-    const nuevoPT = `PT0${Math.floor(Math.random() * 9000) + 1000}`;
-    console.log('Nueva referencia guardada:', { ...formData, codigoMD: nuevoMD, codigoPT: nuevoPT, faseActual: 2.1 });
-    setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT });
+    setSaving(true);
+    try {
+      // Generar reference_number unico
+      const { data: allRefs } = await supabase
+        .from('references')
+        .select('reference_number');
+
+      const numbers = (allRefs || [])
+        .map(r => parseInt(r.reference_number))
+        .filter(n => !isNaN(n));
+
+      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const refNum = String(maxNum + 1).padStart(3, '0');
+
+      const collectionId = parseInt(formData.coleccion);
+      const yearInt = parseInt(formData.year);
+
+      const { data: newRef, error: createErr } = await createReference({
+        collection_id: collectionId,
+        year: yearInt,
+        reference_number: refNum,
+        name: formData.nombre,
+        color: formData.color,
+        color_code: formData.codigoColor || null,
+        has_embroidery: formData.tieneBordado,
+        has_semielaborated: formData.tieneSemielaborado,
+        priority_first_buy: PRIORIDAD_OPTIONS.indexOf(formData.prioridadFirstBuy) + 1,
+        drop_entrega: formData.dropEntrega,
+        complejidad_corte_id: difficultyMap[formData.complejidadCorte.toUpperCase()] || null,
+        complejidad_confeccion_id: difficultyMap[formData.complejidadConfeccion.toUpperCase()] || null,
+        has_art_modification: formData.clasificacion === 'Mod. Arte',
+        has_trace_location: formData.clasificacion === 'Ubicacion Trazo',
+        has_all_over: formData.clasificacion === 'Solida' ? false : false,
+      });
+
+      if (createErr) throw createErr;
+
+      const nuevoMD = `MD-${refNum}`;
+      const nuevoPT = `PT03${refNum}`;
+      setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], year: yearInt });
+    } catch (err) {
+      alert('Error al crear la referencia: ' + err.message);
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -168,7 +233,7 @@ export default function FichaTecnicaForm() {
             <span className="code-badge code-pt" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoPT}</span>
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-primary" onClick={() => navigate('/colecciones')}>
+            <button className="btn btn-primary" onClick={() => navigate(`/colecciones/${guardado.collectionSlug}/${guardado.year}`)}>
               Ver en Colecciones
             </button>
             <button className="btn btn-secondary" onClick={handleReset}>
@@ -196,15 +261,30 @@ export default function FichaTecnicaForm() {
         {/* ── SECCIÓN 1: Identificación básica ── */}
         <FormSeccion titulo="📋  Identificación y Perfil" accentColor="var(--temp-cold-border)">
           <div className="ficha-grid-3">
-            {/* Colección */}
+            {/* Coleccion */}
             <div className="form-group">
-              <label className="form-label form-label-required">Colección</label>
+              <label className="form-label form-label-required">Coleccion</label>
               <select name="coleccion" className={`form-select ${errors.coleccion ? 'input-error' : ''}`}
-                value={formData.coleccion} onChange={handleInput} required>
+                value={formData.coleccion} onChange={(e) => { handleInput(e); set('year', ''); }} required>
                 <option value="">Selecciona...</option>
                 {COLECCIONES_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
               {errors.coleccion && <span className="form-error">{errors.coleccion}</span>}
+            </div>
+
+            {/* Ano */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Ano</label>
+              <select name="year" className={`form-select ${errors.year ? 'input-error' : ''}`}
+                value={formData.year} onChange={handleInput} required
+                disabled={!formData.coleccion}>
+                <option value="">Selecciona...</option>
+                {(colYears || []).filter(y => !y.is_hidden).map(y => (
+                  <option key={y.id} value={y.year}>{y.year}</option>
+                ))}
+              </select>
+              {!formData.coleccion && <span className="form-help">Selecciona una coleccion primero</span>}
+              {errors.year && <span className="form-error">{errors.year}</span>}
             </div>
 
             {/* Tipo de Prenda */}
@@ -473,9 +553,9 @@ export default function FichaTecnicaForm() {
           <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" disabled={saving}>
             <Save size={18} />
-            Crear y Asignar Código MD
+            {saving ? 'Guardando...' : 'Crear y Asignar Codigo MD'}
           </button>
         </div>
 

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ChevronRight, ArrowLeft, Clock, User, Tag } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Clock, User, Tag, EyeOff } from 'lucide-react';
 import { useDashboardData, getFaseMacro } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import TemperatureBar from '../components/TemperatureBar';
 
 export default function ColeccionesExplorer() {
   const { coleccionId, anio } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { data, loading, error } = useDashboardData();
   const colecciones = data?.colecciones || [];
 
@@ -18,6 +20,10 @@ export default function ColeccionesExplorer() {
 
   // ── NIVEL 3: Referencias de una colección+año ──
   if (coleccionActual && anioActual) {
+    const visibleRefs = isAdmin
+      ? anioActual.referencias
+      : anioActual.referencias.filter(r => !r.isHidden);
+
     return (
       <div className="fade-in">
         {/* Breadcrumb */}
@@ -31,19 +37,30 @@ export default function ColeccionesExplorer() {
 
         <div className="flex justify-between items-end mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{coleccionActual.nombre} {anioActual.anio}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {coleccionActual.nombre} {anioActual.anio}
+              {anioActual.isHidden && isAdmin && (
+                <span style={{ marginLeft: 10, background: 'var(--gray-200)', color: 'var(--gray-500)', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, verticalAlign: 'middle' }}>
+                  <EyeOff size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} /> Año oculto
+                </span>
+              )}
+            </h2>
             <p className="text-gray-500 text-sm">{anioActual.resumen.total} referencias · {anioActual.resumen.enProceso} en proceso</p>
           </div>
         </div>
 
         <div className="referencias-grid">
-          {anioActual.referencias.map((ref) => {
+          {visibleRefs.map((ref) => {
             const faseMacro = getFaseMacro(ref.faseActual);
             return (
               <div
                 key={ref.id}
                 className="referencia-card"
-                style={{ borderTopColor: `var(--temp-${faseMacro.tempVar}-border)`, cursor: 'pointer' }}
+                style={{
+                  borderTopColor: `var(--temp-${faseMacro.tempVar}-border)`,
+                  cursor: 'pointer',
+                  opacity: ref.isHidden ? 0.6 : 1,
+                }}
                 onClick={() => navigate(`/colecciones/${coleccionActual.id}/${anioActual.anio}/${ref.id}`)}
               >
                 {/* Barra de Temperatura */}
@@ -62,7 +79,10 @@ export default function ColeccionesExplorer() {
                     <span className="code-badge code-md">{ref.codigoMD}</span>
                     <span className="code-badge code-pt">{ref.codigoPT}</span>
                   </div>
-                  <span className="referencia-clasificacion">{ref.clasificacion}</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {ref.isHidden && <EyeOff size={12} style={{ color: 'var(--gray-400)' }} />}
+                    <span className="referencia-clasificacion">{ref.clasificacion}</span>
+                  </div>
                 </div>
 
                 {/* Cuerpo */}
@@ -98,6 +118,10 @@ export default function ColeccionesExplorer() {
 
   // ── NIVEL 2: Años de una colección ──
   if (coleccionActual) {
+    const visibleYears = isAdmin
+      ? coleccionActual.anios
+      : coleccionActual.anios.filter(a => !a.isHidden);
+
     return (
       <div className="fade-in">
         {/* Breadcrumb */}
@@ -122,9 +146,14 @@ export default function ColeccionesExplorer() {
         </div>
 
         <div className="anios-grid">
-          {coleccionActual.anios.map((a) => (
-            <div key={a.anio} className="anio-card" onClick={() => navigate(`/colecciones/${coleccionActual.id}/${a.anio}`)}>
-              <h3 className="anio-card-year">{a.anio}</h3>
+          {visibleYears.map((a) => (
+            <div key={a.anio} className="anio-card"
+              style={{ opacity: a.isHidden ? 0.55 : 1 }}
+              onClick={() => navigate(`/colecciones/${coleccionActual.id}/${a.anio}`)}>
+              <h3 className="anio-card-year">
+                {a.anio}
+                {a.isHidden && <EyeOff size={13} style={{ marginLeft: 6, color: 'var(--gray-400)', verticalAlign: 'middle' }} />}
+              </h3>
               <div className="anio-card-stats">
                 <div className="anio-stat">
                   <span className="anio-stat-number">{a.resumen.total}</span>

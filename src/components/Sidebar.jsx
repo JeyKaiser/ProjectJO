@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon } from 'lucide-react';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -103,9 +103,16 @@ export default function Sidebar() {
           </NavLink>
 
           {(isAdmin) && (
+            <NavLink to="/admin/colecciones" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <span className="nav-item-icon"><Shield size={20} /></span>
+              <span>Gestion Colecciones</span>
+            </NavLink>
+          )}
+
+          {(isAdmin) && (
             <NavLink to="/configuracion" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <span className="nav-item-icon"><Settings size={20} /></span>
-              <span>Configuración</span>
+              <span>Configuracion</span>
             </NavLink>
           )}
         </div>

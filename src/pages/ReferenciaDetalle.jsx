@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle } from 'lucide-react';
-import { useDashboardData, getFaseMacro } from '../lib/api';
+import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { useDashboardData, getFaseMacro, toggleReferenceHidden } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
@@ -57,6 +57,20 @@ export default function ReferenciaDetalle() {
   const anioData = coleccion?.anios.find(a => a.anio === parseInt(anio));
   const ref = anioData?.referencias.find(r => r.id === refId);
 
+  const [isHidden, setIsHidden] = useState(ref?.isHidden || false);
+
+  const handleToggleHidden = async () => {
+    if (!ref?.dbId) return;
+    const newState = !isHidden;
+    setIsHidden(newState);
+    try {
+      await toggleReferenceHidden(ref.dbId, newState);
+    } catch (e) {
+      setIsHidden(!newState);
+      console.error('Error toggling hidden:', e);
+    }
+  };
+
   if (dashLoading) return <div className="fade-in p-8 text-center text-gray-400">Cargando referencia...</div>;
 
   if (!ref) return (
@@ -92,6 +106,22 @@ export default function ReferenciaDetalle() {
               <span style={{ background: `var(--temp-${faseMacro.tempVar})`, color: `var(--temp-${faseMacro.tempVar}-text)`, padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, border: `1px solid var(--temp-${faseMacro.tempVar}-border)` }}>
                 {ref.clasificacion}
               </span>
+              {isHidden && (
+                <span style={{ background: 'var(--gray-200)', color: 'var(--gray-500)', padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <EyeOff size={12} /> Oculta
+                </span>
+              )}
+              {isAdmin && ref.dbId && (
+                <button
+                  className={`btn ${isHidden ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: 11, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  onClick={handleToggleHidden}
+                  title={isHidden ? 'Mostrar referencia' : 'Ocultar referencia'}
+                >
+                  {isHidden ? <Eye size={12} /> : <EyeOff size={12} />}
+                  {isHidden ? 'Mostrar' : 'Ocultar'}
+                </button>
+              )}
             </div>
             <h1 className="detalle-nombre">{ref.nombre}</h1>
             <p className="detalle-meta">{ref.tipoPrenda} · {ref.color} · {ref.linea} / {ref.sublinea}</p>

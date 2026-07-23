@@ -18,6 +18,7 @@ const FichaFinalView = lazy(() => import('./pages/FichaFinalView'));
 const ReferentesView = lazy(() => import('./pages/ReferentesView'));
 const ImportarCSV = lazy(() => import('./pages/ImportarCSV'));
 const ConfiguracionPersonas = lazy(() => import('./pages/ConfiguracionPersonas'));
+const GestionColecciones = lazy(() => import('./pages/GestionColecciones'));
 
 function App() {
   return (
@@ -29,18 +30,19 @@ function App() {
           <Suspense fallback={<div className="p-4 text-center">Cargando...</div>}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/taller" element={<TallerKanban />} />
+            <Route path="/adminJey" element={<AdminJey />} />
+            <Route path="/importar" element={<ImportarCSV />} />
+            <Route path="/referentes" element={<ReferentesView />} />
             <Route path="/ficha-nueva" element={<FichaTecnicaForm />} />
             <Route path="/colecciones" element={<ColeccionesExplorer />} />
+            <Route path="/configuracion" element={<ConfiguracionPersonas />} />
+            <Route path="/admin/colecciones" element={<GestionColecciones />} />
+            <Route path="/produccion/consumos" element={<ConsumosView />} />
+            <Route path="/produccion/ficha-final" element={<FichaFinalView />} />
             <Route path="/colecciones/:coleccionId" element={<ColeccionesExplorer />} />
             <Route path="/colecciones/:coleccionId/:anio" element={<ColeccionesExplorer />} />
             <Route path="/colecciones/:coleccionId/:anio/:refId" element={<ReferenciaDetalle />} />
-            <Route path="/taller" element={<TallerKanban />} />
-            <Route path="/produccion/consumos" element={<ConsumosView />} />
-            <Route path="/produccion/ficha-final" element={<FichaFinalView />} />
-            <Route path="/referentes" element={<ReferentesView />} />
-            <Route path="/importar" element={<ImportarCSV />} />
-            <Route path="/configuracion" element={<ConfiguracionPersonas />} />
-            <Route path="/adminJey" element={<AdminJey />} />
             <Route path="/v2/sm/*" element={<StateMachineShell />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

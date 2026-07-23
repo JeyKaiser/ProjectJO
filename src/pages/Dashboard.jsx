@@ -83,15 +83,17 @@ const KpiCard = React.memo (function KpiCard ({ titulo, valor, subtitulo, icono,
 });
 
 const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
-  const anio2026 = col.anios.find(a => a.anio === 2026);
-  if (!anio2026) return null;
-  const progreso = calcularProgreso(anio2026);
-  const { total, enProceso, pausadas, completadas } = anio2026.resumen;
-  const refEjemplo = anio2026.referencias[0];
+  const visibleYears = col.anios.filter(a => !a.isHidden);
+  const latestYear = visibleYears.length > 0 ? visibleYears[0] : col.anios[0];
+  if (!latestYear) return null;
+  const progreso = calcularProgreso(latestYear);
+  const { total, enProceso, pausadas, completadas } = latestYear.resumen;
+  const refEjemplo = latestYear.referencias[0];
   const tempVar = refEjemplo ? getFaseMacro(refEjemplo.faseActual).tempVar : 'cold';
+  const displayYear = latestYear.anio;
 
   return (
-    <div className="coleccion-row" onClick={() => navigate(`/colecciones/${col.id}/2026`)}>
+    <div className="coleccion-row" onClick={() => navigate(`/colecciones/${col.id}/${displayYear}`)}>
       <div className="coleccion-row-left">
         <div className="coleccion-row-img" style={{ borderColor: col.borderColor }}>
           {col.imagen
@@ -100,7 +102,7 @@ const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
           }
         </div>
         <div className="coleccion-row-info">
-          <div className="coleccion-row-nombre">{col.nombre} <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>2026</span></div>
+          <div className="coleccion-row-nombre">{col.nombre} <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>{displayYear}</span></div>
           <div style={{ width: 180, marginTop: 6 }}>
             <TemperatureBar subfase={refEjemplo?.faseActual || 1.1} showLabel={false} />
           </div>
@@ -149,7 +151,7 @@ export default function Dashboard() {
       <div className="dashboard-header">
         <div>
           <h2 className="dashboard-titulo">Dashboard de Colecciones</h2>
-          <p className="dashboard-subtitulo">Visión global del estado de producción · Temporada 2026</p>
+          <p className="dashboard-subtitulo">Vision global del estado de produccion</p>
         </div>
         <div className="dashboard-fecha">
           <Activity size={14} />
@@ -267,7 +269,7 @@ export default function Dashboard() {
       {/* Estado por Colección */}
       <div className="card">
         <div className="card-header">
-          <h4 className="card-title">Estado por Colección · 2026</h4>
+          <h4 className="card-title">Estado por Coleccion</h4>
           <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Clic para explorar</span>
         </div>
         <div className="colecciones-list">

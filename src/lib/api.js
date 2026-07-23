@@ -130,80 +130,166 @@ export function useDashboardData() {
     let cancelled = false;
     async function load() {
       try {
-        // Fetch collections
+        // Fetch collections + collection_years
         const { data: cols, error: colErr } = await supabase
           .from('collections')
-          .select('id,code,name,image_url')
+          .select('id,code,name,image_url,year')
           .eq('active', true);
 
         if (colErr) throw colErr;
 
-        // Fetch references with status
+        // Fetch collection years
+        const { data: colYears, error: cyErr } = await supabase
+          .from('collection_years')
+          .select('id,collection_id,year,is_hidden');
+
+        if (cyErr) throw cyErr;
+
+        // Fetch references
         const { data: refs, error: refErr } = await supabase
           .from('references')
-          .select('id, reference_number, name, collection_id, status_id, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, created_at');
+          .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, created_at');
 
         if (refErr) throw refErr;
 
         if (cancelled) return;
 
+        // Mapa rápido: collection_id -> years
+        const yearsByCollection = {};
+        (colYears || []).forEach(cy => {
+          if (!yearsByCollection[cy.collection_id]) yearsByCollection[cy.collection_id] = [];
+          yearsByCollection[cy.collection_id].push(cy);
+        });
+
         // Build colecciones structure
         const colecciones = cols.map(col => {
-          const colRefs = (refs || []).filter(r => r.collection_id === col.id);
+          const colYearsList = yearsByCollection[col.id] || [];
+          const fallbackYear = col.year || 2026;
 
-          const total = colRefs.length;
-          const completadas = colRefs.filter(r => r.status_id === 2 || r.status_id === 4).length;
-          const pausadas = colRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
-          const enProceso = total - completadas - pausadas;
+          const anios = colYearsList.length > 0
+            ? colYearsList.map(cy => {
+                const yearRefs = (refs || []).filter(r =>
+                  r.collection_id === col.id && r.year === cy.year
+                );
+                const total = yearRefs.length;
+                const completadas = yearRefs.filter(r => r.status_id === 2 || r.status_id === 4).length;
+                const pausadas = yearRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
+                const enProceso = total - completadas - pausadas;
 
-          const referencias = colRefs.map(r => {
-            const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
-            const fm = getFaseMacro(sf);
-            const clasificacion = r.has_art_modification ? 'Mod. Arte'
-              : r.has_trace_location ? 'Ubicacion Trazo'
-              : r.has_all_over ? 'All Over'
-              : 'Solida';
+                const referencias = yearRefs.map(r => {
+                  const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
+                  const fm = getFaseMacro(sf);
+                  const clasificacion = r.has_art_modification ? 'Mod. Arte'
+                    : r.has_trace_location ? 'Ubicacion Trazo'
+                    : r.has_all_over ? 'All Over'
+                    : 'Solida';
 
-            return {
-              id: `REF-${r.reference_number}`,
-              codigoMD: `MD-${String(r.reference_number).padStart(3, '0')}`,
-              codigoPT: `PT03${String(r.reference_number).padStart(3, '0')}`,
-              nombre: r.name,
-              tipoPrenda: col.name || '',
-              color: '',
-              codigoColor: '',
-              imagen: r.main_image_url || null,
-              linea: '',
-              sublinea: '',
-              tallaje: '',
-              largo: '',
-              closure: '',
-              faseActual: sf,
-              subfaseNombre: getProcesoNombre(sf),
-              responsable: '',
-              tiempoFase: '',
-              clasificacion,
-              prioridadFirstBuy: r.drop_entrega || '',
-              dropEntrega: r.drop_entrega || '',
-              enviarMaquila: false,
-              complejidadCorte: '',
-              complejidadConfeccion: '',
-              tieneBordado: r.has_embroidery || false,
-              tieneSemielaborado: false,
-              montajeManiqui: '',
-              tirasContinuas: false,
-              includes: '',
-              tipoEmpaque: '',
-              telas: [],
-              insumos: [],
-              historialFases: [],
-              mediciones: [],
-              procesosEspeciales: [],
-              marquilla: null,
-              cuidados: [],
-              contramuestra: null,
-            };
-          });
+                  return {
+                    id: `REF-${r.reference_number}`,
+                    dbId: r.id,
+                    codigoMD: `MD-${String(r.reference_number).padStart(3, '0')}`,
+                    codigoPT: `PT03${String(r.reference_number).padStart(3, '0')}`,
+                    nombre: r.name,
+                    tipoPrenda: col.name || '',
+                    color: '',
+                    codigoColor: '',
+                    imagen: r.main_image_url || null,
+                    linea: '',
+                    sublinea: '',
+                    tallaje: '',
+                    largo: '',
+                    closure: '',
+                    faseActual: sf,
+                    subfaseNombre: getProcesoNombre(sf),
+                    responsable: '',
+                    tiempoFase: '',
+                    clasificacion,
+                    prioridadFirstBuy: r.drop_entrega || '',
+                    dropEntrega: r.drop_entrega || '',
+                    enviarMaquila: false,
+                    complejidadCorte: '',
+                    complejidadConfeccion: '',
+                    tieneBordado: r.has_embroidery || false,
+                    tieneSemielaborado: false,
+                    montajeManiqui: '',
+                    tirasContinuas: false,
+                    includes: '',
+                    tipoEmpaque: '',
+                    isHidden: r.is_hidden || false,
+                    telas: [],
+                    insumos: [],
+                    historialFases: [],
+                    mediciones: [],
+                    procesosEspeciales: [],
+                    marquilla: null,
+                    cuidados: [],
+                    contramuestra: null,
+                  };
+                });
+
+                return {
+                  id: cy.id,
+                  anio: cy.year,
+                  isHidden: cy.is_hidden || false,
+                  resumen: { total, enProceso, pausadas, completadas },
+                  referencias,
+                };
+              })
+            : [{
+                id: null,
+                anio: fallbackYear,
+                isHidden: false,
+                resumen: { total: 0, enProceso: 0, pausadas: 0, completadas: 0 },
+                referencias: (() => {
+                  const yearRefs = (refs || []).filter(r => r.collection_id === col.id);
+                  const total = yearRefs.length;
+                  const completadas = yearRefs.filter(r => r.status_id === 2 || r.status_id === 4).length;
+                  const pausadas = yearRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
+                  const enProceso = total - completadas - pausadas;
+                  return yearRefs.map(r => {
+                    const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
+                    const clasificacion = r.has_art_modification ? 'Mod. Arte'
+                      : r.has_trace_location ? 'Ubicacion Trazo'
+                      : r.has_all_over ? 'All Over'
+                      : 'Solida';
+                    return {
+                      id: `REF-${r.reference_number}`,
+                      dbId: r.id,
+                      codigoMD: `MD-${String(r.reference_number).padStart(3, '0')}`,
+                      codigoPT: `PT03${String(r.reference_number).padStart(3, '0')}`,
+                      nombre: r.name,
+                      tipoPrenda: col.name || '',
+                      color: '', codigoColor: '',
+                      imagen: r.main_image_url || null,
+                      linea: '', sublinea: '', tallaje: '', largo: '', closure: '',
+                      faseActual: sf,
+                      subfaseNombre: getProcesoNombre(sf),
+                      responsable: '', tiempoFase: '',
+                      clasificacion,
+                      prioridadFirstBuy: r.drop_entrega || '',
+                      dropEntrega: r.drop_entrega || '',
+                      enviarMaquila: false,
+                      complejidadCorte: '', complejidadConfeccion: '',
+                      tieneBordado: r.has_embroidery || false,
+                      tieneSemielaborado: false,
+                      montajeManiqui: '', tirasContinuas: false,
+                      includes: '', tipoEmpaque: '',
+                      isHidden: r.is_hidden || false,
+                      telas: [], insumos: [], historialFases: [], mediciones: [],
+                      procesosEspeciales: [], marquilla: null, cuidados: [], contramuestra: null,
+                    };
+                  });
+                })(),
+              }];
+
+          // fix anios resumen for fallback case
+          if (colYearsList.length === 0 && anios.length) {
+            const refsForYear = anios[0].referencias;
+            const t = refsForYear.length;
+            const c = refsForYear.filter(r => r.faseActual >= 6).length;
+            const p = refsForYear.filter(r => r.faseActual === 0).length;
+            anios[0].resumen = { total: t, enProceso: t - c - p, pausadas: p, completadas: c };
+          }
 
           return {
             id: slugFromName(col.name),
@@ -212,11 +298,7 @@ export function useDashboardData() {
             nombre: col.name,
             imagen: col.image_url || null,
             borderColor: borderFromName(col.name),
-            anios: [{
-              anio: col.year || 2026,
-              resumen: { total, enProceso, pausadas, completadas },
-              referencias,
-            }],
+            anios,
           };
         });
 
@@ -283,6 +365,9 @@ export function useReferenciaDetalle(refId) {
           subfaseNombre: getProcesoNombre(sf),
           coleccionNombre: refData.collections?.name || '',
           coleccionCode: refData.collections?.code || '',
+          coleccionId: refData.collection_id,
+          year: refData.year,
+          isHidden: refData.is_hidden || false,
           statusNombre: refData.reference_statuses?.status || 'EN_PROCESO',
           telasSupabase: fabrics || [],
           consumosSupabase: consumos || [],
@@ -460,4 +545,128 @@ export async function saveConsumos(consumosArray) {
     }
   }
   return results;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: Collections
+// ═══════════════════════════════════════════════════════════════
+export async function createCollection({ code, name, season, description, image_url }) {
+  return supabase
+    .from('collections')
+    .insert({ code, name, season, description, image_url, active: true })
+    .select('*')
+    .single();
+}
+
+export async function updateCollection(id, { name, season, description, image_url }) {
+  return supabase
+    .from('collections')
+    .update({ name, season, description, image_url })
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function toggleCollectionActive(id, active) {
+  return supabase
+    .from('collections')
+    .update({ active })
+    .eq('id', id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: Collection Years
+// ═══════════════════════════════════════════════════════════════
+export async function createCollectionYear(collectionId, year) {
+  return supabase
+    .from('collection_years')
+    .insert({ collection_id: collectionId, year, is_hidden: false })
+    .select('*')
+    .single();
+}
+
+export async function toggleCollectionYearHidden(id, isHidden) {
+  return supabase
+    .from('collection_years')
+    .update({ is_hidden: isHidden })
+    .eq('id', id);
+}
+
+export function useCollectionYears(collectionId) {
+  const [years, setYears] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!collectionId) { setYears([]); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('collection_years')
+        .select('*')
+        .eq('collection_id', collectionId)
+        .order('year', { ascending: false });
+      if (!error && !cancelled) setYears(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [collectionId]);
+
+  return { years, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: References (create, update, hide)
+// ═══════════════════════════════════════════════════════════════
+export async function createReference(data) {
+  const {
+    collection_id, year, reference_number, name, color, color_code,
+    reference_type, line_id, subline_id, tallaje_group_id,
+    length_description, closure_type_id, package_type_id,
+    has_art_modification, has_trace_location, has_all_over,
+    has_embroidery, has_semielaborated,
+    complejidad_corte_id, complejidad_confeccion_id,
+    priority_first_buy, drop_entrega,
+    envio_corte_maquila, envio_confeccion_maquila,
+    main_image_url, status_id,
+  } = data;
+
+  return supabase
+    .from('references')
+    .insert({
+      collection_id, year, reference_number, name, color, color_code,
+      reference_type: reference_type || 'SILUETA',
+      line_id, subline_id, tallaje_group_id,
+      length_description, closure_type_id, package_type_id,
+      has_art_modification: has_art_modification || false,
+      has_trace_location: has_trace_location || false,
+      has_all_over: has_all_over || false,
+      has_embroidery: has_embroidery || false,
+      has_semielaborated: has_semielaborated || false,
+      complejidad_corte_id, complejidad_confeccion_id,
+      priority_first_buy, drop_entrega,
+      envio_corte_maquila: envio_corte_maquila || false,
+      envio_confeccion_maquila: envio_confeccion_maquila || false,
+      main_image_url,
+      status_id: status_id || 1,
+      is_hidden: false,
+    })
+    .select('*')
+    .single();
+}
+
+export async function updateReference(id, data) {
+  return supabase
+    .from('references')
+    .update(data)
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function toggleReferenceHidden(id, isHidden) {
+  return supabase
+    .from('references')
+    .update({ is_hidden: isHidden })
+    .eq('id', id);
 }

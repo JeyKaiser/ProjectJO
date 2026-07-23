@@ -1,0 +1,31 @@
+import gspread
+import openpyxl
+
+# 1. Conectar con Google Sheets
+gc = gspread.service_account(filename="google_credenciales.json")
+# sheet = gc.open("Copia de COLECCION RESORT 27")
+sheet = gc.open_by_key("1aRhZHtFwVmMg6y7MfC-x_3l68UpZClQubHaDqAqxOkY") 
+
+# 2. Leer datos de cada pestaña
+creativos = sheet.worksheet("CONSUMO_CREATIVOS").get_all_values()
+tecnicos = sheet.worksheet("CONSUMO_TECNICOS").get_all_values()
+trazadores = sheet.worksheet("CONSUMO_TRAZADORES").get_all_values()
+
+# 3. Abrir Excel maestro
+wb = openpyxl.load_workbook("prueba3.xlsx")
+ws = wb["CONSUMO_MATERIALES"]
+
+# 4. Buscar última fila ocupada en Excel
+ultima_fila = ws.max_row
+
+# 5. Escribir datos (ejemplo con creativos)
+for fila in creativos[1:]:  # Skip header
+    ultima_fila += 1
+    ws.cell(row=ultima_fila, column=1, value=fila[0])   # ID_Ref
+    ws.cell(row=ultima_fila, column=2, value=fila[1])   # Cod_Material
+    ws.cell(row=ultima_fila, column=16, value=fila[3])  # Consumo_Creativo (col P)
+    # ... etc
+
+# 6. Guardar
+wb.save("prueba3.xlsx")
+print("Sincronización completada")
