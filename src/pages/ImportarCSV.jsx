@@ -60,15 +60,15 @@ export default function ImportarCSV() {
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const arr = new Uint8Array(e.target.result);
-      const fmt = detectFormat(arr, f.name);
+      const fmt = await detectFormat(arr, f.name);
       setFormat(fmt);
 
       let data;
-      if (fmt === 'MATRIZ') data = parseMatriz(arr, f.name);
-      else if (fmt === 'VALIDACION_TELAS') data = parseValidationTelas(arr, f.name);
-      else data = parseValidationTelas(arr, f.name); // fallback
+      if (fmt === 'MATRIZ') data = await parseMatriz(arr, f.name);
+      else if (fmt === 'VALIDACION_TELAS') data = await parseValidationTelas(arr, f.name);
+      else data = await parseValidationTelas(arr, f.name); // fallback
 
       if (data?.error) { setError(data.error); setFile(null); return; }
       setParsed(data);

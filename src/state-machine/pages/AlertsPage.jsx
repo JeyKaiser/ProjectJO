@@ -22,13 +22,13 @@ export default function AlertsPage() {
     title: {
       fontSize: 22,
       fontWeight: 700,
-      color: '#1f2937',
+      color: 'var(--gray-800)',
       margin: 0,
       fontFamily: "'Inter', sans-serif",
     },
     subtitle: {
       fontSize: 13,
-      color: '#6b7280',
+      color: 'var(--gray-500)',
       margin: '2px 0 0',
     },
     stats: {
@@ -39,39 +39,39 @@ export default function AlertsPage() {
       padding: '10px 14px',
       backgroundColor: '#fef2f2',
       borderRadius: 8,
-      color: '#dc2626',
+      color: 'var(--error)',
       fontSize: 13,
       marginBottom: 12,
     },
     card: {
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--white)',
       borderRadius: 8,
       padding: 16,
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--gray-200)',
       marginBottom: 12,
       cursor: 'pointer',
       transition: 'all 0.15s',
     },
     cardCritical: {
-      borderLeft: '4px solid #ef4444',
+      borderLeft: '4px solid var(--error)',
     },
     cardWarning: {
-      borderLeft: '4px solid #f59e0b',
+      borderLeft: '4px solid var(--warning)',
     },
     cell: {
       padding: '8px 12px',
       fontSize: 13,
-      borderBottom: '1px solid #f3f4f6',
-      color: '#4b5563',
+      borderBottom: '1px solid var(--gray-100)',
+      color: 'var(--gray-600)',
     },
     headerCell: {
       padding: '8px 12px',
       fontWeight: 600,
-      color: '#6b7280',
+      color: 'var(--gray-500)',
       fontSize: 11,
       textTransform: 'uppercase',
       letterSpacing: '0.05em',
-      borderBottom: '1px solid #e5e7eb',
+      borderBottom: '1px solid var(--gray-200)',
     },
   };
 
@@ -89,7 +89,7 @@ export default function AlertsPage() {
             padding: '4px 12px',
             borderRadius: 6,
             backgroundColor: '#fef2f2',
-            color: '#dc2626',
+            color: 'var(--error)',
             fontSize: 12,
             fontWeight: 600,
           }}>
@@ -99,7 +99,7 @@ export default function AlertsPage() {
             padding: '4px 12px',
             borderRadius: 6,
             backgroundColor: '#fffbeb',
-            color: '#d97706',
+            color: 'var(--warning-dark)',
             fontSize: 12,
             fontWeight: 600,
           }}>
@@ -110,9 +110,9 @@ export default function AlertsPage() {
             style={{
               padding: '6px 14px',
               borderRadius: 6,
-              border: '1px solid #d1d5db',
-              backgroundColor: '#ffffff',
-              color: '#374151',
+              border: '1px solid var(--gray-300)',
+              backgroundColor: 'var(--white)',
+              color: 'var(--gray-700)',
               fontSize: 12,
               cursor: 'pointer',
             }}
@@ -125,35 +125,35 @@ export default function AlertsPage() {
       {error && <div style={styles.error}>{error}</div>}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)' }}>
           Cargando alertas...
         </div>
       ) : alerts.length === 0 ? (
         <div style={{
           textAlign: 'center',
           padding: 60,
-          color: '#6b7280',
-          backgroundColor: '#ffffff',
+          color: 'var(--gray-500)',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
         }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>No hay alertas activas</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--gray-700)' }}>No hay alertas activas</div>
           <div style={{ fontSize: 13, marginTop: 4 }}>
             Todas las referencias están dentro de los umbrales de consumo.
           </div>
         </div>
       ) : (
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
           overflow: 'hidden',
         }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
               <thead>
-                <tr style={{ backgroundColor: '#f9fafb' }}>
+                <tr style={{ backgroundColor: 'var(--gray-50)' }}>
                   <th style={styles.headerCell}>Referencia</th>
                   <th style={styles.headerCell}>Códigos</th>
                   <th style={styles.headerCell}>Estado</th>
@@ -174,13 +174,13 @@ export default function AlertsPage() {
                     onClick={() => navigate(`/v2/sm/reference/${alert.referenceId}`)}
                   >
                     <td style={styles.cell}>
-                      <div style={{ fontWeight: 600, color: '#1f2937' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
                         {alert.referenceName || `Ref #${alert.referenceId}`}
                       </div>
                     </td>
                     <td style={styles.cell}>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>{alert.codigoMD}</div>
-                      <div style={{ fontSize: 12, color: '#9ca3af' }}>{alert.codigoPT}</div>
+                      <div style={{ fontSize: 12, color: 'var(--gray-500)' }}>{alert.codigoMD}</div>
+                      <div style={{ fontSize: 12, color: 'var(--gray-400)' }}>{alert.codigoPT}</div>
                     </td>
                     <td style={styles.cell}>
                       <span style={{
@@ -197,7 +197,7 @@ export default function AlertsPage() {
                     <td style={{
                       ...styles.cell,
                       fontWeight: 700,
-                      color: alert.alertLevel === 'critical' ? '#ef4444' : '#f59e0b',
+                      color: alert.alertLevel === 'critical' ? 'var(--error)' : 'var(--warning)',
                     }}>
                       +{alert.consumptionDiff?.toFixed?.(1) ?? alert.consumptionDiff} cm
                     </td>
@@ -211,7 +211,7 @@ export default function AlertsPage() {
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      color: '#9ca3af',
+                      color: 'var(--gray-400)',
                     }}>
                       {alert.consumptionInitial && alert.consumptionContramuestra
                         ? `${alert.consumptionInitial} → ${alert.consumptionContramuestra} cm`
@@ -229,11 +229,11 @@ export default function AlertsPage() {
       <div style={{
         marginTop: 16,
         padding: 12,
-        backgroundColor: '#f9fafb',
+        backgroundColor: 'var(--gray-50)',
         borderRadius: 8,
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--gray-200)',
         fontSize: 12,
-        color: '#6b7280',
+        color: 'var(--gray-500)',
       }}>
         <strong>📐 Cálculo:</strong> Diferencia = |Consumo Contramuestra − Consumo Inicial|.
         Crítica si ≥ umbral configurado. Advertencia si ≥ 75% del umbral.

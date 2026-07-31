@@ -31,20 +31,20 @@ export default function DashboardPage() {
     title: {
       fontSize: 22,
       fontWeight: 700,
-      color: '#1f2937',
+      color: 'var(--gray-800)',
       margin: 0,
       fontFamily: "'Inter', sans-serif",
     },
     subtitle: {
       fontSize: 13,
-      color: '#6b7280',
+      color: 'var(--gray-500)',
       margin: '2px 0 0',
     },
     error: {
       padding: '10px 14px',
       backgroundColor: '#fef2f2',
       borderRadius: 8,
-      color: '#dc2626',
+      color: 'var(--error)',
       fontSize: 13,
       marginBottom: 12,
     },
@@ -59,7 +59,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {initStatus && (
-            <span style={{ fontSize: 12, color: initStatus.includes('Error') ? '#dc2626' : '#059669' }}>
+            <span style={{ fontSize: 12, color: initStatus.includes('Error') ? 'var(--error)' : 'var(--success-dark)' }}>
               {initStatus}
             </span>
           )}
@@ -85,9 +85,9 @@ export default function DashboardPage() {
             style={{
               padding: '8px 16px',
               borderRadius: 6,
-              border: '1px solid #d1d5db',
-              backgroundColor: '#ffffff',
-              color: '#374151',
+              border: '1px solid var(--gray-300)',
+              backgroundColor: 'var(--white)',
+              color: 'var(--gray-700)',
               fontSize: 13,
               cursor: 'pointer',
             }}
@@ -99,9 +99,9 @@ export default function DashboardPage() {
             style={{
               padding: '8px 16px',
               borderRadius: 6,
-              border: '1px solid #d1d5db',
-              backgroundColor: '#ffffff',
-              color: '#374151',
+              border: '1px solid var(--gray-300)',
+              backgroundColor: 'var(--white)',
+              color: 'var(--gray-700)',
               fontSize: 13,
               cursor: 'pointer',
             }}
@@ -114,7 +114,7 @@ export default function DashboardPage() {
       {error && <div style={styles.error}>{error}</div>}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#9ca3af' }}>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)' }}>
           Cargando dashboard...
         </div>
       ) : (
@@ -136,11 +136,11 @@ export default function DashboardPage() {
           <div style={{
             marginTop: 20,
             padding: 12,
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'var(--gray-50)',
             borderRadius: 8,
-            border: '1px solid #e5e7eb',
+            border: '1px solid var(--gray-200)',
             fontSize: 12,
-            color: '#6b7280',
+            color: 'var(--gray-500)',
             textAlign: 'center',
           }}>
             {items.length} referencias en seguimiento | {criticalCount} alertas críticas | {warningCount} advertencias

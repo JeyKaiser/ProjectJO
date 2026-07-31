@@ -1,4 +1,11 @@
-import * as XLSX from 'xlsx';
+let XLSXModule = null;
+
+async function getXLSX() {
+  if (!XLSXModule) {
+    XLSXModule = await import('xlsx');
+  }
+  return XLSXModule;
+}
 
 /* ==========================================================================
    MATRIZ Parser — Lee archivos Excel con formato CONTRAMUESTRAS/MATRIZ
@@ -86,7 +93,8 @@ const STATUS_MAP = {
 /* ==========================================================================
    Main export: parseMatriz(fileData) → { coleccion, secciones }
    ========================================================================== */
-export function parseMatriz(fileData, fileName) {
+export async function parseMatriz(fileData, fileName) {
+  const XLSX = await getXLSX();
   const wb = XLSX.read(fileData, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames.find(s => s.toUpperCase().includes('MATRIZ')) || wb.SheetNames[1] || wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
@@ -386,8 +394,9 @@ export function parseMatriz(fileData, fileName) {
  * Auto-detecta si un archivo es formato MATRIZ observando la row 9.
  * Retorna 'MATRIZ' | 'VALIDACION_TELAS' | 'UNKNOWN'
  */
-export function detectFormat(fileData, fileName) {
+export async function detectFormat(fileData, fileName) {
   try {
+    const XLSX = await getXLSX();
     const wb = XLSX.read(fileData, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import mermaid from 'mermaid';
 import { getHistory } from '../lib/supabase';
 import {
   buildLifecycleGraph,
@@ -9,41 +8,49 @@ import {
 import { computeMetrics, formatMetricTable } from '../lib/lifecycleMetrics';
 import ProcessDetailModal from './ProcessDetailModal';
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'base',
-  securityLevel: 'loose',
-  fontFamily: "'Inter', 'Segoe UI', sans-serif",
-  gitGraph: {
-    showBranches: true,
-    showCommitLabel: true,
-    mainBranchName: 'main',
-    rotateCommitLabel: false,
-    nodeLabel: { width: 200, height: 30, x: -25, y: 0 },
-  },
-  themeVariables: {
-    primaryColor: '#3b82f6',
-    primaryTextColor: '#1f2937',
-    primaryBorderColor: '#d1d5db',
-    lineColor: '#d1d5db',
-    git0: '#3b82f6',
-    git1: '#ec4899',
-    git2: '#14b8a6',
-    git3: '#f97316',
-    git4: '#8b5cf6',
-    git5: '#10b981',
-    git6: '#6366f1',
-    git7: '#ef4444',
-    commitLabelColor: '#1f2937',
-    commitLabelBackground: '#ffffff',
-    commitLabelBorder: '#e5e7eb',
-    tagLabelColor: '#374151',
-    tagLabelBackground: '#f3f4f6',
-    tagLabelBorder: '#d1d5db',
-    branchLabelColor: '#ffffff',
-    branchLabelBackground: '#374151',
-  },
-});
+let mermaidModule = null;
+
+async function getMermaid() {
+  if (!mermaidModule) {
+    mermaidModule = await import('mermaid');
+    mermaidModule.default.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      securityLevel: 'loose',
+      fontFamily: "'Inter', 'Segoe UI', sans-serif",
+      gitGraph: {
+        showBranches: true,
+        showCommitLabel: true,
+        mainBranchName: 'main',
+        rotateCommitLabel: false,
+        nodeLabel: { width: 200, height: 30, x: -25, y: 0 },
+      },
+      themeVariables: {
+        primaryColor: 'var(--primary-500)',
+        primaryTextColor: 'var(--gray-800)',
+        primaryBorderColor: 'var(--gray-300)',
+        lineColor: 'var(--gray-300)',
+        git0: 'var(--primary-500)',
+        git1: '#ec4899',
+        git2: '#14b8a6',
+        git3: '#f97316',
+        git4: '#8b5cf6',
+        git5: 'var(--success)',
+        git6: '#6366f1',
+        git7: 'var(--error)',
+        commitLabelColor: 'var(--gray-800)',
+        commitLabelBackground: 'var(--white)',
+        commitLabelBorder: 'var(--gray-200)',
+        tagLabelColor: 'var(--gray-700)',
+        tagLabelBackground: 'var(--gray-100)',
+        tagLabelBorder: 'var(--gray-300)',
+        branchLabelColor: 'var(--white)',
+        branchLabelBackground: 'var(--gray-700)',
+      },
+    });
+  }
+  return mermaidModule.default;
+}
 
 export default function LifecycleGraph({ referenceId, referenceNumber }) {
   const containerRef = useRef(null);
@@ -72,6 +79,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
         setMetrics(computeMetrics(history || []));
 
         const mmd = buildMermaidGraph(referenceNumber, graph);
+        const mermaid = await getMermaid();
         const { svg } = await mermaid.render('lifecycle-graph', mmd);
         if (!cancelled) setMermaidSvg(svg);
       } catch (e) {
@@ -126,7 +134,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
             y: e.clientY - rect.top - 10,
             text: `${data.icon || ''} ${data.stateLabel}`,
             subtext: `⏱ ${data.durationLabel || '—'} · 👤 ${data.responsible || '—'}`,
-            color: data.color || '#6b7280',
+            color: data.color || 'var(--gray-500)',
           });
         });
         parent.addEventListener('mouseleave', () => setTooltip(null));
@@ -150,7 +158,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
 
   if (loading) {
     return (
-      <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', backgroundColor: '#ffffff', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--gray-400)', backgroundColor: 'var(--white)', borderRadius: 8, border: '1px solid var(--gray-200)' }}>
         <div style={{ fontSize: 14 }}>⏳ Construyendo diagrama de vida...</div>
       </div>
     );
@@ -158,7 +166,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
 
   if (error) {
     return (
-      <div style={{ padding: 24, textAlign: 'center', color: '#dc2626', backgroundColor: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
+      <div style={{ padding: 24, textAlign: 'center', color: 'var(--error)', backgroundColor: '#fef2f2', borderRadius: 8, border: '1px solid #fecaca' }}>
         <div style={{ fontSize: 14, fontWeight: 600 }}>Error al cargar el diagrama</div>
         <div style={{ fontSize: 12, marginTop: 4 }}>{error}</div>
       </div>
@@ -167,7 +175,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
 
   if (!mermaidSvg) {
     return (
-      <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', backgroundColor: '#ffffff', borderRadius: 8, border: '1px solid #e5e7eb' }}>
+      <div style={{ padding: 24, textAlign: 'center', color: 'var(--gray-400)', backgroundColor: 'var(--white)', borderRadius: 8, border: '1px solid var(--gray-200)' }}>
         <div style={{ fontSize: 14 }}>Sin datos de historial para construir el diagrama</div>
       </div>
     );
@@ -175,10 +183,10 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
 
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--white)',
       borderRadius: 8,
       padding: 20,
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--gray-200)',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -188,7 +196,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
         alignItems: 'center',
         marginBottom: 12,
       }}>
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#374151' }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
           Diagrama de Vida — Referencia {referenceNumber}
         </h3>
         {graphData?.branches && Object.keys(graphData.branches).length > 0 && (
@@ -202,8 +210,8 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
                 borderRadius: 12,
                 fontSize: 11,
                 fontWeight: 600,
-                backgroundColor: '#f3f4f6',
-                color: '#374151',
+                backgroundColor: 'var(--gray-100)',
+                color: 'var(--gray-700)',
               }}>
                 🔀 {type}: {data.durationLabel || '—'}
               </span>
@@ -220,8 +228,8 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
             position: 'absolute',
             left: tooltip.x,
             top: tooltip.y,
-            backgroundColor: '#1f2937',
-            color: '#ffffff',
+            backgroundColor: 'var(--gray-800)',
+            color: 'var(--white)',
             padding: '6px 10px',
             borderRadius: 6,
             fontSize: 12,
@@ -231,7 +239,7 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}>
             <div style={{ fontWeight: 600 }}>{tooltip.text}</div>
-            <div style={{ color: '#d1d5db', fontSize: 11 }}>{tooltip.subtext}</div>
+            <div style={{ color: 'var(--gray-300)', fontSize: 11 }}>{tooltip.subtext}</div>
           </div>
         )}
       </div>
@@ -243,19 +251,19 @@ export default function LifecycleGraph({ referenceId, referenceNumber }) {
           gap: 12,
           flexWrap: 'wrap',
           padding: '10px 14px',
-          backgroundColor: '#f9fafb',
+          backgroundColor: 'var(--gray-50)',
           borderRadius: 6,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
         }}>
           {formatMetricTable(metrics).map((row, idx) => (
-            <span key={idx} style={{ fontSize: 12, color: '#6b7280' }}>
-              {row.label}: <strong style={{ color: '#374151' }}>{row.value}</strong>
+            <span key={idx} style={{ fontSize: 12, color: 'var(--gray-500)' }}>
+              {row.label}: <strong style={{ color: 'var(--gray-700)' }}>{row.value}</strong>
             </span>
           ))}
         </div>
       )}
 
-      <div style={{ marginTop: 8, fontSize: 11, color: '#9ca3af', textAlign: 'right' }}>
+      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--gray-400)', textAlign: 'right' }}>
         💡 Haz clic en cualquier nodo para ver detalle · {formatDate(graphData?.trunk?.[0]?.timestamp)} → {formatDate(graphData?.trunk?.[graphData.trunk.length - 1]?.timestamp)}
       </div>
 

@@ -1,7 +1,7 @@
 const COLORS = {
-  none: { bg: '#d1fae5', dot: '#10b981', label: 'Normal' },
-  warning: { bg: '#fef3c7', dot: '#f59e0b', label: 'Advertencia' },
-  critical: { bg: '#fee2e2', dot: '#ef4444', label: 'Crítica' },
+  none: { bg: 'var(--success-light)', dot: 'var(--success)', label: 'Normal' },
+  warning: { bg: 'var(--warning-light)', dot: 'var(--warning)', label: 'Advertencia' },
+  critical: { bg: 'var(--error-light)', dot: 'var(--error)', label: 'Crítica' },
 };
 
 export default function AlertBadge({ level = 'none', reason, showLabel = true, size = 'md' }) {

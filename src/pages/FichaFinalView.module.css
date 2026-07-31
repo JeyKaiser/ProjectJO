@@ -1,0 +1,56 @@
+﻿/* Header */
+.header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: var(--space-6); padding: var(--space-5) var(--space-6); background: var(--white); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); border: 1px solid var(--gray-200); }
+.headerInfo h2 { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800; color: var(--gray-900); margin: 0 0 4px 0; }
+.headerInfo p { color: var(--gray-500); font-size: var(--text-sm); margin: 0; }
+.headerBadges { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); flex-wrap: wrap; }
+.headerActions { display: flex; align-items: center; gap: var(--space-3); }
+
+/* Composicion */
+.composicionRow { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--gray-50); border: 1px solid var(--gray-100); transition: all var(--transition-fast); margin-bottom: var(--space-2); }
+.composicionRow:hover { border-color: var(--gray-200); background: var(--white); }
+.composicionRow :global(.form-input) { border: none; background: transparent; padding: var(--space-1) var(--space-2); font-weight: 600; }
+.composicionRow :global(.form-input):focus { background: var(--white); border-color: var(--primary-500); box-shadow: 0 0 0 3px var(--primary-100); }
+.composicionPct { display: flex; align-items: center; gap: var(--space-1); min-width: 80px; }
+.composicionPct :global(.form-input) { width: 60px; text-align: right; font-weight: 700; font-size: var(--text-sm); }
+.composicionPctSymbol { font-size: var(--text-sm); font-weight: 700; color: var(--gray-500); }
+.composicionTotal { display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); font-weight: 700; margin-top: var(--space-3); font-size: var(--text-sm); }
+.composicionTotalOk { background: var(--success-light); color: var(--success-dark); border: 1px solid var(--success); }
+.composicionTotalError { background: var(--error-light); color: var(--error-dark); border: 1px solid var(--error); }
+.composicionTotalIncomplete { background: var(--warning-light); color: var(--warning-dark); border: 1px solid var(--warning); }
+
+/* Marquilla */
+.marquillaGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4); }
+.marquillaGrid :global(.form-group) { margin-bottom: 0; }
+.marquillaFull { grid-column: 1 / -1; }
+
+/* Contramuestra */
+.contramuestraGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+.contramuestraGrid :global(.form-group) { margin-bottom: 0; }
+.contramuestraStatus { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full); text-transform: uppercase; letter-spacing: 0.03em; }
+.contramuestraStatusPendiente { background: var(--warning-light); color: var(--warning-dark); }
+.contramuestraStatusActiva { background: var(--success-light); color: var(--success-dark); }
+.contramuestraStatusUtilizada { background: var(--info-light); color: var(--info-dark); }
+.contramuestraStatusAnulada { background: var(--error-light); color: var(--error-dark); }
+
+/* Novedades */
+.novedadForm { display: grid; grid-template-columns: 1fr 2fr; gap: var(--space-4); }
+.novedadForm :global(.form-group) { margin-bottom: 0; }
+.novedadList { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); }
+.novedadItem { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--error-light); border: 1px solid rgba(239, 68, 68, 0.3); font-size: var(--text-sm); }
+.novedadItemTipo { font-weight: 700; color: var(--error-dark); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.03em; }
+.novedadItemDesc { color: var(--gray-700); flex: 1; }
+.novedadItemDate { font-size: var(--text-xs); color: var(--gray-400); }
+.emptystate { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--success-light); border: 1px solid var(--success); color: var(--success-dark); font-size: var(--text-sm); font-weight: 600; }
+.positionBadge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; background: var(--gray-100); color: var(--gray-600); margin-left: auto; }
+.stickyFooter { display: flex; justify-content: flex-end; gap: var(--space-4); padding: var(--space-5); margin-top: var(--space-6); background: var(--white); border-top: 1px solid var(--gray-200); border-radius: var(--radius-xl); box-shadow: var(--shadow-md); position: sticky; bottom: 24px; z-index: 10; }
+
+/* Responsive */
+@media (max-width: 1200px) { .contramuestraGrid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+  .headerActions { width: 100%; }
+  .marquillaGrid { grid-template-columns: 1fr; }
+  .contramuestraGrid { grid-template-columns: 1fr; }
+  .novedadForm { grid-template-columns: 1fr; }
+  .stickyFooter { position: static; }
+}

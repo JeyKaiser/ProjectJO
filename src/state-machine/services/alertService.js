@@ -56,3 +56,27 @@ export function evaluateAlertSync(consumoInitial, consumoContramuestra, threshol
 
   return { alertLevel, consumptionDiff: diff, threshold: thresholdNum, alertReason };
 }
+
+export function evaluateTrazadorAlert(consumoTrazador, consumoContramuestra, threshold = 45) {
+  return evaluateAlertSync(consumoTrazador, consumoContramuestra, threshold);
+}
+
+export function evaluateComparativoAlert(diffs) {
+  if (!diffs || diffs.length === 0) return { alertLevel: ALERT_LEVELS.NONE, totalDifferences: 0, alertReason: null };
+
+  if (diffs.length >= 3) {
+    return {
+      alertLevel: ALERT_LEVELS.CRITICAL,
+      totalDifferences: diffs.length,
+      alertReason: `${diffs.length} dimensiones difieren en el comparativo. Revisión urgente requerida.`,
+    };
+  }
+  if (diffs.length >= 1) {
+    return {
+      alertLevel: ALERT_LEVELS.WARNING,
+      totalDifferences: diffs.length,
+      alertReason: `${diffs.length} dimensión(es) difiere(n) en el comparativo.`,
+    };
+  }
+  return { alertLevel: ALERT_LEVELS.NONE, totalDifferences: 0, alertReason: null };
+}

@@ -15,7 +15,7 @@ const overlayStyle = {
 };
 
 const modalStyle = {
-  backgroundColor: '#ffffff',
+  backgroundColor: 'var(--white)',
   borderRadius: '12px',
   padding: '28px',
   maxWidth: '520px',
@@ -23,17 +23,17 @@ const modalStyle = {
   maxHeight: '90vh',
   overflowY: 'auto',
   boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-  border: '1px solid #e5e7eb',
-  color: '#374151',
+  border: '1px solid var(--gray-200)',
+  color: 'var(--gray-700)',
 };
 
 const inputStyle = {
   width: '100%',
   padding: '10px 14px',
   borderRadius: '6px',
-  border: '1px solid #d1d5db',
-  backgroundColor: '#ffffff',
-  color: '#374151',
+  border: '1px solid var(--gray-300)',
+  backgroundColor: 'var(--white)',
+  color: 'var(--gray-700)',
   fontSize: '14px',
   fontFamily: 'inherit',
   resize: 'vertical',
@@ -43,9 +43,9 @@ const inputStyle = {
 const btnPrimary = {
   padding: '10px 24px',
   borderRadius: '6px',
-  border: '1px solid #d1d5db',
-  backgroundColor: '#f9fafb',
-  color: '#374151',
+  border: '1px solid var(--gray-300)',
+  backgroundColor: 'var(--gray-50)',
+  color: 'var(--gray-700)',
   fontWeight: 600,
   fontSize: '14px',
   cursor: 'pointer',
@@ -54,9 +54,9 @@ const btnPrimary = {
 const btnSecondary = {
   padding: '10px 24px',
   borderRadius: '6px',
-  border: '1px solid #d1d5db',
-  backgroundColor: '#ffffff',
-  color: '#6b7280',
+  border: '1px solid var(--gray-300)',
+  backgroundColor: 'var(--white)',
+  color: 'var(--gray-500)',
   fontWeight: 500,
   fontSize: '14px',
   cursor: 'pointer',
@@ -86,8 +86,8 @@ export default function TransitionModal({
 
   const fromLabel = STATE_LABELS[fromState] || fromState;
   const toLabel = STATE_LABELS[toState] || toState;
-  const fromColor = STATE_COLORS[fromState] || '#6b7280';
-  const toColor = STATE_COLORS[toState] || '#6b7280';
+  const fromColor = STATE_COLORS[fromState] || 'var(--gray-500)';
+  const toColor = STATE_COLORS[toState] || 'var(--gray-500)';
   const eventLabel = EVENT_LABELS[event] || event;
   const fromIcon = STATE_ICONS[fromState] || '●';
   const toIcon = STATE_ICONS[toState] || '●';
@@ -127,11 +127,11 @@ export default function TransitionModal({
     <div style={overlayStyle} onClick={onClose}>
       <div style={modalStyle} onClick={e => e.stopPropagation()}>
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#1f2937' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--gray-800)' }}>
             Transicionar Referencia
           </h2>
           {referenceInfo && (
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--gray-500)' }}>
               {referenceInfo.codigoMD} — {referenceInfo.referenceName || referenceInfo.codigoPT}
             </p>
           )}
@@ -151,7 +151,7 @@ export default function TransitionModal({
               {fromLabel}
             </div>
           </div>
-          <div style={{ fontSize: 24, color: '#d1d5db' }}>→</div>
+          <div style={{ fontSize: 24, color: 'var(--gray-300)' }}>→</div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 32 }}>{toIcon}</div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: toColor, marginTop: 4 }}>
@@ -162,17 +162,17 @@ export default function TransitionModal({
 
         <div style={{
           padding: '12px 16px',
-          backgroundColor: '#f9fafb',
+          backgroundColor: 'var(--gray-50)',
           borderRadius: '6px',
           marginBottom: 16,
           fontSize: '14px',
-          color: '#374151',
+          color: 'var(--gray-700)',
         }}>
           <strong>Evento:</strong> {eventLabel}
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: 'var(--gray-700)' }}>
             Consumo Inicial (cm)
           </label>
           <input
@@ -184,14 +184,14 @@ export default function TransitionModal({
               ...inputStyle,
               minHeight: 'auto',
               padding: '8px 12px',
-              borderColor: initialChanged ? '#f59e0b' : '#4b5563',
+              borderColor: initialChanged ? 'var(--warning)' : 'var(--gray-600)',
             }}
             placeholder={String(stateRecord?.consumption_initial ?? '—')}
           />
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: 'var(--gray-700)' }}>
             Consumo Contramuestra (cm)
           </label>
           <input
@@ -203,7 +203,7 @@ export default function TransitionModal({
               ...inputStyle,
               minHeight: 'auto',
               padding: '8px 12px',
-              borderColor: cmChanged ? '#f59e0b' : '#4b5563',
+              borderColor: cmChanged ? 'var(--warning)' : 'var(--gray-600)',
             }}
             placeholder={String(stateRecord?.consumption_contramuestra ?? '—')}
           />
@@ -211,7 +211,7 @@ export default function TransitionModal({
 
         {needsJustification && (
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: '#d97706' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: 'var(--warning-dark)' }}>
               ⚠ Justificación (requerida — los consumos cambiaron)
             </label>
             <textarea
@@ -224,7 +224,7 @@ export default function TransitionModal({
         )}
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: 6, color: 'var(--gray-700)' }}>
             Cambios en Moldería (opcional)
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -234,7 +234,7 @@ export default function TransitionModal({
                 alignItems: 'center',
                 gap: 8,
                 fontSize: '13px',
-                color: '#374151',
+                color: 'var(--gray-700)',
                 cursor: 'pointer',
                 padding: '4px 0',
               }}>
@@ -260,7 +260,7 @@ export default function TransitionModal({
             alignItems: 'center',
             gap: 8,
             fontSize: '13px',
-            color: '#dc2626',
+            color: 'var(--error)',
           }}>
             <AlertBadge level="critical" size="sm" />
             <span>Alerta crítica activa — Jeferson y Arancha deben revisar.</span>

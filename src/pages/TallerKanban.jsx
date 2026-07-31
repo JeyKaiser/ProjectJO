@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import data from '../data/casos_uso_referencias.json';
 import {
   Scissors, Shirt, Sparkles, Ruler, Clock, Play, Pause,
   CheckCircle2, AlertCircle, Activity, X,
   Plus, Zap
 } from 'lucide-react';
+import styles from './TallerKanban.module.css';
 
 const COLUMN_CONFIG = {
   corte: { title: '2.3 Corte', tempPhase: 'cold', icon: Scissors, emptyText: 'No hay prendas en corte' },
@@ -126,13 +127,13 @@ export default function TallerKanban() {
   return (
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* ── Header ── */}
-      <div className="taller-header">
-        <div className="taller-header-info">
+      <div className={styles.header}>
+        <div className={styles.headerInfo}>
           <h2>Control de Taller</h2>
           <p>Supervisión en tiempo real del flujo de producción y cuellos de botella</p>
         </div>
-        <div className="taller-header-actions">
-          <div className="taller-shift-badge">
+        <div className={styles.headerActions}>
+          <div className={styles.shiftBadge}>
             <Clock size={16} />
             Turno: Mañana
           </div>
@@ -143,21 +144,21 @@ export default function TallerKanban() {
       </div>
 
       {/* ── KPIs ── */}
-      <div className="taller-kpi-grid">
+      <div className="kpi-stat-grid">
         {KPI_CONFIG.map(kpi => {
           const Icon = kpi.icon;
           const value = kpis[kpi.key];
           const pct = kpis.total > 0 ? Math.round((value / kpis.total) * 100) : 0;
           return (
-            <div key={kpi.key} className="taller-kpi-card" style={{ borderTopColor: kpi.color }}>
-              <div className="taller-kpi-card-left">
-                <span className="taller-kpi-label">{kpi.label}</span>
-                <span className="taller-kpi-value" style={{ color: kpi.color }}>{value}</span>
-                <span className="taller-kpi-sub">
+            <div key={kpi.key} className="kpi-stat-card" style={{ borderTopColor: kpi.color }}>
+              <div className="kpi-stat-left">
+                <span className="kpi-stat-label">{kpi.label}</span>
+                <span className="kpi-stat-value" style={{ color: kpi.color }}>{value}</span>
+                <span className="kpi-stat-sub">
                   {kpi.key === 'total' ? 'órdenes activas' : `${pct}% del total`}
                 </span>
               </div>
-              <div className="taller-kpi-icon" style={{ background: kpi.bgColor, color: kpi.color }}>
+              <div className="kpi-stat-icon" style={{ background: kpi.bgColor, color: kpi.color }}>
                 <Icon size={20} />
               </div>
             </div>
@@ -166,17 +167,17 @@ export default function TallerKanban() {
       </div>
 
       {/* ── Filter Bar ── */}
-      <div className="taller-filter-bar">
-        <div className="taller-filter-group">
+      <div className={styles.filterBar}>
+        <div className={styles.filterGroup}>
           {FILTER_OPTIONS.map(opt => (
             <button
               key={opt.key}
-              className={`taller-filter-btn ${filter === opt.key ? 'taller-filter-btn--active' : ''}`}
+              className={`${styles.filterBtn} ${filter === opt.key ? styles.filterBtnActive : ''}`}
               onClick={() => setFilter(opt.key)}
             >
               {opt.icon && <opt.icon size={14} />}
               {opt.label}
-              <span className="taller-filter-count" style={{
+              <span className={styles.filterCount} style={{
                 background: filter === opt.key ? 'var(--gray-900)' : 'var(--gray-200)',
                 color: filter === opt.key ? 'var(--white)' : 'var(--gray-600)',
               }}>
@@ -188,33 +189,33 @@ export default function TallerKanban() {
       </div>
 
       {/* ── Kanban Board ── */}
-      <div className="taller-kanban">
+      <div className={styles.kanban}>
         {Object.entries(COLUMN_CONFIG).map(([colId, config]) => {
           const colItems = filteredColumns[colId] || [];
           const ColIcon = config.icon;
           const tempVar = config.tempPhase;
           return (
-            <div key={colId} className="taller-column">
+            <div key={colId} className={styles.column}>
               {/* Column Header */}
               <div
-                className="taller-column-header"
+                className={styles.columnHeader}
                 style={{
                   borderLeftColor: `var(--temp-${tempVar}-border)`,
                   background: `var(--temp-${tempVar})`,
                   color: `var(--temp-${tempVar}-text)`,
                 }}
               >
-                <div className="taller-column-header-left">
+                <div className={styles.columnHeaderLeft}>
                   <ColIcon size={18} />
                   <span>{config.title}</span>
                 </div>
-                <span className="taller-column-count">{colItems.length}</span>
+                <span className={styles.columnCount}>{colItems.length}</span>
               </div>
 
               {/* Column Body */}
-              <div className="taller-column-body">
+              <div className={styles.columnBody}>
                 {colItems.length === 0 ? (
-                  <div className="taller-empty-state">
+                  <div className={styles.emptyState}>
                     <CheckCircle2 size={32} />
                     <p>{config.emptyText}</p>
                   </div>
@@ -229,9 +230,9 @@ export default function TallerKanban() {
 
       {/* ── Modal Nueva OT ── */}
       {showModal && (
-        <div className="taller-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
-          <div className="taller-modal">
-            <div className="taller-modal-header">
+        <div className={styles.modalOverlay} onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h3>Nueva Orden de Trabajo</h3>
@@ -246,7 +247,7 @@ export default function TallerKanban() {
               </div>
             </div>
 
-            <div className="taller-modal-body">
+            <div className={styles.modalBody}>
               <div className="form-group">
                 <label className="form-label form-label-required">Tipo de Prenda</label>
                 <select
@@ -293,7 +294,7 @@ export default function TallerKanban() {
 
               <div className="form-group">
                 <label className="form-label">Prioridad</label>
-                <div className="taller-priority-group">
+                <div className={styles.priorityGroup}>
                   {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
                     <button
                       key={key}
@@ -333,7 +334,7 @@ export default function TallerKanban() {
               </div>
             </div>
 
-            <div className="taller-modal-footer">
+            <div className={styles.modalFooter}>
               <button className="btn btn-secondary" onClick={() => { setShowModal(false); setFormData(INITIAL_FORM); }}>
                 Cancelar
               </button>
@@ -350,32 +351,32 @@ export default function TallerKanban() {
 
 
 function TallerCard({ item }) {
-  const statusClass = `taller-card--${item.status}`;
-  const statusBadgeClass = `taller-card-status taller-card-status--${item.status}`;
+  const statusCardClass = item.status === 'active' ? styles.cardActive : item.status === 'paused' ? styles.cardPaused : styles.cardWaiting;
+  const statusBadgeClass = `${styles.cardStatus} ${item.status === 'active' ? styles.cardStatusActive : item.status === 'paused' ? styles.cardStatusPaused : styles.cardStatusWaiting}`;
 
   const statusIcon = () => {
-    if (item.status === 'active') return <span className="taller-card-status-dot" />;
+    if (item.status === 'active') return <span className={styles.cardStatusDot} />;
     if (item.status === 'paused') return <Pause size={10} />;
     if (item.status === 'waiting') return <Clock size={10} />;
     return null;
   };
 
   return (
-    <div className={`taller-card ${statusClass}`}>
-      <div className="taller-card-priority" style={{ background: PRIORITY_CONFIG[item.prioridad]?.color || 'var(--gray-300)' }} />
+    <div className={`${styles.card} ${statusCardClass}`}>
+      <div className={styles.cardPriority} style={{ background: PRIORITY_CONFIG[item.prioridad]?.color || 'var(--gray-300)' }} />
 
       {/* Header: Badges */}
-      <div className="taller-card-header">
-        <div className="taller-card-badges">
-          <span className="taller-card-md">{item.id_caso}</span>
-          <span className="taller-card-tipo">{item.tipoPrenda}</span>
+      <div className={styles.cardHeader}>
+        <div className={styles.cardBadges}>
+          <span className={styles.cardMd}>{item.id_caso}</span>
+          <span className={styles.cardTipo}>{item.tipoPrenda}</span>
           {item.esNuevo && (
             <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--secondary-700)', background: 'var(--secondary-50)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
               Nuevo
             </span>
           )}
         </div>
-        <div className="taller-card-indicators">
+        <div className={styles.cardIndicators}>
           {item.tieneProcesoExterno && (
             <span title="Requiere proceso externo" style={{ color: 'var(--warning-dark)' }}>
               <Sparkles size={14} />
@@ -398,31 +399,31 @@ function TallerCard({ item }) {
       </div>
 
       {/* Body: Title & Meta */}
-      <div className="taller-card-body">
-        <div className="taller-card-title">{item.nombre_simulacion}</div>
-        <div className="taller-card-meta">
+      <div className={styles.cardBody}>
+        <div className={styles.cardTitle}>{item.nombre_simulacion}</div>
+        <div className={styles.cardMeta}>
           {item.referente ? (
-            <span className="taller-card-referent">{item.referente}</span>
+            <span className={styles.cardReferent}>{item.referente}</span>
           ) : (
-            <span className="taller-card-referent" style={{ fontStyle: 'italic' }}>Diseño Inédito</span>
+            <span className={styles.cardReferent} style={{ fontStyle: 'italic' }}>Diseño Inédito</span>
           )}
           {item.temporada && (
-            <span className="taller-card-collection">{item.temporada}</span>
+            <span className={styles.cardCollection}>{item.temporada}</span>
           )}
         </div>
       </div>
 
       {/* Footer: Time & Operators */}
-      <div className="taller-card-footer">
-        <div className="taller-card-time">
-          <span className="taller-card-time-label">Tiempo en fase</span>
-          <div className={`taller-card-time-value ${item.status === 'active' ? 'taller-card-time-value--active' : ''}`}>
+      <div className={styles.cardFooter}>
+        <div className={styles.cardTime}>
+          <span className={styles.cardTimeLabel}>Tiempo en fase</span>
+          <div className={`${styles.cardTimeValue} ${item.status === 'active' ? styles.cardTimeValueActive : ''}`}>
             <Clock size={12} />
             {item.timeInStage}
           </div>
         </div>
 
-        <div className="taller-card-operators">
+        <div className={styles.cardOperators}>
           {item.operadores.length > 0 ? (
             item.operadores.map((op, i) => (
               <div
@@ -434,23 +435,23 @@ function TallerCard({ item }) {
               </div>
             ))
           ) : (
-            <div className="taller-operator-empty" title="Sin operador asignado">?</div>
+            <div className={styles.operatorEmpty} title="Sin operador asignado">?</div>
           )}
         </div>
       </div>
 
       {/* Actions (Hover) */}
-      <div className="taller-card-actions">
+      <div className={styles.cardActions}>
         {item.status !== 'active' ? (
-          <button className="taller-action-btn taller-action-btn--start" type="button">
+          <button className={`${styles.actionBtn} ${styles.actionBtnStart}`} type="button">
             <Play size={12} /> Iniciar
           </button>
         ) : (
-          <button className="taller-action-btn taller-action-btn--finish" type="button">
+          <button className={`${styles.actionBtn} ${styles.actionBtnFinish}`} type="button">
             <CheckCircle2 size={12} /> Terminar
           </button>
         )}
-        <button className="taller-action-btn taller-action-btn--alert" type="button" title="Reportar Novedad">
+        <button className={`${styles.actionBtn} ${styles.actionBtnAlert}`} type="button" title="Reportar Novedad">
           <AlertCircle size={14} />
         </button>
       </div>

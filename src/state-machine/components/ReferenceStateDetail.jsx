@@ -10,9 +10,9 @@ import LifecycleGraph from './LifecycleGraph';
 
 function InfoRow({ label, value, color }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
-      <span style={{ fontSize: 13, color: '#6b7280' }}>{label}</span>
-      <span style={{ fontSize: 13, fontWeight: 600, color: color || '#374151' }}>{value || '—'}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--gray-100)' }}>
+      <span style={{ fontSize: 13, color: 'var(--gray-500)' }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: color || 'var(--gray-700)' }}>{value || '—'}</span>
     </div>
   );
 }
@@ -44,12 +44,12 @@ export default function ReferenceStateDetail({
   if (!stateRecord) {
     return (
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--white)',
         borderRadius: 8,
         padding: 24,
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--gray-200)',
         textAlign: 'center',
-        color: '#6b7280',
+        color: 'var(--gray-500)',
       }}>
         <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
         <div>Esta referencia no está inicializada en la Máquina de Estados.</div>
@@ -59,9 +59,9 @@ export default function ReferenceStateDetail({
             marginTop: 12,
             padding: '8px 20px',
             borderRadius: 6,
-            border: '1px solid #d1d5db',
-            backgroundColor: '#ffffff',
-            color: '#374151',
+            border: '1px solid var(--gray-300)',
+            backgroundColor: 'var(--white)',
+            color: 'var(--gray-700)',
             fontWeight: 600,
             cursor: 'pointer',
             fontSize: 14,
@@ -73,7 +73,7 @@ export default function ReferenceStateDetail({
     );
   }
 
-  const stateColor = STATE_COLORS[stateRecord.current_state] || '#6b7280';
+  const stateColor = STATE_COLORS[stateRecord.current_state] || 'var(--gray-500)';
 
   return (
     <div>
@@ -84,12 +84,12 @@ export default function ReferenceStateDetail({
         marginBottom: 16,
       }}>
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
           padding: 20,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
         }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
             Información del Estado
           </h3>
           <InfoRow
@@ -136,12 +136,12 @@ export default function ReferenceStateDetail({
         </div>
 
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
           padding: 20,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
         }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
             Consumos y Alertas
           </h3>
           <InfoRow
@@ -155,14 +155,14 @@ export default function ReferenceStateDetail({
           <InfoRow
             label="Diferencia"
             value={stateRecord.consumption_diff != null ? `${stateRecord.consumption_diff} cm` : '—'}
-            color={stateRecord.consumption_diff > (stateRecord.threshold_cm || 45) ? '#ef4444' : '#22c55e'}
+            color={stateRecord.consumption_diff > (stateRecord.threshold_cm || 45) ? 'var(--error)' : '#22c55e'}
           />
           <InfoRow
             label="Umbral Configurado"
             value={stateRecord.threshold_cm ? `${stateRecord.threshold_cm} cm` : '45 cm (default)'}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>Alerta</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--gray-100)' }}>
+            <span style={{ fontSize: 13, color: 'var(--gray-500)' }}>Alerta</span>
             <AlertBadge level={stateRecord.alert_level || 'none'} reason={stateRecord.alert_reason} />
           </div>
           {stateRecord.alert_reason && (
@@ -172,7 +172,7 @@ export default function ReferenceStateDetail({
               backgroundColor: stateRecord.alert_level === 'critical' ? '#fef2f2' : '#fffbeb',
               borderRadius: 6,
               fontSize: 12,
-              color: stateRecord.alert_level === 'critical' ? '#dc2626' : '#d97706',
+              color: stateRecord.alert_level === 'critical' ? 'var(--error)' : 'var(--warning-dark)',
             }}>
               {stateRecord.alert_reason}
             </div>
@@ -185,7 +185,7 @@ export default function ReferenceStateDetail({
                 ? stateRecord.sub_states.map(s => STATE_LABELS[s]).join(', ')
                 : 'Ninguno'
               }
-              color={stateRecord.sub_states?.length ? '#f59e0b' : undefined}
+              color={stateRecord.sub_states?.length ? 'var(--warning)' : undefined}
             />
             <InfoRow
               label="Procesos Completados"
@@ -199,10 +199,10 @@ export default function ReferenceStateDetail({
               <div style={{
                 marginTop: 8,
                 padding: '6px 10px',
-                backgroundColor: '#f3e8ff',
+                backgroundColor: 'var(--secondary-100)',
                 borderRadius: 6,
                 fontSize: 12,
-                color: '#7e22ce',
+                color: 'var(--secondary-700)',
                 textAlign: 'center',
               }}>
                 🔗 Todos los procesos paralelos completados. Use "Unir a Flujo Principal" para continuar.
@@ -220,13 +220,13 @@ export default function ReferenceStateDetail({
       </div>
 
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--white)',
         borderRadius: 8,
         padding: 20,
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--gray-200)',
         marginBottom: 16,
       }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
           Acciones Disponibles
         </h3>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -245,16 +245,16 @@ export default function ReferenceStateDetail({
                 style={{
                   padding: '8px 16px',
                   borderRadius: 6,
-                  border: '1px solid #d1d5db',
-                  backgroundColor: '#ffffff',
-                  color: '#374151',
+                  border: '1px solid var(--gray-300)',
+                  backgroundColor: 'var(--white)',
+                  color: 'var(--gray-700)',
                   fontSize: 13,
                   fontWeight: 500,
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }}
-                onMouseEnter={e => { e.target.style.backgroundColor = '#f3f4f6'; e.target.style.borderColor = '#6b7280'; }}
-                onMouseLeave={e => { e.target.style.backgroundColor = '#ffffff'; e.target.style.borderColor = '#d1d5db'; }}
+                onMouseEnter={e => { e.target.style.backgroundColor = 'var(--gray-100)'; e.target.style.borderColor = 'var(--gray-500)'; }}
+                onMouseLeave={e => { e.target.style.backgroundColor = 'var(--white)'; e.target.style.borderColor = 'var(--gray-300)'; }}
               >
                 {EVENT_LABELS[event] || event}
                 {toState && ` → ${STATE_LABELS[toState]}`}
@@ -262,7 +262,7 @@ export default function ReferenceStateDetail({
             );
           })}
           {availableEvents.length === 0 && (
-            <span style={{ fontSize: 13, color: '#9ca3af' }}>
+            <span style={{ fontSize: 13, color: 'var(--gray-400)' }}>
               No hay transiciones disponibles desde este estado.
             </span>
           )}
@@ -271,21 +271,21 @@ export default function ReferenceStateDetail({
 
       {stateRecord.current_state !== 'completado' && stateRecord.current_state !== 'cancelado' && (
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
           padding: 20,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
           marginBottom: 16,
         }}>
-          <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
             Actualizar Consumos
           </h3>
-          <p style={{ fontSize: 12, color: '#9ca3af', margin: '0 0 12px' }}>
+          <p style={{ fontSize: 12, color: 'var(--gray-400)', margin: '0 0 12px' }}>
             Los cambios en consumo requerirán justificación obligatoria.
           </p>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
             <div>
-              <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>
                 Consumo Inicial (cm)
               </label>
               <input
@@ -296,9 +296,9 @@ export default function ReferenceStateDetail({
                 style={{
                   padding: '6px 10px',
                   borderRadius: 6,
-                  border: '1px solid #d1d5db',
-                  backgroundColor: '#ffffff',
-                  color: '#374151',
+                  border: '1px solid var(--gray-300)',
+                  backgroundColor: 'var(--white)',
+                  color: 'var(--gray-700)',
                   fontSize: 13,
                   width: 120,
                   fontFamily: 'inherit',
@@ -306,7 +306,7 @@ export default function ReferenceStateDetail({
               />
             </div>
             <div>
-              <label style={{ fontSize: 12, color: '#6b7280', display: 'block', marginBottom: 4 }}>
+              <label style={{ fontSize: 12, color: 'var(--gray-500)', display: 'block', marginBottom: 4 }}>
                 Consumo Contramuestra (cm)
               </label>
               <input
@@ -317,9 +317,9 @@ export default function ReferenceStateDetail({
                 style={{
                   padding: '6px 10px',
                   borderRadius: 6,
-                  border: '1px solid #d1d5db',
-                  backgroundColor: '#ffffff',
-                  color: '#374151',
+                  border: '1px solid var(--gray-300)',
+                  backgroundColor: 'var(--white)',
+                  color: 'var(--gray-700)',
                   fontSize: 13,
                   width: 120,
                   fontFamily: 'inherit',
@@ -344,9 +344,9 @@ export default function ReferenceStateDetail({
               style={{
                 padding: '6px 14px',
                 borderRadius: 6,
-                border: '1px solid #d1d5db',
-                backgroundColor: '#f9fafb',
-                color: '#374151',
+                border: '1px solid var(--gray-300)',
+                backgroundColor: 'var(--gray-50)',
+                color: 'var(--gray-700)',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',

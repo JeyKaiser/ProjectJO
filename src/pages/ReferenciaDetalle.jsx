@@ -1,11 +1,13 @@
-import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { useDashboardData, getFaseMacro, toggleReferenceHidden } from '../lib/api';
+import { useDashboardData, getFaseMacro, toggleReferenceHidden, createCutRequest } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
+import supabase from '../lib/supabase';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
 import SeccionColapsable from '../components/SeccionColapsable';
+import styles from './ReferenciaDetalle.module.css';
 
 
 function EstadoBadge({ estado }) {
@@ -24,7 +26,7 @@ function EstadoBadge({ estado }) {
 }
 
 export default function ReferenciaDetalle() {
-  const { coleccionId, anio, refId } = useParams();
+  const { seasonCode, coleccionId, anio, refId } = useParams();
   const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
 
   // Mock estado de flujo de trabajo (Hand-off)
@@ -50,10 +52,40 @@ export default function ReferenciaDetalle() {
     }));
   };
 
+  const [showCorteModal, setShowCorteModal] = useState(false);
+  const [corteForm, setCorteForm] = useState({ type: 'muestra', fabric_handling: 'solido', observations: '' });
+  const [sendingCorte, setSendingCorte] = useState(false);
+
+  const handleSendToCorte = async () => {
+    setSendingCorte(true);
+    try {
+      await createCutRequest({
+        reference_id: ref.dbId,
+        collection_id: coleccion?.dbId,
+        type: corteForm.type,
+        fabric_handling: corteForm.fabric_handling,
+        requester_name: role,
+        requester_role: role,
+        observations: corteForm.observations,
+      });
+      setShowCorteModal(false);
+      setCorteForm({ type: 'muestra', fabric_handling: 'solido', observations: '' });
+    } catch (e) {
+      alert('Error al enviar a corte: ' + e.message);
+    } finally {
+      setSendingCorte(false);
+    }
+  };
+
   const { data, loading: dashLoading } = useDashboardData();
   const coleccionesData = data?.colecciones || [];
+  const groups = data?.groups || [];
 
-  const coleccion = coleccionesData.find(c => c.id === coleccionId);
+  const coleccion = (() => {
+    if (!coleccionId) return null;
+    return coleccionesData.find(c => c.id === coleccionId);
+  })();
+
   const anioData = coleccion?.anios.find(a => a.anio === parseInt(anio));
   const ref = anioData?.referencias.find(r => r.id === refId);
 
@@ -85,22 +117,22 @@ export default function ReferenciaDetalle() {
   return (
     <div className="fade-in">
       {/* Breadcrumb */}
-      <nav className="breadcrumb">
-        <Link to="/colecciones" className="breadcrumb-link">Colecciones</Link>
-        <ChevronRight size={14} className="breadcrumb-separator" />
-        <Link to={`/colecciones/${coleccionId}`} className="breadcrumb-link">{coleccion?.nombre}</Link>
-        <ChevronRight size={14} className="breadcrumb-separator" />
-        <Link to={`/colecciones/${coleccionId}/${anio}`} className="breadcrumb-link">{anio}</Link>
-        <ChevronRight size={14} className="breadcrumb-separator" />
-        <span className="breadcrumb-current">{ref.codigoMD}</span>
-      </nav>
+          <nav className="breadcrumb">
+            <Link to="/colecciones" className="breadcrumb-link">Colecciones</Link>
+            <ChevronRight size={14} className="breadcrumb-separator" />
+            <Link to={`/colecciones/${seasonCode || coleccion?.season?.toLowerCase()}`} className="breadcrumb-link">{groups.find(g => g.code === (seasonCode || coleccion?.season)?.toUpperCase())?.name || seasonCode}</Link>
+            <ChevronRight size={14} className="breadcrumb-separator" />
+            <Link to={`/colecciones/${seasonCode || coleccion?.season?.toLowerCase()}/${coleccionId}/${anio}`} className="breadcrumb-link">{anio}</Link>
+            <ChevronRight size={14} className="breadcrumb-separator" />
+            <span className="breadcrumb-current">{ref.codigoMD}</span>
+          </nav>
 
       {/* Header Fijo de la Referencia */}
-      <div className="detalle-header" style={{ borderTopColor: `var(--temp-${faseMacro.tempVar}-border)` }}>
-        <div className="detalle-header-top">
+      <div className={styles.header} style={{ borderTopColor: `var(--temp-${faseMacro.tempVar}-border)` }}>
+        <div className={styles.headerTop}>
           {/* Códigos y nombre */}
-          <div className="detalle-header-info">
-            <div className="detalle-codes">
+          <div className={styles.headerInfo}>
+            <div className={styles.codes}>
               <span className="code-badge code-md" style={{ fontSize: 14, padding: '4px 12px' }}>{ref.codigoMD}</span>
               <span className="code-badge code-pt" style={{ fontSize: 14, padding: '4px 12px' }}>{ref.codigoPT}</span>
               <span style={{ background: `var(--temp-${faseMacro.tempVar})`, color: `var(--temp-${faseMacro.tempVar}-text)`, padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, border: `1px solid var(--temp-${faseMacro.tempVar}-border)` }}>
@@ -123,12 +155,12 @@ export default function ReferenciaDetalle() {
                 </button>
               )}
             </div>
-            <h1 className="detalle-nombre">{ref.nombre}</h1>
-            <p className="detalle-meta">{ref.tipoPrenda} · {ref.color} · {ref.linea} / {ref.sublinea}</p>
+            <h1 className={styles.nombre}>{ref.nombre}</h1>
+            <p className={styles.meta}>{ref.tipoPrenda} · {ref.color} · {ref.linea} / {ref.sublinea}</p>
           </div>
 
           {/* Fase actual */}
-          <div className="detalle-fase-actual" style={{ background: `var(--temp-${faseMacro.tempVar})`, borderColor: `var(--temp-${faseMacro.tempVar}-border)` }}>
+          <div className={styles.faseActual} style={{ background: `var(--temp-${faseMacro.tempVar})`, borderColor: `var(--temp-${faseMacro.tempVar}-border)` }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: 4 }}>Fase Actual</div>
             <div style={{ fontSize: 22, fontWeight: 900, color: `var(--temp-${faseMacro.tempVar}-text)` }}>{ref.faseActual}</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-700)' }}>{ref.subfaseNombre}</div>
@@ -187,6 +219,14 @@ export default function ReferenciaDetalle() {
                 </button>
               </div>
             )}
+
+            {/* Enviar a Corte (visible para creativo, tecnico, admin) */}
+            {ref.dbId && (isCreativo || isTecnico || isAdmin) && (
+              <button className="btn btn-outline" style={{ borderColor: 'var(--primary-500)', color: 'var(--primary-600)', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => setShowCorteModal(true)}>
+                <Scissors size={16} /> Enviar a Corte
+              </button>
+            )}
           </div>
         </div>
         
@@ -202,7 +242,7 @@ export default function ReferenciaDetalle() {
 
         {/* SECCIÓN 1: Perfil de la Referencia */}
         <SeccionColapsable titulo="Identificación y Perfil" icono={<Tag size={18} />} accentColor="var(--temp-cold-border)">
-          <div className="detalle-grid-info">
+          <div className={styles.gridInfo}>
             {[
               ['Tipo de Prenda', ref.tipoPrenda],
               ['Color', ref.color],
@@ -224,9 +264,9 @@ export default function ReferenciaDetalle() {
               ['Includes', ref.includes || '—'],
               ['Tipo de Empaque', ref.tipoEmpaque],
             ].map(([label, val]) => (
-              <div key={label} className="detalle-info-item">
-                <span className="detalle-info-label">{label}</span>
-                <span className="detalle-info-value">{val}</span>
+              <div key={label} className={styles.infoItem}>
+                <span className={styles.infoLabel}>{label}</span>
+                <span className={styles.infoValue}>{val}</span>
               </div>
             ))}
           </div>
@@ -257,6 +297,13 @@ export default function ReferenciaDetalle() {
           <AsignacionTelasConsumos refId={refId} />
         </SeccionColapsable>
 
+        {/* SECCIÓN 2.5: Estado Trazador */}
+        {ref?.dbId && (
+          <SeccionColapsable titulo="Trazos y Comparativo" icono={<Scissors size={18} />} accentColor="var(--success)" defaultOpen={false}>
+            <EstadoTrazador dbRefId={ref.dbId} />
+          </SeccionColapsable>
+        )}
+
         {/* SECCIÓN 3: Insumos No Textiles */}
         <SeccionColapsable titulo="Insumos No Textiles" icono={<Package size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
           {ref.insumos && ref.insumos.length > 0 ? (
@@ -278,38 +325,38 @@ export default function ReferenciaDetalle() {
               </table>
             </div>
           ) : (
-            <p className="detalle-vacio">No hay insumos registrados aún.</p>
+            <p className={styles.vacio}>No hay insumos registrados aún.</p>
           )}
         </SeccionColapsable>
 
         {/* SECCIÓN 4: Historial de Fases (Timeline) */}
         <SeccionColapsable titulo="Historial de Fases" icono={<Clock size={18} />} accentColor="var(--primary-500)" defaultOpen={true}>
           {ref.historialFases && ref.historialFases.length > 0 ? (
-            <div className="timeline">
+            <div className={styles.timeline}>
               {ref.historialFases.map((h, i) => {
                 const isLast = i === ref.historialFases.length - 1;
                 return (
                   <div key={i} className={`timeline-item ${isLast ? 'timeline-item-active' : ''}`}>
-                    <div className="timeline-dot" style={{ background: h.estado === 'Terminado' ? 'var(--success)' : h.estado === 'En Proceso' ? 'var(--warning)' : 'var(--error)' }} />
-                    {!isLast && <div className="timeline-line" />}
-                    <div className="timeline-content">
-                      <div className="timeline-header">
+                    <div className={styles.timelineDot} style={{ background: h.estado === 'Terminado' ? 'var(--success)' : h.estado === 'En Proceso' ? 'var(--warning)' : 'var(--error)' }} />
+                    {!isLast && <div className={styles.timelineLine} />}
+                    <div className={styles.timelineContent}>
+                      <div className={styles.timelineHeader}>
                         <strong>{h.fase}</strong>
                         <EstadoBadge estado={h.estado} />
                       </div>
-                      <div className="timeline-meta">
+                      <div className={styles.timelineMeta}>
                         <span><User size={11} /> {h.responsable}</span>
                         <span><Calendar size={11} /> {h.fechaIngreso}</span>
                         {h.fechaSalida && <span>→ {h.fechaSalida}</span>}
                       </div>
-                      {h.comentarios && <p className="timeline-comment">💬 {h.comentarios}</p>}
+                      {h.comentarios && <p className={styles.timelineComment}>💬 {h.comentarios}</p>}
                     </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <p className="detalle-vacio">Sin historial de fases registrado.</p>
+            <p className={styles.vacio}>Sin historial de fases registrado.</p>
           )}
         </SeccionColapsable>
 
@@ -334,7 +381,7 @@ export default function ReferenciaDetalle() {
               </table>
             </div>
           ) : (
-            <p className="detalle-vacio">Sin mediciones registradas.</p>
+            <p className={styles.vacio}>Sin mediciones registradas.</p>
           )}
         </SeccionColapsable>
 
@@ -365,7 +412,7 @@ export default function ReferenciaDetalle() {
         <SeccionColapsable titulo="Marquillas y Cuidados" icono={<FileText size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={false}>
           {ref.marquilla ? (
             <div>
-              <div className="detalle-grid-info" style={{ marginBottom: 16 }}>
+              <div className={styles.gridInfo} style={{ marginBottom: 16 }}>
                 {[
                   ['Descripción USA', ref.marquilla.descUSA],
                   ['Descripción UK', ref.marquilla.descUK],
@@ -374,9 +421,9 @@ export default function ReferenciaDetalle() {
                   ['Inside', ref.marquilla.inside],
                   ['Include', ref.marquilla.include],
                 ].map(([label, val]) => (
-                  <div key={label} className="detalle-info-item">
-                    <span className="detalle-info-label">{label}</span>
-                    <span className="detalle-info-value">{val || '—'}</span>
+                  <div key={label} className={styles.infoItem}>
+                    <span className={styles.infoLabel}>{label}</span>
+                    <span className={styles.infoValue}>{val || '—'}</span>
                   </div>
                 ))}
               </div>
@@ -396,14 +443,14 @@ export default function ReferenciaDetalle() {
               )}
             </div>
           ) : (
-            <p className="detalle-vacio">Marquilla pendiente de completar en Fase 4.1.</p>
+            <p className={styles.vacio}>Marquilla pendiente de completar en Fase 4.1.</p>
           )}
         </SeccionColapsable>
 
         {/* SECCIÓN 8: Contramuestra y SAP */}
         <SeccionColapsable titulo="Industrializacion · Contramuestra y SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
           {ref.contramuestra ? (
-            <div className="detalle-grid-info">
+            <div className={styles.gridInfo}>
               {[
                 ['Orden de Trabajo (OT)', ref.contramuestra.OT],
                 ['Nota de Fabricación SAP', ref.contramuestra.notaSAP || 'Pendiente'],
@@ -412,17 +459,134 @@ export default function ReferenciaDetalle() {
                 ['Fecha Traslado SAP', ref.contramuestra.fechaTrasladoSAP || 'Pendiente'],
                 ['Fecha Despacho ZF', ref.contramuestra.fechaDespachoZF || 'Pendiente'],
               ].map(([label, val]) => (
-                <div key={label} className="detalle-info-item">
-                  <span className="detalle-info-label">{label}</span>
-                  <span className="detalle-info-value">{val}</span>
+                <div key={label} className={styles.infoItem}>
+                  <span className={styles.infoLabel}>{label}</span>
+                  <span className={styles.infoValue}>{val}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="detalle-vacio">Contramuestra pendiente de iniciar en Fase 4.2.</p>
+            <p className={styles.vacio}>Contramuestra pendiente de iniciar en Fase 4.2.</p>
           )}
         </SeccionColapsable>
 
+      </div>
+
+      {/* Modal: Enviar a Corte */}
+      {showCorteModal && (
+        <div className="modal-overlay" onClick={() => setShowCorteModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h3>Enviar a Corte</h3>
+              <button className="modal-close" onClick={() => setShowCorteModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontSize: 13, color: 'var(--gray-600)', margin: 0 }}>
+                <strong>{ref.codigoMD}</strong> — {ref.nombre}
+              </p>
+              <div className="form-group">
+                <label className="form-label">Tipo de Corte</label>
+                <select className="form-select" value={corteForm.type}
+                  onChange={e => setCorteForm(prev => ({ ...prev, type: e.target.value }))}>
+                  <option value="muestra">Muestra</option>
+                  <option value="contramuestra">Contramuestra</option>
+                  <option value="pieza">Pieza</option>
+                  <option value="laboratorio">Laboratorio</option>
+                  <option value="forro">Forro</option>
+                  <option value="pedido_especial">Pedido Especial</option>
+                  <option value="sesgo">Sesgo</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Manejo de Tela</label>
+                <select className="form-select" value={corteForm.fabric_handling}
+                  onChange={e => setCorteForm(prev => ({ ...prev, fabric_handling: e.target.value }))}>
+                  <option value="solido">Solido</option>
+                  <option value="mod_arte">Modificacion de Arte</option>
+                  <option value="ubic_trazo">Ubicacion de Trazo</option>
+                  <option value="cuero">Cuero</option>
+                  <option value="all_over">All Over</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Observaciones</label>
+                <textarea className="form-input" rows={2} value={corteForm.observations}
+                  onChange={e => setCorteForm(prev => ({ ...prev, observations: e.target.value }))}
+                  placeholder="Ej. Sin lucir, no alcanza forro..." />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowCorteModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleSendToCorte} disabled={sendingCorte}>
+                <Scissors size={16} /> {sendingCorte ? 'Enviando...' : 'Enviar a Corte'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EstadoTrazador({ dbRefId }) {
+  const [trazos, setTrazos] = useState([]);
+  const [comparativo, setComparativo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!dbRefId) return;
+    let cancelled = false;
+    async function load() {
+      const { data: t } = await supabase.from('trazos').select('*').eq('reference_id', dbRefId).order('fase').order('opcion_num');
+      const { data: c } = await supabase.from('comparativo_trazos').select('*').eq('reference_id', dbRefId).order('created_at', { ascending: false }).limit(1);
+      if (!cancelled) { setTrazos(t || []); setComparativo(c?.[0] || null); setLoading(false); }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [dbRefId]);
+
+  if (loading) return <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Cargando trazos...</p>;
+
+  const costeo = trazos.filter(t => t.fase === 'costeo');
+  const contramuestra = trazos.filter(t => t.fase === 'contramuestra');
+
+  return (
+    <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minWidth: 200, background: 'var(--primary-50)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+        <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: 'var(--primary-700)' }}>Trazo Costeo ({costeo.length})</h4>
+        {costeo.length === 0 ? <p style={{ fontSize: 12, color: 'var(--gray-400)' }}>Sin trazos registrados</p> : costeo.map(t => (
+          <div key={t.id} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--primary-100)' }}>
+            <strong>{t.tipo_tela}</strong> Opc.{t.opcion_num}: {t.consumo_valor || '-'}m
+            {t.veces_trazadas > 1 && <span style={{ color: 'var(--gray-500)' }}> ({t.veces_trazadas} intentos)</span>}
+            {t.fecha_inicio && <div style={{ fontSize: 10, color: 'var(--gray-400)' }}>{t.fecha_inicio}{t.fecha_fin ? ` → ${t.fecha_fin}` : ''}</div>}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, minWidth: 200, background: 'var(--success-50)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+        <h4 style={{ margin: '0 0 8px 0', fontSize: 13, color: 'var(--success-700)' }}>Trazo Contramuestra ({contramuestra.length})</h4>
+        {contramuestra.length === 0 ? <p style={{ fontSize: 12, color: 'var(--gray-400)' }}>Sin trazos registrados</p> : contramuestra.map(t => (
+          <div key={t.id} style={{ fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--success-100)' }}>
+            <strong>{t.tipo_tela}</strong> Opc.{t.opcion_num}: {t.consumo_valor || '-'}m
+            {t.veces_trazadas > 1 && <span style={{ color: 'var(--gray-500)' }}> ({t.veces_trazadas} intentos)</span>}
+            {t.fecha_inicio && <div style={{ fontSize: 10, color: 'var(--gray-400)' }}>{t.fecha_inicio}{t.fecha_fin ? ` → ${t.fecha_fin}` : ''}</div>}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ flex: 0, minWidth: 180, background: comparativo ? 'var(--warning-light)' : 'var(--gray-100)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <h4 style={{ margin: '0 0 4px 0', fontSize: 13, color: comparativo ? 'var(--warning-dark)' : 'var(--gray-600)' }}>
+          {comparativo ? 'Comparativo Completado' : 'Comparativo Pendiente'}
+        </h4>
+        {comparativo && (
+          <div style={{ fontSize: 11, color: 'var(--gray-600)' }}>
+            {[ 'veces', 'piezas', 'ancho', 'molderia', 'sesgo', 'ancho_sesgo', 'telas' ].filter(k => comparativo[`difiere_${k}`]).length} diferencias detectadas
+            <div style={{ fontSize: 10, color: 'var(--gray-400)', marginTop: 4 }}>{comparativo.fecha_comparativo}</div>
+          </div>
+        )}
+        <Link to={`/trazador`} style={{ marginTop: 8, fontSize: 11, color: 'var(--primary-600)', textDecoration: 'underline' }}>
+          Ir al Panel del Trazador →
+        </Link>
       </div>
     </div>
   );

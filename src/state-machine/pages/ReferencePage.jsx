@@ -45,16 +45,16 @@ export default function ReferencePage() {
     backBtn: {
       padding: '6px 12px',
       borderRadius: 6,
-      border: '1px solid #d1d5db',
-      backgroundColor: '#ffffff',
-      color: '#6b7280',
+      border: '1px solid var(--gray-300)',
+      backgroundColor: 'var(--white)',
+      color: 'var(--gray-500)',
       fontSize: 12,
       cursor: 'pointer',
     },
     title: {
       fontSize: 22,
       fontWeight: 700,
-      color: '#1f2937',
+      color: 'var(--gray-800)',
       margin: 0,
       fontFamily: "'Inter', sans-serif",
     },
@@ -62,14 +62,14 @@ export default function ReferencePage() {
       padding: '10px 14px',
       backgroundColor: '#fef2f2',
       borderRadius: 8,
-      color: '#dc2626',
+      color: 'var(--error)',
       fontSize: 13,
       marginBottom: 12,
     },
     loading: {
       textAlign: 'center',
       padding: 60,
-      color: '#9ca3af',
+      color: 'var(--gray-400)',
     },
   };
 

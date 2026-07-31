@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import supabase from './supabase';
 
 // ═══════════════════════════════════════════════════════════════
@@ -133,10 +133,19 @@ export function useDashboardData() {
         // Fetch collections + collection_years
         const { data: cols, error: colErr } = await supabase
           .from('collections')
-          .select('id,code,name,image_url,year')
+          .select('id,code,name,image_url,year,season')
           .eq('active', true);
 
         if (colErr) throw colErr;
+
+        // Fetch collection groups (canonical seasons)
+        const { data: groups, error: grpErr } = await supabase
+          .from('collection_groups')
+          .select('id,code,name,image_url')
+          .eq('active', true)
+          .order('id');
+
+        if (grpErr) throw grpErr;
 
         // Fetch collection years
         const { data: colYears, error: cyErr } = await supabase
@@ -295,6 +304,7 @@ export function useDashboardData() {
             id: slugFromName(col.name),
             dbId: col.id,
             code: col.code,
+            season: col.season,
             nombre: col.name,
             imagen: col.image_url || null,
             borderColor: borderFromName(col.name),
@@ -302,7 +312,7 @@ export function useDashboardData() {
           };
         });
 
-        setData({ colecciones });
+        setData({ colecciones, groups: groups || [] });
       } catch (e) {
         if (!cancelled) setError(e);
       } finally {
@@ -669,4 +679,246 @@ export async function toggleReferenceHidden(id, isHidden) {
     .from('references')
     .update({ is_hidden: isHidden })
     .eq('id', id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: Cut Requests (Tabla de Corte)
+// ═══════════════════════════════════════════════════════════════
+export function useCutRequests({ source } = {}) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('cut_requests')
+        .select('*, references(reference_number, name, color, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery), collections(code, name)')
+        .order('created_at', { ascending: false });
+
+      if (source === 'app') query = query.neq('source', 'csv');
+      else if (source === 'csv') query = query.eq('source', 'csv');
+
+      const { data, error: err } = await query;
+
+      if (err) throw err;
+      setItems(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [source]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { items, loading, error, refresh: load };
+}
+
+export async function createCutRequest(data) {
+  const { reference_id, collection_id, type, fabric_handling, requester_name, requester_role, observations } = data;
+  return supabase
+    .from('cut_requests')
+    .insert({
+      reference_id, collection_id, type, fabric_handling,
+      requester_name, requester_role, observations,
+      status: 'en_cola',
+      fecha_recepcion: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+}
+
+export async function updateCutRequest(id, updates) {
+  return supabase
+    .from('cut_requests')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: Trazos (Workflow del Trazador)
+// ═══════════════════════════════════════════════════════════════
+
+export function useTrazos(refId, fase) {
+  const [trazos, setTrazos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    if (!refId) return;
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('trazos')
+        .select('*, reference_fabrics(id, usage, fabrics(code, description))')
+        .eq('reference_id', refId)
+        .order('opcion_num')
+        .order('fase');
+
+      if (fase) query = query.eq('fase', fase);
+
+      const { data, error: err } = await query;
+      if (err) throw err;
+      setTrazos(data || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [refId, fase]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { trazos, loading, error, refresh: load };
+}
+
+export async function createTrazo(data) {
+  return supabase
+    .from('trazos')
+    .insert({
+      reference_id: data.reference_id,
+      reference_fabric_id: data.reference_fabric_id || null,
+      tipo_tela: data.tipo_tela || 'SOLIDO',
+      fase: data.fase || 'costeo',
+      opcion_num: data.opcion_num || 1,
+      veces_trazadas: data.veces_trazadas || 1,
+      cantidad_piezas: data.cantidad_piezas,
+      consumo_valor: data.consumo_valor,
+      talla: data.talla,
+      ancho_tela: data.ancho_tela,
+      ancho_sesgo: data.ancho_sesgo,
+      consumo_lineal: data.consumo_lineal,
+      archivo_audaces: data.archivo_audaces,
+      fecha_inicio: data.fecha_inicio,
+      fecha_fin: data.fecha_fin,
+      trazador_id: data.trazador_id,
+      observaciones: data.observaciones,
+    })
+    .select('*')
+    .single();
+}
+
+export async function updateTrazo(id, data) {
+  return supabase
+    .from('trazos')
+    .update({
+      tipo_tela: data.tipo_tela,
+      fase: data.fase,
+      opcion_num: data.opcion_num,
+      veces_trazadas: data.veces_trazadas,
+      cantidad_piezas: data.cantidad_piezas,
+      consumo_valor: data.consumo_valor,
+      talla: data.talla,
+      ancho_tela: data.ancho_tela,
+      ancho_sesgo: data.ancho_sesgo,
+      consumo_lineal: data.consumo_lineal,
+      archivo_audaces: data.archivo_audaces,
+      fecha_inicio: data.fecha_inicio,
+      fecha_fin: data.fecha_fin,
+      trazador_id: data.trazador_id,
+      observaciones: data.observaciones,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function deleteTrazo(id) {
+  return supabase
+    .from('trazos')
+    .delete()
+    .eq('id', id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: Comparativo de Trazos
+// ═══════════════════════════════════════════════════════════════
+
+export function useComparativo(refId) {
+  const [comparativo, setComparativo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!refId) return;
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('comparativo_trazos')
+        .select('*, trazo_costeo:trazo_costeo_id(*), trazo_contramuestra:trazo_contramuestra_id(*)')
+        .eq('reference_id', refId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && !cancelled) setComparativo(data?.[0] || null);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [refId]);
+
+  return { comparativo, loading };
+}
+
+export async function saveComparativo(data) {
+  if (data.id) {
+    return supabase
+      .from('comparativo_trazos')
+      .update({
+        trazo_costeo_id: data.trazo_costeo_id,
+        trazo_contramuestra_id: data.trazo_contramuestra_id,
+        difiere_veces: data.difiere_veces,
+        justificacion_veces: data.justificacion_veces,
+        difiere_piezas: data.difiere_piezas,
+        justificacion_piezas: data.justificacion_piezas,
+        difiere_ancho: data.difiere_ancho,
+        justificacion_ancho: data.justificacion_ancho,
+        difiere_molderia: data.difiere_molderia,
+        justificacion_molderia: data.justificacion_molderia,
+        difiere_sesgo: data.difiere_sesgo,
+        justificacion_sesgo: data.justificacion_sesgo,
+        difiere_ancho_sesgo: data.difiere_ancho_sesgo,
+        justificacion_ancho_sesgo: data.justificacion_ancho_sesgo,
+        difiere_telas: data.difiere_telas,
+        justificacion_telas: data.justificacion_telas,
+        trazador_id: data.trazador_id,
+        fecha_comparativo: data.fecha_comparativo,
+        observaciones: data.observaciones,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', data.id)
+      .select('*')
+      .single();
+  }
+
+  return supabase
+    .from('comparativo_trazos')
+    .insert({
+      reference_id: data.reference_id,
+      trazo_costeo_id: data.trazo_costeo_id,
+      trazo_contramuestra_id: data.trazo_contramuestra_id,
+      difiere_veces: data.difiere_veces || false,
+      justificacion_veces: data.justificacion_veces,
+      difiere_piezas: data.difiere_piezas || false,
+      justificacion_piezas: data.justificacion_piezas,
+      difiere_ancho: data.difiere_ancho || false,
+      justificacion_ancho: data.justificacion_ancho,
+      difiere_molderia: data.difiere_molderia || false,
+      justificacion_molderia: data.justificacion_molderia,
+      difiere_sesgo: data.difiere_sesgo || false,
+      justificacion_sesgo: data.justificacion_sesgo,
+      difiere_ancho_sesgo: data.difiere_ancho_sesgo || false,
+      justificacion_ancho_sesgo: data.justificacion_ancho_sesgo,
+      difiere_telas: data.difiere_telas || false,
+      justificacion_telas: data.justificacion_telas,
+      trazador_id: data.trazador_id,
+      fecha_comparativo: data.fecha_comparativo || new Date().toISOString().split('T')[0],
+      observaciones: data.observaciones,
+    })
+    .select('*')
+    .single();
 }

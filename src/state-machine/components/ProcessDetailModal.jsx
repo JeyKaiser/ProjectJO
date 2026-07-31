@@ -12,7 +12,7 @@ const styles = {
     backdropFilter: 'blur(4px)',
   },
   modal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'var(--white)',
     borderRadius: 12,
     padding: 28,
     maxWidth: 480,
@@ -20,8 +20,8 @@ const styles = {
     maxHeight: '90vh',
     overflowY: 'auto',
     boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-    border: '1px solid #e5e7eb',
-    color: '#374151',
+    border: '1px solid var(--gray-200)',
+    color: 'var(--gray-700)',
   },
   header: {
     display: 'flex',
@@ -41,7 +41,7 @@ const styles = {
   title: {
     fontSize: 18,
     fontWeight: 700,
-    color: '#1f2937',
+    color: 'var(--gray-800)',
     margin: 0,
   },
   badge: {
@@ -61,7 +61,7 @@ const styles = {
   sectionTitle: {
     fontSize: 12,
     fontWeight: 600,
-    color: '#6b7280',
+    color: 'var(--gray-500)',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
     marginBottom: 8,
@@ -70,31 +70,31 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '6px 0',
-    borderBottom: '1px solid #f3f4f6',
+    borderBottom: '1px solid var(--gray-100)',
     fontSize: 13,
   },
   rowLabel: {
-    color: '#6b7280',
+    color: 'var(--gray-500)',
   },
   rowValue: {
     fontWeight: 600,
-    color: '#374151',
+    color: 'var(--gray-700)',
     textAlign: 'right',
   },
   activityItem: {
     padding: '8px 10px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'var(--gray-50)',
     borderRadius: 6,
     marginBottom: 6,
     fontSize: 13,
-    border: '1px solid #f3f4f6',
+    border: '1px solid var(--gray-100)',
   },
   closeBtn: {
     padding: '10px 24px',
     borderRadius: 6,
-    border: '1px solid #d1d5db',
-    backgroundColor: '#ffffff',
-    color: '#6b7280',
+    border: '1px solid var(--gray-300)',
+    backgroundColor: 'var(--white)',
+    color: 'var(--gray-500)',
     fontWeight: 500,
     fontSize: 14,
     cursor: 'pointer',
@@ -115,7 +115,7 @@ function InfoRow({ label, value, color }) {
   return (
     <div style={styles.row}>
       <span style={styles.rowLabel}>{label}</span>
-      <span style={{ ...styles.rowValue, color: color || '#374151' }}>{value || '—'}</span>
+      <span style={{ ...styles.rowValue, color: color || 'var(--gray-700)' }}>{value || '—'}</span>
     </div>
   );
 }
@@ -124,7 +124,7 @@ export default function ProcessDetailModal({ data, onClose }) {
   if (!data) return null;
 
   const isFork = data.type === 'fork';
-  const color = data.color || '#6b7280';
+  const color = data.color || 'var(--gray-500)';
 
   return (
     <div style={styles.overlay} onClick={onClose}>
@@ -170,11 +170,11 @@ export default function ProcessDetailModal({ data, onClose }) {
               <div key={idx} style={styles.activityItem}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                   <span style={{ fontWeight: 600, fontSize: 13 }}>{act.eventLabel || act.event}</span>
-                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(act.timestamp)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>{formatDate(act.timestamp)}</span>
                 </div>
-                {act.user && <span style={{ fontSize: 12, color: '#6b7280' }}>👤 {act.user}</span>}
+                {act.user && <span style={{ fontSize: 12, color: 'var(--gray-500)' }}>👤 {act.user}</span>}
                 {act.justification && (
-                  <div style={{ marginTop: 4, fontSize: 12, color: '#d97706', backgroundColor: '#fffbeb', padding: '4px 8px', borderRadius: 4 }}>
+                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--warning-dark)', backgroundColor: '#fffbeb', padding: '4px 8px', borderRadius: 4 }}>
                     💬 {act.justification}
                   </div>
                 )}
@@ -186,7 +186,7 @@ export default function ProcessDetailModal({ data, onClose }) {
         {data.justification && (
           <div style={styles.section}>
             <div style={styles.sectionTitle}>Justificación</div>
-            <div style={{ padding: '8px 10px', backgroundColor: '#fffbeb', borderRadius: 6, fontSize: 13, color: '#d97706' }}>
+            <div style={{ padding: '8px 10px', backgroundColor: '#fffbeb', borderRadius: 6, fontSize: 13, color: 'var(--warning-dark)' }}>
               💬 {data.justification}
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function ProcessDetailModal({ data, onClose }) {
             <InfoRow label="Antes" value={`${data.consumptionChange.before} cm`} />
             <InfoRow label="Después" value={`${data.consumptionChange.after} cm`} />
             {data.consumptionChange.diff > 0 && (
-              <InfoRow label="Diferencia" value={`+${data.consumptionChange.diff} cm`} color="#ef4444" />
+              <InfoRow label="Diferencia" value={`+${data.consumptionChange.diff} cm`} color="var(--error)" />
             )}
           </div>
         )}
@@ -207,7 +207,7 @@ export default function ProcessDetailModal({ data, onClose }) {
           <div style={styles.section}>
             <div style={styles.sectionTitle}>Cambios en Moldería</div>
             {data.molderiaChanges.map((c, i) => (
-              <div key={i} style={{ padding: '4px 0', fontSize: 13, color: '#2563eb' }}>📐 {c}</div>
+              <div key={i} style={{ padding: '4px 0', fontSize: 13, color: 'var(--info-dark)' }}>📐 {c}</div>
             ))}
           </div>
         )}

@@ -4,10 +4,10 @@ import CollectionLifecycleFlow from '../components/CollectionLifecycleFlow';
 
 const LEGACY_COLORS = {
   concepto: '#8B5CF6',
-  diseno: '#3B82F6',
-  costeo: '#F59E0B',
-  industrializacion: '#EF4444',
-  produccion: '#10B981',
+  diseno: 'var(--primary-500)',
+  costeo: 'var(--warning)',
+  industrializacion: 'var(--error)',
+  produccion: 'var(--success)',
   comercial: '#6366F1',
 };
 
@@ -21,13 +21,13 @@ const styles = {
   title: {
     fontSize: 22,
     fontWeight: 700,
-    color: '#1f2937',
+    color: 'var(--gray-800)',
     margin: 0,
     fontFamily: "'Inter', sans-serif",
   },
   subtitle: {
     fontSize: 13,
-    color: '#6b7280',
+    color: 'var(--gray-500)',
     margin: '4px 0 0',
   },
 };
@@ -47,9 +47,9 @@ export default function ProcessMapPage() {
 
       {/* Timeline horizontal */}
       <div style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--white)',
         borderRadius: 8,
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--gray-200)',
         padding: '24px 20px',
         overflowX: 'auto',
       }}>
@@ -63,7 +63,7 @@ export default function ProcessMapPage() {
         }}>
           {PHASES.map((phase, idx) => {
             const isExpanded = expandedPhase === phase.id;
-            const color = phase.color || LEGACY_COLORS[phase.id] || '#6b7280';
+            const color = phase.color || LEGACY_COLORS[phase.id] || 'var(--gray-500)';
             return (
               <div key={phase.id} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                 <div
@@ -75,7 +75,7 @@ export default function ProcessMapPage() {
                     gap: 6,
                     padding: '12px 16px',
                     borderRadius: 10,
-                    backgroundColor: isExpanded ? color + '15' : '#ffffff',
+                    backgroundColor: isExpanded ? color + '15' : 'var(--white)',
                     border: `2px solid ${color}`,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
@@ -83,8 +83,8 @@ export default function ProcessMapPage() {
                     boxShadow: isExpanded ? `0 0 0 3px ${color}30` : 'none',
                     flex: 1,
                   }}
-                  onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.backgroundColor = '#f9fafb'; }}
-                  onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.backgroundColor = '#ffffff'; }}
+                  onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--gray-50)'; }}
+                  onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--white)'; }}
                 >
                   <span style={{ fontSize: 24 }}>{phase.icon}</span>
                   <span style={{
@@ -114,7 +114,7 @@ export default function ProcessMapPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#d1d5db',
+                    color: 'var(--gray-300)',
                     fontSize: 20,
                     fontWeight: 300,
                     userSelect: 'none',
@@ -134,17 +134,17 @@ export default function ProcessMapPage() {
           {(() => {
             const phase = PHASES.find(p => p.id === expandedPhase);
             if (!phase) return null;
-            const color = phase.color || LEGACY_COLORS[phase.id] || '#6b7280';
+            const color = phase.color || LEGACY_COLORS[phase.id] || 'var(--gray-500)';
             return (
               <div style={{
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--white)',
                 borderRadius: 8,
                 border: `1px solid ${color}30`,
                 padding: 20,
                 borderLeft: `4px solid ${color}`,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1f2937' }}>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--gray-800)' }}>
                     {phase.icon} {phase.label} — Procesos
                   </h3>
                   <span style={{ fontSize: 12, color }}>
@@ -162,8 +162,8 @@ export default function ProcessMapPage() {
                     return (
                       <div key={idx} style={{
                         borderRadius: 8,
-                        border: `1px solid ${isExpanded ? color : '#e5e7eb'}`,
-                        backgroundColor: '#ffffff',
+                        border: `1px solid ${isExpanded ? color : 'var(--gray-200)'}`,
+                        backgroundColor: 'var(--white)',
                         overflow: 'hidden',
                         transition: 'border-color 0.2s',
                       }}>
@@ -175,11 +175,11 @@ export default function ProcessMapPage() {
                             gap: 8,
                             padding: '10px 14px',
                             cursor: 'pointer',
-                            backgroundColor: isExpanded ? color + '08' : '#ffffff',
-                            borderBottom: isExpanded ? `1px solid ${color}20` : '1px solid #f3f4f6',
+                            backgroundColor: isExpanded ? color + '08' : 'var(--white)',
+                            borderBottom: isExpanded ? `1px solid ${color}20` : '1px solid var(--gray-100)',
                           }}
                           onMouseEnter={e => { e.currentTarget.style.backgroundColor = color + '08'; }}
-                          onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.backgroundColor = '#ffffff'; }}
+                          onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.backgroundColor = 'var(--white)'; }}
                         >
                           <div style={{
                             width: 6,
@@ -192,7 +192,7 @@ export default function ProcessMapPage() {
                             flex: 1,
                             fontSize: 13,
                             fontWeight: 600,
-                            color: '#374151',
+                            color: 'var(--gray-700)',
                             lineHeight: 1.3,
                           }}>
                             {proc.label}
@@ -202,17 +202,17 @@ export default function ProcessMapPage() {
                             alignItems: 'center',
                             gap: 4,
                             fontSize: 11,
-                            color: '#9ca3af',
+                            color: 'var(--gray-400)',
                           }}>
                             <span style={{
                               padding: '1px 6px',
                               borderRadius: 6,
-                              backgroundColor: '#f3f4f6',
+                              backgroundColor: 'var(--gray-100)',
                               fontWeight: 600,
                             }}>
                               {proc.activities.length} acts
                             </span>
-                            <span style={{ fontSize: 12, color: '#d1d5db' }}>
+                            <span style={{ fontSize: 12, color: 'var(--gray-300)' }}>
                               {isExpanded ? '▲' : '▼'}
                             </span>
                           </div>
@@ -220,7 +220,7 @@ export default function ProcessMapPage() {
 
                         {isExpanded && (
                           <div style={{ padding: '10px 14px' }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-500)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                               Actividades
                             </div>
                             {proc.activities.length > 0 ? (
@@ -230,8 +230,8 @@ export default function ProcessMapPage() {
                                     padding: '5px 8px',
                                     marginBottom: 3,
                                     fontSize: 12,
-                                    color: '#4b5563',
-                                    backgroundColor: '#f9fafb',
+                                    color: 'var(--gray-600)',
+                                    backgroundColor: 'var(--gray-50)',
                                     borderRadius: 4,
                                     lineHeight: 1.4,
                                   }}>
@@ -240,30 +240,30 @@ export default function ProcessMapPage() {
                                 ))}
                               </ul>
                             ) : (
-                              <div style={{ fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>
+                              <div style={{ fontSize: 12, color: 'var(--gray-400)', fontStyle: 'italic' }}>
                                 Sin actividades específicas
                               </div>
                             )}
 
                             {proc.subprocesses && proc.subprocesses.length > 0 && (
                               <div style={{ marginTop: 10 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#6b7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-500)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
                                   Subprocesos
                                 </div>
                                 {proc.subprocesses.map((sub, sIdx) => (
                                   <div key={sIdx} style={{
                                     padding: '8px 10px',
                                     marginBottom: 6,
-                                    backgroundColor: '#f3f4f6',
+                                    backgroundColor: 'var(--gray-100)',
                                     borderRadius: 6,
-                                    border: '1px solid #e5e7eb',
+                                    border: '1px solid var(--gray-200)',
                                   }}>
-                                    <div style={{ fontWeight: 600, fontSize: 12, color: '#374151', marginBottom: 4 }}>
+                                    <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--gray-700)', marginBottom: 4 }}>
                                       ▸ {sub.label}
                                     </div>
                                     <ul style={{ margin: 0, padding: '0 0 0 14px' }}>
                                       {sub.activities.map((act, aIdx) => (
-                                        <li key={aIdx} style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>
+                                        <li key={aIdx} style={{ fontSize: 12, color: 'var(--gray-500)', marginBottom: 2 }}>
                                           {act}
                                         </li>
                                       ))}
@@ -315,7 +315,7 @@ export default function ProcessMapPage() {
           marginTop: 12,
           textAlign: 'center',
           fontSize: 12,
-          color: '#9ca3af',
+          color: 'var(--gray-400)',
         }}>
           💡 Haz clic en cualquier fase de la barra superior o en la leyenda para cambiar de fase
         </div>

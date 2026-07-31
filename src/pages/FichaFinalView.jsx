@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+﻿import { useState, useMemo } from 'react';
 import {
   Save, Tag, AlertTriangle, CheckCircle, Droplets, FileText,
   Info, Plus, X, ShieldCheck, Clock,
   Package
 } from 'lucide-react';
 import SeccionColapsable from '../components/SeccionColapsable';
+import styles from './FichaFinalView.module.css';
 
 
 
@@ -135,8 +136,8 @@ export default function FichaFinalView() {
   return (
     <div className="fade-in">
       {/* ── Header ── */}
-      <div className="fichafinal-header">
-        <div className="fichafinal-header-info">
+      <div className={styles.header}>
+        <div className={styles.headerInfo}>
           <h2>Ficha Final y Marquillas</h2>
           <p>
             Referencia: <strong style={{ color: 'var(--primary-600)' }}>{fichaData.codigoMD}</strong>
@@ -145,7 +146,7 @@ export default function FichaFinalView() {
             {' — '}
             {fichaData.nombre}
           </p>
-          <div className="fichafinal-header-badges">
+          <div className={styles.headerBadges}>
             <span className="badge badge-primary">{fichaData.tipoPrenda}</span>
             <span className="badge badge-warning">{fichaData.clasificacion}</span>
             {fichaData.temporada && (
@@ -155,7 +156,7 @@ export default function FichaFinalView() {
             )}
           </div>
         </div>
-        <div className="fichafinal-header-actions">
+        <div className={styles.headerActions}>
           <button className="btn btn-primary">
             <Save size={16} /> Guardar Ficha Final
           </button>
@@ -163,55 +164,55 @@ export default function FichaFinalView() {
       </div>
 
       {/* ── KPIs ── */}
-      <div className="fichafinal-kpi-grid">
-        <div className="fichafinal-kpi-card" style={{ borderTopColor: kpis.composicion ? 'var(--success)' : 'var(--warning)' }}>
-          <div className="fichafinal-kpi-card-left">
-            <span className="fichafinal-kpi-label">Composición</span>
-            <span className="fichafinal-kpi-value" style={{ color: kpis.composicion ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>
+      <div className="kpi-stat-grid">
+        <div className="kpi-stat-card" style={{ borderTopColor: kpis.composicion ? 'var(--success)' : 'var(--warning)' }}>
+          <div className="kpi-stat-left">
+            <span className="kpi-stat-label">Composición</span>
+            <span className="kpi-stat-value" style={{ color: kpis.composicion ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>
               {kpis.composicion ? 'Completa' : 'Pendiente'}
             </span>
-            <span className="fichafinal-kpi-sub">{composicionTotal}% registrado</span>
+            <span className="kpi-stat-sub">{composicionTotal}% registrado</span>
           </div>
-          <div className="fichafinal-kpi-icon" style={{ background: kpis.composicion ? 'var(--success-light)' : 'var(--warning-light)', color: kpis.composicion ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
+          <div className="kpi-stat-icon" style={{ background: kpis.composicion ? 'var(--success-light)' : 'var(--warning-light)', color: kpis.composicion ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
             <Tag size={20} />
           </div>
         </div>
 
-        <div className="fichafinal-kpi-card" style={{ borderTopColor: kpis.cuidados ? 'var(--success)' : 'var(--warning)' }}>
-          <div className="fichafinal-kpi-card-left">
-            <span className="fichafinal-kpi-label">Cuidados</span>
-            <span className="fichafinal-kpi-value" style={{ color: kpis.cuidados ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>
+        <div className="kpi-stat-card" style={{ borderTopColor: kpis.cuidados ? 'var(--success)' : 'var(--warning)' }}>
+          <div className="kpi-stat-left">
+            <span className="kpi-stat-label">Cuidados</span>
+            <span className="kpi-stat-value" style={{ color: kpis.cuidados ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>
               {kpis.cuidados ? 'Completo' : 'Pendiente'}
             </span>
-            <span className="fichafinal-kpi-sub">{Object.values(cuidados).filter(v => v).length}/4 campos</span>
+            <span className="kpi-stat-sub">{Object.values(cuidados).filter(v => v).length}/4 campos</span>
           </div>
-          <div className="fichafinal-kpi-icon" style={{ background: kpis.cuidados ? 'var(--success-light)' : 'var(--warning-light)', color: kpis.cuidados ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
+          <div className="kpi-stat-icon" style={{ background: kpis.cuidados ? 'var(--success-light)' : 'var(--warning-light)', color: kpis.cuidados ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
             <Droplets size={20} />
           </div>
         </div>
 
-        <div className="fichafinal-kpi-card" style={{ borderTopColor: kpis.contramuestra ? 'var(--success)' : 'var(--primary-600)' }}>
-          <div className="fichafinal-kpi-card-left">
-            <span className="fichafinal-kpi-label">Contramuestra</span>
-            <span className="fichafinal-kpi-value" style={{ color: kpis.contramuestra ? 'var(--success-dark)' : 'var(--primary-600)', fontSize: 'var(--text-xl)' }}>
+        <div className="kpi-stat-card" style={{ borderTopColor: kpis.contramuestra ? 'var(--success)' : 'var(--primary-600)' }}>
+          <div className="kpi-stat-left">
+            <span className="kpi-stat-label">Contramuestra</span>
+            <span className="kpi-stat-value" style={{ color: kpis.contramuestra ? 'var(--success-dark)' : 'var(--primary-600)', fontSize: 'var(--text-xl)' }}>
               {contramuestra.estado === 'pendiente' ? 'Pendiente' : contramuestra.estado === 'activa' ? 'Activa' : contramuestra.estado === 'utilizada' ? 'Utilizada' : 'Anulada'}
             </span>
-            <span className="fichafinal-kpi-sub">{contramuestra.ot}</span>
+            <span className="kpi-stat-sub">{contramuestra.ot}</span>
           </div>
-          <div className="fichafinal-kpi-icon" style={{ background: kpis.contramuestra ? 'var(--success-light)' : 'var(--primary-100)', color: kpis.contramuestra ? 'var(--success-dark)' : 'var(--primary-600)' }}>
+          <div className="kpi-stat-icon" style={{ background: kpis.contramuestra ? 'var(--success-light)' : 'var(--primary-100)', color: kpis.contramuestra ? 'var(--success-dark)' : 'var(--primary-600)' }}>
             <FileText size={20} />
           </div>
         </div>
 
-        <div className="fichafinal-kpi-card" style={{ borderTopColor: kpis.noNovedades ? 'var(--success)' : 'var(--error)' }}>
-          <div className="fichafinal-kpi-card-left">
-            <span className="fichafinal-kpi-label">Novedades</span>
-            <span className="fichafinal-kpi-value" style={{ color: kpis.noNovedades ? 'var(--success-dark)' : 'var(--error-dark)', fontSize: 'var(--text-xl)' }}>
+        <div className="kpi-stat-card" style={{ borderTopColor: kpis.noNovedades ? 'var(--success)' : 'var(--error)' }}>
+          <div className="kpi-stat-left">
+            <span className="kpi-stat-label">Novedades</span>
+            <span className="kpi-stat-value" style={{ color: kpis.noNovedades ? 'var(--success-dark)' : 'var(--error-dark)', fontSize: 'var(--text-xl)' }}>
               {novedades.length === 0 ? 'Sin Alertas' : `${novedades.length} Alerta${novedades.length > 1 ? 's' : ''}`}
             </span>
-            <span className="fichafinal-kpi-sub">{kpis.noNovedades ? 'Sin novedades' : 'Requieren atención'}</span>
+            <span className="kpi-stat-sub">{kpis.noNovedades ? 'Sin novedades' : 'Requieren atención'}</span>
           </div>
-          <div className="fichafinal-kpi-icon" style={{ background: kpis.noNovedades ? 'var(--success-light)' : 'var(--error-light)', color: kpis.noNovedades ? 'var(--success-dark)' : 'var(--error-dark)' }}>
+          <div className="kpi-stat-icon" style={{ background: kpis.noNovedades ? 'var(--success-light)' : 'var(--error-light)', color: kpis.noNovedades ? 'var(--success-dark)' : 'var(--error-dark)' }}>
             <ShieldCheck size={20} />
           </div>
         </div>
@@ -228,7 +229,7 @@ export default function FichaFinalView() {
           defaultOpen={true}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div className="fichafinal-marquilla-grid" style={{ marginBottom: 'var(--space-2)' }}>
+            <div className={styles.marquillaGrid} style={{ marginBottom: 'var(--space-2)' }}>
               <div className="form-group fichafinal-marquilla-full">
                 <label className="form-label form-label-required">Composición para Marquilla (USA)</label>
                 <input
@@ -251,13 +252,13 @@ export default function FichaFinalView() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-2)' }}>
               <h4 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--gray-700)' }}>Materiales</h4>
-              <span className="fichafinal-position-badge">
+              <span className={styles.positionBadge}>
                 Total: {composicionTotal}%
               </span>
             </div>
 
             {composicion.map((item) => (
-              <div key={item.id} className="fichafinal-composicion-row">
+              <div key={item.id} className={styles.composicionRow}>
                 <div style={{ flex: 1 }}>
                   <input
                     type="text"
@@ -267,7 +268,7 @@ export default function FichaFinalView() {
                     placeholder="Ej. Algodón, Poliéster"
                   />
                 </div>
-                <div className="fichafinal-composicion-pct">
+                <div className={styles.composicionPct}>
                   <input
                     type="number"
                     className="form-input"
@@ -275,7 +276,7 @@ export default function FichaFinalView() {
                     onChange={(e) => handleComposicionChange(item.id, 'porcentaje', e.target.value)}
                     placeholder="0"
                   />
-                  <span className="fichafinal-composicion-pct-symbol">%</span>
+                  <span className={styles.composicionPctSymbol}>%</span>
                 </div>
                 {composicion.length > 1 && (
                   <button
@@ -329,7 +330,7 @@ export default function FichaFinalView() {
           accentColor="var(--temp-warm-border)"
           defaultOpen={true}
         >
-          <div className="fichafinal-marquilla-grid">
+          <div className={styles.marquillaGrid}>
             {Object.entries(CUIDADOS_OPTIONS).map(([key, options]) => {
               const labels = { lavado: 'Lavado', secado: 'Secado', planchado: 'Planchado', blanqueado: 'Blanqueado' };
               return (
@@ -366,7 +367,7 @@ export default function FichaFinalView() {
                   </span>
                 </div>
 
-                <div className="fichafinal-contramuestra-grid">
+                <div className={styles.contramuestraGrid}>
                   <div className="form-group">
                     <label className="form-label">Orden de Trabajo (OT)</label>
                     <input className="form-input" value={contramuestra.ot} onChange={e => setContramuestra(prev => ({ ...prev, ot: e.target.value }))} />
@@ -414,17 +415,17 @@ export default function FichaFinalView() {
           defaultOpen={novedades.length > 0}
         >
           {novedades.length === 0 ? (
-            <div className="fichafinal-emptystate">
+            <div className={styles.emptystate}>
               <CheckCircle size={16} />
               Sin novedades activas — la referencia fluye normalmente
             </div>
           ) : (
-            <div className="fichafinal-novedad-list">
+            <div className={styles.novedadList}>
               {novedades.map(n => (
-                <div key={n.id} className="fichafinal-novedad-item">
-                  <span className="fichafinal-novedad-item-tipo">{n.tipo}</span>
-                  <span className="fichafinal-novedad-item-desc">{n.descripcion}</span>
-                  <span className="fichafinal-novedad-item-date">{n.fecha}</span>
+                <div key={n.id} className={styles.novedadItem}>
+                  <span className={styles.novedadItemTipo}>{n.tipo}</span>
+                  <span className={styles.novedadItemDesc}>{n.descripcion}</span>
+                  <span className={styles.novedadItemDate}>{n.fecha}</span>
                 </div>
               ))}
             </div>
@@ -435,7 +436,7 @@ export default function FichaFinalView() {
             <span>Si registras una novedad crítica, el flujo de esta referencia se pausará en el Kanban hasta que Compras o Calidad lo resuelvan.</span>
           </div>
 
-          <div className="fichafinal-novedad-form">
+          <div className={styles.novedadForm}>
             <div className="form-group">
               <label className="form-label form-label-required">Tipo de Novedad</label>
               <select className="form-select" value={novedadTipo} onChange={e => setNovedadTipo(e.target.value)}>
@@ -468,7 +469,7 @@ export default function FichaFinalView() {
       </div>
 
       {/* ── Sticky Footer ── */}
-      <div className="fichafinal-sticky-footer">
+      <div className={styles.stickyFooter}>
         <button className="btn btn-secondary">Cancelar</button>
         <button className="btn btn-primary">
           <Save size={16} /> Guardar Ficha Final

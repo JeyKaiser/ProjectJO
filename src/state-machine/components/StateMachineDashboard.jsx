@@ -3,20 +3,20 @@ import { STATE_LABELS, STATE_COLORS, STATE_ICONS, MAIN_TRUNK_STATES, TERMINAL_ST
 const cardBase = {
   padding: '16px',
   borderRadius: 8,
-  border: '1px solid #e5e7eb',
-  backgroundColor: '#ffffff',
+  border: '1px solid var(--gray-200)',
+  backgroundColor: 'var(--white)',
 };
 
 const statNumber = {
   fontSize: 28,
   fontWeight: 800,
-  color: '#1f2937',
+  color: 'var(--gray-800)',
   lineHeight: 1,
 };
 
 const statLabel = {
   fontSize: 12,
-  color: '#6b7280',
+  color: 'var(--gray-500)',
   marginTop: 4,
 };
 
@@ -71,12 +71,12 @@ export default function StateMachineDashboard({ inbox, criticalCount, warningCou
           <div style={statNumber}>{totalCompleted}</div>
           <div style={statLabel}>Completadas</div>
         </div>
-        {alertSummaryCard('critical', criticalCount, 'Alertas Críticas', '#7f1d1d', '#ef4444')}
-        {alertSummaryCard('warning', warningCount, 'Advertencias', '#78350f', '#f59e0b')}
+        {alertSummaryCard('critical', criticalCount, 'Alertas Críticas', '#7f1d1d', 'var(--error)')}
+        {alertSummaryCard('warning', warningCount, 'Advertencias', '#78350f', 'var(--warning)')}
       </div>
 
       <div style={cardBase}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
           Distribución por Estado
         </h3>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -94,7 +94,7 @@ export default function StateMachineDashboard({ inbox, criticalCount, warningCou
                 border: `1px solid ${STATE_COLORS[state]}30`,
               }}>
                 <span>{STATE_ICONS[state]}</span>
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray-700)' }}>
                   {STATE_LABELS[state]}
                 </span>
                 <span style={{

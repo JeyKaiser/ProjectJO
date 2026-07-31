@@ -30,3 +30,4 @@ dist-ssr
 
 .env
 google_credenciales.json
+ip_roles.json

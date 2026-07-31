@@ -1,10 +1,18 @@
-import * as XLSX from 'xlsx';
+let XLSXModule = null;
+
+async function getXLSX() {
+  if (!XLSXModule) {
+    XLSXModule = await import('xlsx');
+  }
+  return XLSXModule;
+}
 
 /**
  * Parsea un archivo Excel (.xlsx) o CSV con formato VALIDACION DE TELAS.
  * Retorna { referencias, telas, consumos, errores }
  */
-export function parseValidationTelas(fileData, fileName) {
+export async function parseValidationTelas(fileData, fileName) {
+  const XLSX = await getXLSX();
   const isCSV = fileName.toLowerCase().endsWith('.csv');
   const workbook = isCSV
     ? XLSX.read(fileData, { type: 'array', raw: true })

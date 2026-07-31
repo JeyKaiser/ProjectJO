@@ -1,0 +1,109 @@
+﻿/* ============================================
+   MÓDULO: EXPLORADOR DE COLECCIONES
+   ============================================ */
+
+/* Breadcrumb */
+.breadcrumb {
+  display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-6);
+  padding: var(--space-3) var(--space-4); background: var(--white);
+  border-radius: var(--radius-lg); border: 1px solid var(--gray-200); font-size: var(--text-sm);
+}
+.breadcrumbLink { color: var(--primary-600); font-weight: 500; transition: color var(--transition-fast); }
+.breadcrumbLink:hover { color: var(--primary-800); text-decoration: underline; }
+.breadcrumbSeparator { color: var(--gray-400); flex-shrink: 0; }
+.breadcrumbCurrent { color: var(--gray-700); font-weight: 700; }
+
+/* Colecciones Grid */
+.coleccionesGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-6); }
+
+/* Season Cards (Nivel 1) */
+.seasonCard {
+  border-radius: var(--radius-xl); overflow: hidden; border: 3px solid;
+  cursor: pointer; transition: all var(--transition-base);
+  background: var(--white); box-shadow: var(--shadow-md);
+}
+.seasonCard:hover { transform: translateY(-6px) scale(1.02); box-shadow: var(--shadow-2xl); }
+.seasonCardImage { width: 100%; height: 240px; overflow: hidden; }
+.seasonCardImage img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--transition-slow); }
+.seasonCard:hover .seasonCardImage img { transform: scale(1.08); }
+.seasonCardPlaceholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-3xl); font-weight: 800; color: rgba(255, 255, 255, 0.5); font-family: var(--font-display);
+}
+.seasonCardLabel {
+  padding: var(--space-3) var(--space-4); color: var(--white); font-family: var(--font-display);
+  font-weight: 800; font-size: var(--text-sm); text-align: center; letter-spacing: 0.1em;
+}
+
+/* Collection Cards (Nivel 1 legacy, kept for grid class) */
+.coleccionCard {
+  border-radius: var(--radius-xl); overflow: hidden; border: 3px solid var(--gray-200);
+  cursor: pointer; transition: all var(--transition-base); background: var(--white); box-shadow: var(--shadow-md);
+}
+.coleccionCard:hover { transform: translateY(-6px) scale(1.02); box-shadow: var(--shadow-2xl); }
+.coleccionCardImage { width: 100%; height: 240px; overflow: hidden; }
+.coleccionCardImage img { width: 100%; height: 100%; object-fit: cover; transition: transform var(--transition-slow); }
+.coleccionCard:hover .coleccionCardImage img { transform: scale(1.08); }
+.coleccionCardPlaceholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-size: var(--text-5xl); font-weight: 800; color: rgba(255, 255, 255, 0.6); font-family: var(--font-display);
+}
+.coleccionCardLabel {
+  padding: var(--space-3) var(--space-4); color: var(--white); font-family: var(--font-display);
+  font-weight: 800; font-size: var(--text-sm); text-align: center; letter-spacing: 0.1em;
+}
+
+/* Años */
+.coleccionAvatar { width: 64px; height: 64px; border-radius: var(--radius-xl); overflow: hidden; border: 3px solid; flex-shrink: 0; }
+.coleccionAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.coleccionAvatarPlaceholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 800; font-size: var(--text-2xl);
+}
+.aniosGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.anioCard {
+  background: var(--white); border-radius: var(--radius-xl); padding: var(--space-8);
+  border: 1px solid var(--gray-200); box-shadow: var(--shadow-md); cursor: pointer;
+  transition: all var(--transition-base); text-align: center;
+}
+.anioCard:hover { transform: translateY(-4px); box-shadow: var(--shadow-xl); border-color: var(--primary-300); }
+.anioCardYear { font-family: var(--font-display); font-size: var(--text-4xl); font-weight: 800; color: var(--gray-900); margin-bottom: var(--space-6); }
+.anioCardStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.anioStat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.anioStatNumber { font-size: var(--text-xl); font-weight: 800; color: var(--gray-900); }
+.anioStatLabel { font-size: 10px; color: var(--gray-500); font-weight: 600; text-transform: uppercase; }
+
+/* Referencias */
+.referenciasGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-6); }
+.referenciaCard {
+  background: var(--white); border-radius: var(--radius-xl); padding: var(--space-5);
+  border: 1px solid var(--gray-200); border-top: 4px solid; box-shadow: var(--shadow-md); transition: all var(--transition-base);
+}
+.referenciaCard:hover { box-shadow: var(--shadow-xl); transform: translateY(-3px); }
+.referenciaCardImagen {
+  margin-top: var(--space-4); margin-bottom: var(--space-2); border-radius: var(--radius-lg);
+  overflow: hidden; height: 200px; background: var(--gray-50); border: 1px solid var(--gray-100);
+}
+.referenciaCardImagen img { width: 100%; height: 100%; object-fit: cover; object-position: top; transition: transform var(--transition-base); }
+.referenciaCard:hover .referenciaCardImagen img { transform: scale(1.05); }
+.referenciaCardHeader { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-3); margin-bottom: var(--space-3); }
+.referenciaClasificacion { font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; }
+.referenciaNombre { font-size: var(--text-sm); font-weight: 700; color: var(--gray-900); margin-bottom: 2px; line-height: 1.3; }
+.referenciaTipo { font-size: var(--text-xs); color: var(--gray-500); margin-bottom: var(--space-3); }
+.referenciaFase { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: 1px solid; margin-bottom: var(--space-3); }
+.referenciaFaseLabel { display: flex; align-items: center; gap: var(--space-2); }
+.referenciaFaseNumber { font-weight: 800; font-size: var(--text-sm); }
+.referenciaFaseName { font-size: var(--text-xs); font-weight: 600; color: var(--gray-700); }
+.referenciaFooter { display: flex; justify-content: space-between; align-items: center; padding-top: var(--space-3); border-top: 1px solid var(--gray-100); }
+.referenciaFooterItem { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--gray-500); font-weight: 500; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .coleccionesGrid { grid-template-columns: repeat(3, 1fr); }
+  .referenciasGrid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .coleccionesGrid { grid-template-columns: repeat(2, 1fr); }
+  .aniosGrid { grid-template-columns: repeat(2, 1fr); }
+  .referenciasGrid { grid-template-columns: 1fr; }
+}

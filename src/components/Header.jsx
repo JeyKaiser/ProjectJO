@@ -1,9 +1,9 @@
-import { Search, Bell, User, Sun, Moon } from 'lucide-react';
+import { Search, Bell, User, Sun, Moon, Shield } from 'lucide-react';
 import { useAuth, ROLES } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 export default function Header() {
-  const { role, setRole } = useAuth();
+  const { role, setRole, isServer } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   return (
     <header className="header">
@@ -26,19 +26,26 @@ export default function Header() {
         </select>
 
         {/* Simulador de Roles */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--primary-50)', padding: '4px 12px', borderRadius: 'var(--radius-full)', border: '1px solid var(--primary-200)' }}>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary-700)' }}>Rol:</span>
-          <select 
-            className="header-select" 
-            value={role} 
-            onChange={(e) => setRole(e.target.value)}
-            style={{ border: 'none', background: 'transparent', padding: '0 8px', color: 'var(--primary-700)' }}
-          >
-            {Object.values(ROLES).map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </div>
+        {isServer ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--primary-50)', padding: '4px 12px', borderRadius: 'var(--radius-full)', border: '1px solid var(--primary-200)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary-700)' }}>Rol:</span>
+            <select 
+              className="header-select" 
+              value={role} 
+              onChange={(e) => setRole(e.target.value)}
+              style={{ border: 'none', background: 'transparent', padding: '0 8px', color: 'var(--primary-700)' }}
+            >
+              {Object.values(ROLES).filter(r => r !== ROLES.VISITANTE).map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--gray-100)', padding: '4px 12px', borderRadius: 'var(--radius-full)', border: '1px solid var(--gray-300)' }}>
+            <Shield size={14} style={{ color: 'var(--gray-600)' }} />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gray-700)' }}>{role}</span>
+          </div>
+        )}
         
         <button className="header-icon-btn" onClick={toggleTheme} title={isDark ? 'Modo claro' : 'Modo oscuro'}>
           {isDark ? <Sun size={20} /> : <Moon size={20} />}

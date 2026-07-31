@@ -1,12 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, AlertTriangle, CheckCircle, Clock, Package,
-  Pause, Flame, BarChart2, ChevronRight, Activity
+  Pause, Flame, BarChart2, ChevronRight, Activity, Scissors
 } from 'lucide-react';
 import { useDashboardData, subfaseToProgress, getFaseMacro } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+import supabase from '../lib/supabase';
 import TemperatureBar from '../components/TemperatureBar';
+import styles from './Dashboard.module.css';
 
 // ── Helpers de cálculo ──────────────────────────────────────
 function calcularProgreso(anioData) {
@@ -93,31 +96,31 @@ const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
   const displayYear = latestYear.anio;
 
   return (
-    <div className="coleccion-row" onClick={() => navigate(`/colecciones/${col.id}/${displayYear}`)}>
-      <div className="coleccion-row-left">
-        <div className="coleccion-row-img" style={{ borderColor: col.borderColor }}>
+            <div className={styles.coleccionRow} onClick={() => navigate(`/colecciones/${col.season?.toLowerCase()}/${col.id}/${displayYear}`)}>
+      <div className={styles.coleccionRowLeft}>
+        <div className={styles.coleccionRowImg} style={{ borderColor: col.borderColor }}>
           {col.imagen
             ? <img src={col.imagen} alt={col.nombre} />
             : <div style={{ background: col.borderColor, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 18 }}>{col.nombre.charAt(0)}</div>
           }
         </div>
         <div className="coleccion-row-info">
-          <div className="coleccion-row-nombre">{col.nombre} <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>{displayYear}</span></div>
+          <div className={styles.coleccionRowNombre}>{col.nombre} <span style={{ color: 'var(--gray-400)', fontWeight: 400 }}>{displayYear}</span></div>
           <div style={{ width: 180, marginTop: 6 }}>
             <TemperatureBar subfase={refEjemplo?.faseActual || 1.1} showLabel={false} />
           </div>
         </div>
       </div>
-      <div className="coleccion-row-stats">
-        <div className="coleccion-stat"><span style={{ fontWeight: 800, fontSize: 18 }}>{total}</span><span className="coleccion-stat-label">Total</span></div>
-        <div className="coleccion-stat"><span style={{ fontWeight: 800, fontSize: 18, color: 'var(--warning)' }}>{enProceso}</span><span className="coleccion-stat-label">En Proceso</span></div>
-        <div className="coleccion-stat"><span style={{ fontWeight: 800, fontSize: 18, color: 'var(--error)' }}>{pausadas}</span><span className="coleccion-stat-label">Pausadas</span></div>
-        <div className="coleccion-stat"><span style={{ fontWeight: 800, fontSize: 18, color: 'var(--success)' }}>{completadas}</span><span className="coleccion-stat-label">Listas</span></div>
-        <div className="coleccion-row-progreso">
-          <div className="coleccion-progreso-bar">
-            <div className="coleccion-progreso-fill" style={{ width: `${progreso}%`, background: `var(--temp-${tempVar}-border)` }} />
+      <div className={styles.coleccionRowStats}>
+        <div className={styles.coleccionStat}><span style={{ fontWeight: 800, fontSize: 18 }}>{total}</span><span className={styles.coleccionStatLabel}>Total</span></div>
+        <div className={styles.coleccionStat}><span style={{ fontWeight: 800, fontSize: 18, color: 'var(--warning)' }}>{enProceso}</span><span className={styles.coleccionStatLabel}>En Proceso</span></div>
+        <div className={styles.coleccionStat}><span style={{ fontWeight: 800, fontSize: 18, color: 'var(--error)' }}>{pausadas}</span><span className={styles.coleccionStatLabel}>Pausadas</span></div>
+        <div className={styles.coleccionStat}><span style={{ fontWeight: 800, fontSize: 18, color: 'var(--success)' }}>{completadas}</span><span className={styles.coleccionStatLabel}>Listas</span></div>
+        <div className={styles.coleccionRowProgreso}>
+          <div className={styles.coleccionProgresoBar}>
+            <div className={styles.coleccionProgresoFill} style={{ width: `${progreso}%`, background: `var(--temp-${tempVar}-border)` }} />
           </div>
-          <span className="coleccion-progreso-pct" style={{ color: `var(--temp-${tempVar}-text)` }}>{progreso}%</span>
+          <span className={styles.coleccionProgresoPct} style={{ color: `var(--temp-${tempVar}-text)` }}>{progreso}%</span>
         </div>
       </div>
       <ChevronRight size={18} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
@@ -132,8 +135,42 @@ const faseTempVars = { 1: 'frost', 2: 'cold', 3: 'warm', 4: 'hot', 5: 'fire', 6:
 // ── Página principal del Dashboard ──────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { isTrazador } = useAuth();
   const { data, loading, error } = useDashboardData();
   const colecciones = data?.colecciones || [];
+
+  const [trazadorStats, setTrazadorStats] = useState({ pendientes: 0, enProgreso: 0, completados: 0, conDiferencias: 0 });
+
+  useEffect(() => {
+    if (!isTrazador) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const { count: totalRefs } = await supabase.from('references').select('*', { count: 'exact', head: true }).eq('is_hidden', false);
+        const { data: trazos } = await supabase.from('trazos').select('reference_id, fase').order('reference_id');
+        const { data: comparativos } = await supabase.from('comparativo_trazos').select('reference_id');
+        if (cancelled) return;
+
+        const refsConCosteo = new Set(trazos.filter(t => t.fase === 'costeo').map(t => t.reference_id));
+        const refsConContra = new Set(trazos.filter(t => t.fase === 'contramuestra').map(t => t.reference_id));
+
+        let conDiferencias = 0;
+        for (const c of comparativos) {
+          const dims = ['veces', 'piezas', 'ancho', 'molderia', 'sesgo', 'ancho_sesgo', 'telas'];
+          if (dims.some(d => c[`difiere_${d}`])) conDiferencias++;
+        }
+
+        setTrazadorStats({
+          pendientes: totalRefs - refsConCosteo.size,
+          enProgreso: refsConCosteo.size - refsConContra.size,
+          completados: refsConContra.size,
+          conDiferencias,
+        });
+      } catch (_) { /* silent */ }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [isTrazador]);
 
   const { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal } = useMemo(
     () => calcularMetricasGlobales(colecciones),
@@ -148,12 +185,12 @@ export default function Dashboard() {
   return (
     <div className="fade-in">
       {/* Encabezado */}
-      <div className="dashboard-header">
+      <div className={styles.header}>
         <div>
-          <h2 className="dashboard-titulo">Dashboard de Colecciones</h2>
-          <p className="dashboard-subtitulo">Vision global del estado de produccion</p>
+          <h2 className={styles.titulo}>Dashboard de Colecciones</h2>
+          <p className={styles.subtitulo}>Vision global del estado de produccion</p>
         </div>
-        <div className="dashboard-fecha">
+        <div className={styles.fecha}>
           <Activity size={14} />
           Actualizado en tiempo real
         </div>
@@ -195,11 +232,27 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* Trazador KPIs */}
+      {isTrazador && (
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <h4 style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase', marginBottom: 'var(--space-3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Scissors size={14} style={{ color: 'var(--success)' }} /> Panel del Trazador
+            <Link to="/trazador" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--primary-600)', textDecoration: 'underline', fontWeight: 400 }}>Ir al panel completo →</Link>
+          </h4>
+          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            <KpiCard titulo="Pendientes Trazo" valor={trazadorStats.pendientes} subtitulo="Sin trazo de costeo" icono={<Clock size={22} />} color="var(--warning-dark)" bgColor="var(--warning-light)" />
+            <KpiCard titulo="En Progreso" valor={trazadorStats.enProgreso} subtitulo="Costeo OK, falta contramuestra" icono={<Activity size={22} />} color="var(--secondary-600)" bgColor="var(--secondary-100)" />
+            <KpiCard titulo="Completados" valor={trazadorStats.completados} subtitulo="Ambos trazos registrados" icono={<CheckCircle size={22} />} color="var(--success-dark)" bgColor="var(--success-light)" />
+            <KpiCard titulo="Con Diferencias" valor={trazadorStats.conDiferencias} subtitulo="Requieren revisión" icono={<AlertTriangle size={22} />} color={trazadorStats.conDiferencias > 0 ? 'var(--error-dark)' : 'var(--success-dark)'} bgColor={trazadorStats.conDiferencias > 0 ? 'var(--error-light)' : 'var(--success-light)'} />
+          </div>
+        </div>
+      )}
+
       {/* Barra central: Progreso + Distribución por Fase */}
-      <div className="dashboard-mid">
+      <div className={styles.mid}>
 
         {/* Progreso Global */}
-        <div className="card dashboard-progreso-card">
+        <div className={`card ${styles.progresoCard}`}>
           <div className="card-header">
             <h4 className="card-title"><TrendingUp size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />Progreso Global</h4>
           </div>
@@ -221,20 +274,20 @@ export default function Dashboard() {
           <div className="card-header">
             <h4 className="card-title"><BarChart2 size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />Distribución por Fase</h4>
           </div>
-          <div className="fase-chart">
+          <div className={styles.faseChart}>
             {[1, 2, 3, 4, 5, 6].map(f => (
-              <div key={f} className="fase-bar-item">
-                <div className="fase-bar-label">{faseLabels[f]}</div>
-                <div className="fase-bar-track">
+              <div key={f} className={styles.faseBarItem}>
+                <div className={styles.faseBarLabel}>{faseLabels[f]}</div>
+                <div className={styles.faseBarTrack}>
                   <div
-                    className="fase-bar-fill"
+                    className={styles.faseBarFill}
                     style={{
                       width: maxFase > 0 ? `${(refsPorFase[f] / maxFase) * 100}%` : '0%',
                       background: `var(--temp-${faseTempVars[f]}-border)`,
                     }}
                   />
                 </div>
-                <span className="fase-bar-count" style={{ color: `var(--temp-${faseTempVars[f]}-text)` }}>
+                <span className={styles.faseBarCount} style={{ color: `var(--temp-${faseTempVars[f]}-text)` }}>
                   {refsPorFase[f]}
                 </span>
               </div>
@@ -248,16 +301,16 @@ export default function Dashboard() {
 
       {/* Alertas */}
       {alertas.length > 0 && (
-        <div className="card dashboard-alertas">
+        <div className={`card ${styles.alertasCard}`}>
           <div className="card-header">
             <h4 className="card-title" style={{ color: 'var(--error-dark)' }}>
               <AlertTriangle size={18} style={{ marginRight: 8, verticalAlign: 'middle' }} />
               Alertas y Puntos de Atención ({alertas.length})
             </h4>
           </div>
-          <div className="alertas-list">
+          <div className={styles.alertasList}>
             {alertas.map((a, i) => (
-              <div key={i} className={`alerta-item alerta-${a.tipo}`}>
+              <div key={i} className={`${styles.alertaItem} ${a.tipo === 'pausada' ? styles.alertaPausada : styles.alertaRiesgo}`}>
                 {a.tipo === 'pausada' ? <Pause size={14} /> : <Flame size={14} />}
                 <span>{a.msg}</span>
               </div>
@@ -272,7 +325,7 @@ export default function Dashboard() {
           <h4 className="card-title">Estado por Coleccion</h4>
           <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Clic para explorar</span>
         </div>
-        <div className="colecciones-list">
+        <div className={styles.coleccionesList}>
           {colecciones.map(col => (
             <ColeccionRow key={col.id} col={col} navigate={navigate} />
           ))}

@@ -34,7 +34,7 @@ export const PHASES = [
     id: 'diseno',
     label: 'Diseño',
     icon: '✏️',
-    color: '#3B82F6',
+    color: 'var(--primary-500)',
     processes: [
       {
         id: 'inicio_coleccion',
@@ -116,7 +116,7 @@ export const PHASES = [
     id: 'costeo',
     label: 'Costeo',
     icon: '💰',
-    color: '#F59E0B',
+    color: 'var(--warning)',
     processes: [
       {
         id: 'foto_producto',
@@ -197,7 +197,7 @@ export const PHASES = [
     id: 'industrializacion',
     label: 'Industrialización',
     icon: '🏭',
-    color: '#EF4444',
+    color: 'var(--error)',
     processes: [
       {
         id: 'final_buy',
@@ -281,7 +281,7 @@ export const PHASES = [
     id: 'produccion',
     label: 'Producción',
     icon: '👗',
-    color: '#10B981',
+    color: 'var(--success)',
     processes: [
       {
         id: 'entrega_produccion',
@@ -353,7 +353,7 @@ export function buildProcessMapMermaid() {
 
     const phaseLabel = `${phase.icon} ${phase.label}`;
     lines.push(`  ${phaseId}["${phaseLabel}"]`);
-    styleLines.push(`  style ${phaseId} fill:${phase.color},stroke:${phase.color},color:#ffffff,font-weight:bold`);
+    styleLines.push(`  style ${phaseId} fill:${phase.color},stroke:${phase.color},color:var(--white),font-weight:bold`);
 
     if (pIdx < PHASES.length - 1) {
       const nextId = `PH${pIdx + 1}`;

@@ -15,9 +15,9 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
     gap: 4,
     padding: '8px 12px',
     borderRadius: 8,
-    backgroundColor: isActive ? STATE_COLORS[state] + '15' : '#ffffff',
+    backgroundColor: isActive ? STATE_COLORS[state] + '15' : 'var(--white)',
     border: `1px solid ${
-      isActive ? STATE_COLORS[state] : '#e5e7eb'
+      isActive ? STATE_COLORS[state] : 'var(--gray-200)'
     }`,
     opacity: state === 'completado' && !isActive ? 0.5 : 1,
     position: 'relative',
@@ -53,12 +53,12 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
 
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--white)',
       borderRadius: 8,
       padding: 24,
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--gray-200)',
     }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+      <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
         Diagrama de Flujo — Máquina de Estados
       </h3>
 
@@ -72,7 +72,7 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
                 <span style={{
                   fontSize: 11,
                   fontWeight: isCurrent(state) ? 700 : 500,
-                  color: isCurrent(state) ? STATE_COLORS[state] : '#6b7280',
+                  color: isCurrent(state) ? STATE_COLORS[state] : 'var(--gray-500)',
                 }}>
                   {STATE_LABELS[state]}
                 </span>
@@ -81,7 +81,7 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
                 )}
               </div>
               {idx < TRUNK_ORDER.length - 1 && (
-                <span style={{ color: '#d1d5db', fontSize: 18 }}>→</span>
+                <span style={{ color: 'var(--gray-300)', fontSize: 18 }}>→</span>
               )}
             </div>
           ))}
@@ -95,11 +95,11 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
             justifyContent: 'center',
             flexWrap: 'wrap',
             padding: 12,
-            backgroundColor: '#f9fafb',
+            backgroundColor: 'var(--gray-50)',
             borderRadius: 8,
-            border: '1px dashed #d1d5db',
+            border: '1px dashed var(--gray-300)',
           }}>
-            <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>PROCESOS PARALELOS:</span>
+            <span style={{ fontSize: 12, color: 'var(--gray-400)', fontWeight: 600 }}>PROCESOS PARALELOS:</span>
             {PARALLEL_STATES.map(state => {
               const active = isSubActive(state);
               const completed = isSubCompleted(state);
@@ -110,7 +110,7 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
                   <span style={{
                     fontSize: 11,
                     fontWeight: active ? 700 : 400,
-                    color: active ? STATE_COLORS[state] : '#9ca3af',
+                    color: active ? STATE_COLORS[state] : 'var(--gray-400)',
                   }}>
                     {STATE_LABELS[state]}
                     {completed && ' ✓'}
@@ -130,7 +130,7 @@ export default function StateFlowGraph({ currentState, subStates, completedSubSt
               padding: '4px 12px',
               backgroundColor: subStates?.length === 0 ? '#ecfdf5' : '#fffbeb',
               borderRadius: 12,
-              color: subStates?.length === 0 ? '#059669' : '#d97706',
+              color: subStates?.length === 0 ? 'var(--success-dark)' : 'var(--warning-dark)',
             }}>
               {subStates?.length === 0
                 ? '✅ Todos los procesos paralelos completados — pendiente de Unión'

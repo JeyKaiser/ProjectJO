@@ -32,18 +32,18 @@ export const STATE_LABELS = {
 
 export const STATE_COLORS = {
   concepto: '#8B5CF6',
-  diseno: '#3B82F6',
-  costeo: '#F59E0B',
-  industrializacion: '#EF4444',
-  produccion: '#10B981',
+  diseno: 'var(--primary-500)',
+  costeo: 'var(--warning)',
+  industrializacion: 'var(--error)',
+  produccion: 'var(--success)',
   comercial: '#6366F1',
   bordado: '#EC4899',
   sublimado: '#14B8A6',
   proceso_externo: '#F97316',
-  union: '#A855F7',
-  pausado: '#6B7280',
+  union: 'var(--secondary-500)',
+  pausado: 'var(--gray-500)',
   completado: '#22C55E',
-  cancelado: '#DC2626',
+  cancelado: 'var(--error)',
 };
 
 export const STATE_ICONS = {
@@ -92,6 +92,6 @@ export const ALERT_LEVELS = {
 
 export const ALERT_COLORS = {
   none: '#22C55E',
-  warning: '#F59E0B',
-  critical: '#EF4444',
+  warning: 'var(--warning)',
+  critical: 'var(--error)',
 };

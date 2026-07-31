@@ -4,9 +4,9 @@ import ProcessDetailModal from './ProcessDetailModal';
 
 const styles = {
   wrapper: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'var(--white)',
     borderRadius: 8,
-    border: '1px solid #e5e7eb',
+    border: '1px solid var(--gray-200)',
     padding: '20px 24px',
     overflowX: 'auto',
     marginTop: 24,
@@ -21,12 +21,12 @@ const styles = {
     margin: 0,
     fontSize: 16,
     fontWeight: 700,
-    color: '#1f2937',
+    color: 'var(--gray-800)',
     fontFamily: "'Inter', sans-serif",
   },
   subtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: 'var(--gray-500)',
   },
   stats: {
     display: 'flex',
@@ -45,7 +45,7 @@ const styles = {
     gap: 16,
     marginTop: 16,
     padding: '10px 14px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'var(--gray-50)',
     borderRadius: 8,
     justifyContent: 'center',
     fontSize: 12,
@@ -54,7 +54,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 5,
-    color: '#6b7280',
+    color: 'var(--gray-500)',
   },
   legendDot: (color) => ({
     width: 8,
@@ -74,7 +74,7 @@ export default function CollectionLifecycleFlow() {
   const cardForModal = selectedNode ? {
     stateLabel: selectedNode.label,
     icon: selectedNode.icon || '🔧',
-    color: selectedNode.color || '#6b7280',
+    color: selectedNode.color || 'var(--gray-500)',
     type: 'fork',
     durationLabel: `${selectedNode.activities?.length || 0} actividades`,
     responsible: selectedNode.phase || '',
@@ -97,10 +97,10 @@ export default function CollectionLifecycleFlow() {
           </p>
         </div>
         <div style={styles.stats}>
-          <span style={styles.statBadge('#3b82f6')}>Tronco: {trunkNodes.length} fases</span>
+          <span style={styles.statBadge('var(--primary-500)')}>Tronco: {trunkNodes.length} fases</span>
           <span style={styles.statBadge('#ec4899')}>Forks: {forkNodes.length} procesos</span>
-          <span style={styles.statBadge('#c084fc')}>Sub: {subprocessNodes.length} procesos</span>
-          <span style={styles.statBadge('#6b7280')}>
+          <span style={styles.statBadge('var(--secondary-400)')}>Sub: {subprocessNodes.length} procesos</span>
+          <span style={styles.statBadge('var(--gray-500)')}>
             {trunkNodes.reduce((sum, n) => sum + n.processes.length + n.forkProcesses.length, 0)} procesos total
           </span>
         </div>
@@ -121,7 +121,7 @@ export default function CollectionLifecycleFlow() {
               <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.08" />
             </filter>
             <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-              <polygon points="0 0, 8 3, 0 6" fill="#9ca3af" />
+              <polygon points="0 0, 8 3, 0 6" fill="var(--gray-400)" />
             </marker>
           </defs>
 
@@ -138,7 +138,7 @@ export default function CollectionLifecycleFlow() {
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke="#d1d5db"
+                  stroke="var(--gray-300)"
                   strokeWidth={2}
                 />
               );
@@ -185,7 +185,7 @@ export default function CollectionLifecycleFlow() {
               top: node.y,
               width: node.w,
               minHeight: node.h,
-              backgroundColor: '#ffffff',
+              backgroundColor: 'var(--white)',
               borderRadius: 10,
               border: `2px solid ${node.color}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
@@ -223,9 +223,9 @@ export default function CollectionLifecycleFlow() {
                 <span key={p.id} style={{
                   padding: '1px 6px',
                   borderRadius: 5,
-                  backgroundColor: '#f3f4f6',
+                  backgroundColor: 'var(--gray-100)',
                   fontSize: 10,
-                  color: '#6b7280',
+                  color: 'var(--gray-500)',
                   whiteSpace: 'nowrap',
                 }}>
                   {p.label}
@@ -270,7 +270,7 @@ export default function CollectionLifecycleFlow() {
                 top: node.y,
                 width: node.w,
                 minHeight: node.h,
-                backgroundColor: isHovered ? '#faf5ff' : '#ffffff',
+                backgroundColor: isHovered ? '#faf5ff' : 'var(--white)',
                 borderRadius: 8,
                 border: `1.5px solid ${isHovered ? '#a78bfa' : node.color + '40'}`,
                 boxShadow: isHovered ? '0 4px 14px rgba(139,92,246,0.15)' : '0 1px 4px rgba(0,0,0,0.04)',
@@ -292,7 +292,7 @@ export default function CollectionLifecycleFlow() {
                 <span style={{
                   fontSize: 11,
                   fontWeight: 700,
-                  color: isHovered ? '#7c3aed' : '#374151',
+                  color: isHovered ? '#7c3aed' : 'var(--gray-700)',
                   lineHeight: 1.2,
                 }}>
                   {node.label}
@@ -301,7 +301,7 @@ export default function CollectionLifecycleFlow() {
 
               <div style={{
                 fontSize: 9,
-                color: '#9ca3af',
+                color: 'var(--gray-400)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 3,
@@ -336,7 +336,7 @@ export default function CollectionLifecycleFlow() {
                 top: node.y,
                 width: node.w,
                 minHeight: node.h,
-                backgroundColor: isHovered ? '#faf5ff' : '#ffffff',
+                backgroundColor: isHovered ? '#faf5ff' : 'var(--white)',
                 borderRadius: 6,
                 border: `1.5px dashed ${isHovered ? '#a78bfa' : node.color + '50'}`,
                 boxShadow: isHovered ? '0 2px 8px rgba(139,92,246,0.1)' : 'none',
@@ -353,14 +353,14 @@ export default function CollectionLifecycleFlow() {
               <span style={{
                 fontSize: 10,
                 fontWeight: 600,
-                color: isHovered ? '#7c3aed' : '#6b7280',
+                color: isHovered ? '#7c3aed' : 'var(--gray-500)',
                 lineHeight: 1.2,
               }}>
                 {node.label}
               </span>
               <span style={{
                 fontSize: 8,
-                color: '#9ca3af',
+                color: 'var(--gray-400)',
                 marginLeft: 'auto',
               }}>
                 {node.activities.length} acts
@@ -372,7 +372,7 @@ export default function CollectionLifecycleFlow() {
 
       <div style={styles.legend}>
         <div style={styles.legendItem}>
-          <div style={styles.legendDot('#3b82f6')} />
+          <div style={styles.legendDot('var(--primary-500)')} />
           <span>Tronco principal (secuencia)</span>
         </div>
         <div style={styles.legendItem}>
@@ -397,7 +397,7 @@ export default function CollectionLifecycleFlow() {
           <span>Subproceso (proceso hijo)</span>
         </div>
         <div style={styles.legendItem}>
-          <span style={{ color: '#9ca3af' }}>💡 Haz clic en un proceso fork para ver detalle</span>
+          <span style={{ color: 'var(--gray-400)' }}>💡 Haz clic en un proceso fork para ver detalle</span>
         </div>
       </div>
 

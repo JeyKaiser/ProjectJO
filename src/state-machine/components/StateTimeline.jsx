@@ -21,7 +21,7 @@ export default function StateTimeline({ referenceId }) {
 
   if (loading) {
     return (
-      <div style={{ padding: 20, color: '#6b7280', textAlign: 'center', fontSize: 14 }}>
+      <div style={{ padding: 20, color: 'var(--gray-500)', textAlign: 'center', fontSize: 14 }}>
         Cargando historial...
       </div>
     );
@@ -31,12 +31,12 @@ export default function StateTimeline({ referenceId }) {
     return (
       <div style={{
         padding: 20,
-        color: '#9ca3af',
+        color: 'var(--gray-400)',
         textAlign: 'center',
         fontSize: 14,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--white)',
         borderRadius: 8,
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--gray-200)',
       }}>
         Sin historial de transiciones
       </div>
@@ -61,12 +61,12 @@ export default function StateTimeline({ referenceId }) {
 
   return (
     <div style={{
-      backgroundColor: '#ffffff',
+      backgroundColor: 'var(--white)',
       borderRadius: 8,
       padding: 20,
-      border: '1px solid #e5e7eb',
+      border: '1px solid var(--gray-200)',
     }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+      <h3 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 600, color: 'var(--gray-700)' }}>
         Historial de Transiciones
       </h3>
 
@@ -77,14 +77,14 @@ export default function StateTimeline({ referenceId }) {
           top: 0,
           bottom: 0,
           width: 2,
-          backgroundColor: '#374151',
+          backgroundColor: 'var(--gray-700)',
         }} />
 
         {history.map((entry, idx) => {
           const isLatest = idx === 0;
           const color = entry.to_state === entry.from_state
-            ? '#6b7280'
-            : STATE_COLORS[entry.to_state] || '#6b7280';
+            ? 'var(--gray-500)'
+            : STATE_COLORS[entry.to_state] || 'var(--gray-500)';
 
           return (
             <div key={entry.id || idx} style={{
@@ -100,38 +100,38 @@ export default function StateTimeline({ referenceId }) {
                 height: 12,
                 borderRadius: '50%',
                 backgroundColor: color,
-                border: `2px solid ${isLatest ? color : '#ffffff'}`,
+                border: `2px solid ${isLatest ? color : 'var(--white)'}`,
                 boxShadow: isLatest ? `0 0 6px ${color}80` : 'none',
                 zIndex: 1,
               }} />
 
               <div style={{
-                backgroundColor: '#f9fafb',
+                backgroundColor: 'var(--gray-50)',
                 borderRadius: 8,
                 padding: 12,
-                border: isLatest ? `1px solid ${color}60` : '1px solid #e5e7eb',
+                border: isLatest ? `1px solid ${color}60` : '1px solid var(--gray-200)',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-700)' }}>
                     {STATE_ICONS[entry.from_state]} {STATE_LABELS[entry.from_state] || entry.from_state}
                     {' → '}
                     {STATE_ICONS[entry.to_state]} {STATE_LABELS[entry.to_state] || entry.to_state}
                   </span>
-                  <span style={{ fontSize: 11, color: '#9ca3af' }}>{formatDate(entry.timestamp)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--gray-400)' }}>{formatDate(entry.timestamp)}</span>
                 </div>
 
-                <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <span>Evento: <strong style={{ color: '#374151' }}>{EVENT_LABELS[entry.event] || entry.event}</strong></span>
+                <div style={{ fontSize: 12, color: 'var(--gray-500)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <span>Evento: <strong style={{ color: 'var(--gray-700)' }}>{EVENT_LABELS[entry.event] || entry.event}</strong></span>
                   {entry.duration_in_previous_ms > 0 && (
-                    <span>Duración: <strong style={{ color: '#374151' }}>{formatDuration(entry.duration_in_previous_ms)}</strong></span>
+                    <span>Duración: <strong style={{ color: 'var(--gray-700)' }}>{formatDuration(entry.duration_in_previous_ms)}</strong></span>
                   )}
                   {entry.fork_type && (
                     <span style={{
                       padding: '1px 6px',
                       borderRadius: 4,
-          backgroundColor: '#e5e7eb',
+          backgroundColor: 'var(--gray-200)',
                       fontSize: 11,
-                      color: '#d97706',
+                      color: 'var(--warning-dark)',
                     }}>
                       {entry.is_parallel_fork ? '🔀 Fork' : entry.is_parallel_merge ? '🔗 Merge' : ''} {entry.fork_type}
                     </span>
@@ -145,7 +145,7 @@ export default function StateTimeline({ referenceId }) {
                     backgroundColor: '#fffbeb',
                     borderRadius: 6,
                     fontSize: 12,
-                    color: '#d97706',
+                    color: 'var(--warning-dark)',
                   }}>
                     💬 Justificación: {entry.justification}
                   </div>
@@ -158,7 +158,7 @@ export default function StateTimeline({ referenceId }) {
                     backgroundColor: '#fffbeb',
                     borderRadius: 6,
                     fontSize: 11,
-                    color: '#d97706',
+                    color: 'var(--warning-dark)',
                   }}>
                     Consumo: {entry.consumption_change.before}cm → {entry.consumption_change.after}cm
                     {entry.consumption_change.diff > 0 && ` (Δ ${entry.consumption_change.diff}cm)`}
@@ -166,13 +166,13 @@ export default function StateTimeline({ referenceId }) {
                 )}
 
                 {entry.molderia_changes?.length > 0 && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: '#2563eb' }}>
+                  <div style={{ marginTop: 4, fontSize: 11, color: 'var(--info-dark)' }}>
                     📐 Cambios: {entry.molderia_changes.join(', ')}
                   </div>
                 )}
 
                 {entry.user_display_name && (
-                  <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280' }}>
+                  <div style={{ marginTop: 4, fontSize: 11, color: 'var(--gray-500)' }}>
                     Por: {entry.user_display_name}{entry.user_role ? ` (${entry.user_role})` : ''}
                   </div>
                 )}

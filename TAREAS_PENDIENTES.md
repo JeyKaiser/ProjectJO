@@ -21,6 +21,10 @@
 
 - [ ] [MEDIA] Vista de comparacion de consumos (creativo vs tecnico vs trazador vs contramuestra)
 - [ ] [BAJA] Alertas automaticas cuando consumo contramuestra difiere >5% del trazador
+- [ ] [MEDIA] Agregar calculadora de consumo de sesgos por formula (Pendiente: usuario debe proporcionar la formula)
+  - Sentido normal → calculo automatico sin trazo (formula pendiente)
+  - Sentido "A TRAVEZ" → requiere trazo en Audaces (se registra como trazo normal)
+  - Datos requeridos: perimetro, ancho_sesgo, sentido
 
 ## Fase 4: Reportes Premium
 

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDashboardData, createReference, useCollectionYears } from '../lib/api';
 import supabase from '../lib/supabase';
 import { getPersonas } from '../data/personas';
+import styles from './FichaTecnicaForm.module.css';
 
 // ── Catálogos ────────────────────────────────────────────────
 const TIPO_PRENDA_OPTIONS = [
@@ -46,7 +47,7 @@ function ChipToggle({ active, onChange, children }) {
     <button
       type="button"
       onClick={() => onChange(!active)}
-      className={`chip-toggle ${active ? 'chip-toggle-active' : ''}`}
+      className={`${styles.chipToggle} ${active ? styles.chipToggleActive : ''}`}
     >
       {active && <CheckCircle size={13} />}
       {children}
@@ -58,12 +59,12 @@ function ChipToggle({ active, onChange, children }) {
 function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(--primary-500)' }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="form-seccion" style={{ borderLeftColor: accentColor }}>
-      <button type="button" className="form-seccion-header" onClick={() => setOpen(!open)}>
-        <span className="form-seccion-titulo">{titulo}</span>
+    <div className={styles.seccion} style={{ borderLeftColor: accentColor }}>
+      <button type="button" className={styles.seccionHeader} onClick={() => setOpen(!open)}>
+        <span className={styles.seccionTitulo}>{titulo}</span>
         {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
-      {open && <div className="form-seccion-body">{children}</div>}
+      {open && <div className={styles.seccionBody}>{children}</div>}
     </div>
   );
 }
@@ -80,7 +81,8 @@ export default function FichaTecnicaForm() {
   }));
 
   const colDbToSlug = {};
-  (data?.colecciones || []).forEach(c => { colDbToSlug[c.dbId] = c.id; });
+  const colDbToSeason = {};
+  (data?.colecciones || []).forEach(c => { colDbToSlug[c.dbId] = c.id; colDbToSeason[c.dbId] = (c.season || '').toLowerCase(); });
 
   const [formData, setFormData] = useState({
     coleccion: '',
@@ -201,7 +203,7 @@ export default function FichaTecnicaForm() {
 
       const nuevoMD = `MD-${refNum}`;
       const nuevoPT = `PT03${refNum}`;
-      setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], year: yearInt });
+      setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], seasonCode: colDbToSeason[collectionId] || 'ws', year: yearInt });
     } catch (err) {
       alert('Error al crear la referencia: ' + err.message);
       console.error(err);
@@ -233,7 +235,7 @@ export default function FichaTecnicaForm() {
             <span className="code-badge code-pt" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoPT}</span>
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-primary" onClick={() => navigate(`/colecciones/${guardado.collectionSlug}/${guardado.year}`)}>
+              <button className="btn btn-primary" onClick={() => navigate(`/colecciones/${guardado.seasonCode}/${guardado.collectionSlug}/${guardado.year}`)}>
               Ver en Colecciones
             </button>
             <button className="btn btn-secondary" onClick={handleReset}>
@@ -248,19 +250,19 @@ export default function FichaTecnicaForm() {
   // ── Formulario ───────────────────────────────────────────────
   return (
     <div className="fade-in">
-      <div className="ficha-form-header">
+      <div className={styles.header}>
         <div>
-          <h2 className="ficha-form-titulo">Nueva Ficha Técnica</h2>
-          <p className="ficha-form-subtitulo">Fase 2.1 · Inicio de Coleccion</p>
+          <h2 className={styles.titulo}>Nueva Ficha Técnica</h2>
+          <p className={styles.subtitulo}>Fase 2.1 · Inicio de Coleccion</p>
         </div>
         <span className="badge badge-primary">Área Creativa</span>
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="ficha-form-body">
+      <form onSubmit={handleSubmit} noValidate className={styles.body}>
 
         {/* ── SECCIÓN 1: Identificación básica ── */}
         <FormSeccion titulo="📋  Identificación y Perfil" accentColor="var(--temp-cold-border)">
-          <div className="ficha-grid-3">
+          <div className={styles.grid3}>
             {/* Coleccion */}
             <div className="form-group">
               <label className="form-label form-label-required">Coleccion</label>
@@ -387,10 +389,10 @@ export default function FichaTecnicaForm() {
 
         {/* ── SECCIÓN 2: Datos Comerciales ── */}
         <FormSeccion titulo="💼  Datos Comerciales y Complejidad" accentColor="var(--primary-500)">
-          <div className="ficha-grid-3">
+          <div className={styles.grid3}>
             <div className="form-group">
               <label className="form-label">Prioridad First Buy</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 {PRIORIDAD_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.prioridadFirstBuy === o}
                     onChange={() => set('prioridadFirstBuy', o)}>{o}</ChipToggle>
@@ -400,7 +402,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Drop de Entrega</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 {DROP_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.dropEntrega === o}
                     onChange={() => set('dropEntrega', o)}>{o}</ChipToggle>
@@ -410,7 +412,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">¿Enviar a Maquila?</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 <ChipToggle active={formData.enviarMaquila === false}
                   onChange={() => set('enviarMaquila', false)}>No aplica</ChipToggle>
                 <ChipToggle active={formData.enviarMaquila === true}
@@ -420,7 +422,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Complejidad de Corte</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 {COMPLEJIDAD_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.complejidadCorte === o}
                     onChange={() => set('complejidadCorte', o)}>{o}</ChipToggle>
@@ -430,7 +432,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Complejidad de Confección</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 {COMPLEJIDAD_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.complejidadConfeccion === o}
                     onChange={() => set('complejidadConfeccion', o)}>{o}</ChipToggle>
@@ -440,7 +442,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Tipo de Empaque</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 {EMPAQUE_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.tipoEmpaque === o}
                     onChange={() => set('tipoEmpaque', o)}>{o}</ChipToggle>
@@ -455,11 +457,11 @@ export default function FichaTecnicaForm() {
           <p className="form-help" style={{ marginBottom: 16 }}>
             Indica si aplica cada proceso. Los ítems marcados como "Aplica" generarán una subfase de seguimiento.
           </p>
-          <div className="ficha-grid-3">
+          <div className={styles.grid3}>
 
             <div className="form-group">
               <label className="form-label">Bordado en Prenda</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 <ChipToggle active={!formData.tieneBordado} onChange={() => set('tieneBordado', false)}>No aplica</ChipToggle>
                 <ChipToggle active={formData.tieneBordado} onChange={() => set('tieneBordado', true)}>Aplica</ChipToggle>
               </div>
@@ -471,7 +473,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Semielaborados</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 <ChipToggle active={!formData.tieneSemielaborado} onChange={() => set('tieneSemielaborado', false)}>No aplica</ChipToggle>
                 <ChipToggle active={formData.tieneSemielaborado} onChange={() => set('tieneSemielaborado', true)}>Aplica</ChipToggle>
               </div>
@@ -479,7 +481,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Montaje en Maniquí</label>
-              <div className="chip-group" style={{ flexWrap: 'wrap' }}>
+              <div className={styles.chipGroup} style={{ flexWrap: 'wrap' }}>
                 {MONTAJE_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.montajeManiqui === o}
                     onChange={() => set('montajeManiqui', o)}>{o}</ChipToggle>
@@ -489,7 +491,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Tiras Continuas</label>
-              <div className="chip-group">
+              <div className={styles.chipGroup}>
                 <ChipToggle active={!formData.tirasContinuas} onChange={() => set('tirasContinuas', false)}>No aplica</ChipToggle>
                 <ChipToggle active={formData.tirasContinuas} onChange={() => set('tirasContinuas', true)}>Aplica</ChipToggle>
               </div>
@@ -504,7 +506,7 @@ export default function FichaTecnicaForm() {
 
             <div className="form-group">
               <label className="form-label">Boceto / Imagen Inicial</label>
-              <label className="boceto-upload">
+              <label className={styles.bocetoUpload}>
                 <ImageIcon size={20} />
                 <span>{formData.boceto ? formData.boceto.name : 'Subir boceto o foto'}</span>
                 <input type="file" accept="image/*" style={{ display: 'none' }}
@@ -520,16 +522,16 @@ export default function FichaTecnicaForm() {
           <p className="form-help" style={{ marginBottom: 16 }}>
             El diseñador creativo es obligatorio. Los demás roles se asignan a medida que la referencia avanza por cada área.
           </p>
-          <div className="ficha-grid-2">
+          <div className={styles.grid2}>
             {ROLES_EQUIPO.map(rol => {
                 const personasArea = (personas[rol.area] || []).filter(p => p.activo !== false);
                 return (
-              <div key={rol.key} className={`form-group equipo-rol-card ${rol.requerido ? 'rol-requerido' : ''}`}>
+              <div key={rol.key} className={`${styles.equipoRolCard} ${rol.requerido ? styles.rolRequerido : ''}`}>
                 <label className={`form-label ${rol.requerido ? 'form-label-required' : ''}`}>
                   <User size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
                   {rol.label}
                 </label>
-                <span className="rol-fase-tag">{rol.fase}</span>
+                <span className={styles.rolFaseTag}>{rol.fase}</span>
                 <select
                   name={rol.key}
                   className={`form-select ${errors[rol.key] ? 'input-error' : ''}`}
@@ -549,7 +551,7 @@ export default function FichaTecnicaForm() {
         </FormSeccion>
 
         {/* ── Acciones ── */}
-        <div className="ficha-form-actions">
+        <div className={styles.actions}>
           <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
             Cancelar
           </button>

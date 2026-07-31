@@ -9,18 +9,18 @@ import TransitionModal from './TransitionModal';
 const cellStyle = {
   padding: '10px 12px',
   fontSize: '13px',
-  borderBottom: '1px solid #f3f4f6',
-  color: '#4b5563',
+  borderBottom: '1px solid var(--gray-100)',
+  color: 'var(--gray-600)',
 };
 
 const headerCellStyle = {
   ...cellStyle,
   fontWeight: 600,
-  color: '#6b7280',
+  color: 'var(--gray-500)',
   fontSize: '11px',
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
-  borderBottom: '1px solid #e5e7eb',
+  borderBottom: '1px solid var(--gray-200)',
 };
 
 const STATE_OPTIONS = [
@@ -29,7 +29,7 @@ const STATE_OPTIONS = [
 ];
 
 const COLLECTION_COLORS = [
-  '#EAB308', '#3B82F6', '#22C55E', '#F97316', '#A855F7', '#DC2626',
+  '#EAB308', 'var(--primary-500)', '#22C55E', '#F97316', 'var(--secondary-500)', 'var(--error)',
   '#EC4899', '#14B8A6', '#6366F1', '#84CC16',
 ];
 
@@ -42,16 +42,16 @@ function EventButton({ event, onClick, loading }) {
         style={{
           padding: '3px 10px',
           borderRadius: 6,
-          border: '1px solid #d1d5db',
-          backgroundColor: '#ffffff',
-          color: '#374151',
+          border: '1px solid var(--gray-300)',
+          backgroundColor: 'var(--white)',
+          color: 'var(--gray-700)',
           fontSize: 11,
           cursor: 'pointer',
           whiteSpace: 'nowrap',
           transition: 'all 0.15s',
         }}
-        onMouseEnter={e => { e.target.style.backgroundColor = '#f3f4f6'; e.target.style.borderColor = '#6b7280'; }}
-        onMouseLeave={e => { e.target.style.backgroundColor = '#ffffff'; e.target.style.borderColor = '#d1d5db'; }}
+        onMouseEnter={e => { e.target.style.backgroundColor = 'var(--gray-100)'; e.target.style.borderColor = 'var(--gray-500)'; }}
+        onMouseLeave={e => { e.target.style.backgroundColor = 'var(--white)'; e.target.style.borderColor = 'var(--gray-300)'; }}
       >
       {label}
     </button>
@@ -132,7 +132,7 @@ export default function InboxPanel({
         alignItems: 'center',
         gap: 8,
         padding: '8px 12px',
-        borderBottom: '1px solid #f3f4f6',
+        borderBottom: '1px solid var(--gray-100)',
         backgroundColor: isCritical ? '#fef2f2' : 'transparent',
         fontSize: 13,
         flexWrap: 'wrap',
@@ -141,20 +141,20 @@ export default function InboxPanel({
           onClick={() => navigate(`/v2/sm/reference/${item.referenceId}`)}
           style={{
             fontWeight: 600,
-            color: '#1f2937',
+            color: 'var(--gray-800)',
             fontSize: 13,
             cursor: 'pointer',
             minWidth: 120,
             flex: '0 0 auto',
           }}
-          onMouseEnter={e => { e.target.style.color = '#3b82f6'; }}
-          onMouseLeave={e => { e.target.style.color = '#1f2937'; }}
+          onMouseEnter={e => { e.target.style.color = 'var(--primary-500)'; }}
+          onMouseLeave={e => { e.target.style.color = 'var(--gray-800)'; }}
           title="Ver detalle de referencia"
         >
           {item.referenceName || `Ref #${item.referenceId}`}
         </div>
 
-        <span style={{ fontSize: 11, color: '#9ca3af', minWidth: 70, flex: '0 0 auto' }}>
+        <span style={{ fontSize: 11, color: 'var(--gray-400)', minWidth: 70, flex: '0 0 auto' }}>
           {item.codigoMD}
         </span>
 
@@ -175,19 +175,19 @@ export default function InboxPanel({
         </span>
 
         {item.subStates?.length > 0 && (
-          <span style={{ fontSize: 11, color: '#f59e0b', flex: '0 0 auto' }}>
+          <span style={{ fontSize: 11, color: 'var(--warning)', flex: '0 0 auto' }}>
             Fork: {item.subStates.join(', ')}
           </span>
         )}
         {item.waitingForMerge && (
-          <span style={{ fontSize: 11, color: '#a855f7', flex: '0 0 auto' }}>
+          <span style={{ fontSize: 11, color: 'var(--secondary-500)', flex: '0 0 auto' }}>
             ⏳ Unión
           </span>
         )}
 
         <span style={{
           fontWeight: item.quietTime.hours > 48 ? 700 : 400,
-          color: item.quietTime.hours > 48 ? '#dc2626' : '#4b5563',
+          color: item.quietTime.hours > 48 ? 'var(--error)' : 'var(--gray-600)',
           minWidth: 50,
           flex: '0 0 auto',
         }}>
@@ -198,7 +198,7 @@ export default function InboxPanel({
           <AlertBadge level={item.alertLevel} reason={item.alertReason} size="sm" />
         </div>
 
-        <span style={{ fontSize: 12, color: '#4b5563', minWidth: 70, flex: '0 0 auto' }}>
+        <span style={{ fontSize: 12, color: 'var(--gray-600)', minWidth: 70, flex: '0 0 auto' }}>
           {item.assignedRole}
         </span>
 
@@ -213,7 +213,7 @@ export default function InboxPanel({
             />
           ))}
           {events.length === 0 && (
-            <span style={{ fontSize: 11, color: '#6b7280' }}>—</span>
+            <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>—</span>
           )}
         </div>
       </div>
@@ -223,9 +223,9 @@ export default function InboxPanel({
   const getFilterStyle = () => ({
     padding: '6px 12px',
     borderRadius: 6,
-    border: '1px solid #d1d5db',
-    backgroundColor: '#ffffff',
-    color: '#374151',
+    border: '1px solid var(--gray-300)',
+    backgroundColor: 'var(--white)',
+    color: 'var(--gray-700)',
     fontSize: 13,
     fontFamily: 'inherit',
     cursor: 'pointer',
@@ -246,9 +246,9 @@ export default function InboxPanel({
         alignItems: 'center',
         flexWrap: 'wrap',
         padding: '12px 16px',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--white)',
         borderRadius: 8,
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--gray-200)',
         marginBottom: 16,
       }}>
         <select
@@ -320,9 +320,9 @@ export default function InboxPanel({
           style={{
             padding: '6px 12px',
             borderRadius: 6,
-            border: '1px solid #d1d5db',
-            backgroundColor: '#ffffff',
-            color: '#6b7280',
+            border: '1px solid var(--gray-300)',
+            backgroundColor: 'var(--white)',
+            color: 'var(--gray-500)',
             fontSize: 12,
             cursor: 'pointer',
           }}
@@ -335,9 +335,9 @@ export default function InboxPanel({
           style={{
             padding: '6px 12px',
             borderRadius: 6,
-            border: '1px solid #d1d5db',
-            backgroundColor: '#ffffff',
-            color: viewMode === 'grouped' ? '#3b82f6' : '#6b7280',
+            border: '1px solid var(--gray-300)',
+            backgroundColor: 'var(--white)',
+            color: viewMode === 'grouped' ? 'var(--primary-500)' : 'var(--gray-500)',
             fontSize: 12,
             cursor: 'pointer',
             fontWeight: viewMode === 'grouped' ? 600 : 400,
@@ -351,9 +351,9 @@ export default function InboxPanel({
           style={{
             padding: '6px 12px',
             borderRadius: 6,
-            border: '1px solid #d1d5db',
-            backgroundColor: '#f9fafb',
-            color: '#374151',
+            border: '1px solid var(--gray-300)',
+            backgroundColor: 'var(--gray-50)',
+            color: 'var(--gray-700)',
             fontSize: 12,
             cursor: 'pointer',
             marginLeft: 'auto',
@@ -368,7 +368,7 @@ export default function InboxPanel({
           padding: '10px 14px',
           backgroundColor: '#fef2f2',
           borderRadius: 6,
-          color: '#dc2626',
+          color: 'var(--error)',
           fontSize: 13,
           marginBottom: 12,
         }}>
@@ -378,15 +378,15 @@ export default function InboxPanel({
 
       {viewMode === 'list' ? (
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
           overflow: 'hidden',
         }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
               <thead>
-                <tr style={{ backgroundColor: '#f9fafb' }}>
+                <tr style={{ backgroundColor: 'var(--gray-50)' }}>
                   <th style={headerCellStyle}>Referencia</th>
                   <th style={{ ...headerCellStyle, minWidth: 90 }}>Colección</th>
                   <th style={headerCellStyle}>Códigos</th>
@@ -400,14 +400,14 @@ export default function InboxPanel({
               <tbody>
                 {loading && items.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ ...cellStyle, textAlign: 'center', color: '#9ca3af', padding: 40 }}>
+                    <td colSpan={8} style={{ ...cellStyle, textAlign: 'center', color: 'var(--gray-400)', padding: 40 }}>
                       Cargando bandeja...
                     </td>
                   </tr>
                 )}
                 {!loading && items.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ ...cellStyle, textAlign: 'center', color: '#6b7280', padding: 40 }}>
+                    <td colSpan={8} style={{ ...cellStyle, textAlign: 'center', color: 'var(--gray-500)', padding: 40 }}>
                       No hay referencias en la bandeja con los filtros actuales
                     </td>
                   </tr>
@@ -426,12 +426,12 @@ export default function InboxPanel({
                           onClick={() => navigate(`/v2/sm/reference/${item.referenceId}`)}
                           style={{
                             fontWeight: 600,
-                            color: '#1f2937',
+                            color: 'var(--gray-800)',
                             fontSize: 13,
                             cursor: 'pointer',
                           }}
-                          onMouseEnter={e => { e.target.style.color = '#3b82f6'; }}
-                          onMouseLeave={e => { e.target.style.color = '#1f2937'; }}
+                          onMouseEnter={e => { e.target.style.color = 'var(--primary-500)'; }}
+                          onMouseLeave={e => { e.target.style.color = 'var(--gray-800)'; }}
                           title="Ver detalle de referencia"
                         >
                           {item.referenceName || `Ref #${item.referenceId}`}
@@ -461,8 +461,8 @@ export default function InboxPanel({
                         </span>
                       </td>
                       <td style={cellStyle}>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>{item.codigoMD}</div>
-                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{item.codigoPT}</div>
+                        <div style={{ fontSize: 12, color: 'var(--gray-500)' }}>{item.codigoMD}</div>
+                        <div style={{ fontSize: 12, color: 'var(--gray-400)' }}>{item.codigoPT}</div>
                       </td>
                       <td style={cellStyle}>
                         <span style={{
@@ -479,12 +479,12 @@ export default function InboxPanel({
                           {item.stateLabel}
                         </span>
                         {item.subStates?.length > 0 && (
-                          <div style={{ fontSize: 11, color: '#f59e0b', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--warning)', marginTop: 2 }}>
                             Fork: {item.subStates.join(', ')}
                           </div>
                         )}
                         {item.waitingForMerge && (
-                          <div style={{ fontSize: 11, color: '#a855f7', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--secondary-500)', marginTop: 2 }}>
                             ⏳ Esperando unión
                           </div>
                         )}
@@ -492,7 +492,7 @@ export default function InboxPanel({
                       <td style={cellStyle}>
                         <span style={{
                           fontWeight: item.quietTime.hours > 48 ? 700 : 400,
-                          color: item.quietTime.hours > 48 ? '#dc2626' : '#4b5563',
+                          color: item.quietTime.hours > 48 ? 'var(--error)' : 'var(--gray-600)',
                         }}>
                           {item.quietTime.display}
                         </span>
@@ -504,13 +504,13 @@ export default function InboxPanel({
                           size="sm"
                         />
                         {item.consumptionDiff > 0 && (
-                          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                          <div style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 2 }}>
                             Δ {item.consumptionDiff}cm
                           </div>
                         )}
                       </td>
                       <td style={cellStyle}>
-                        <span style={{ fontSize: 12, color: '#4b5563' }}>{item.assignedRole}</span>
+                        <span style={{ fontSize: 12, color: 'var(--gray-600)' }}>{item.assignedRole}</span>
                       </td>
                       <td style={cellStyle}>
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -524,7 +524,7 @@ export default function InboxPanel({
                             />
                           ))}
                           {events.length === 0 && (
-                            <span style={{ fontSize: 11, color: '#6b7280' }}>—</span>
+                            <span style={{ fontSize: 11, color: 'var(--gray-500)' }}>—</span>
                           )}
                         </div>
                       </td>
@@ -537,19 +537,19 @@ export default function InboxPanel({
         </div>
       ) : (
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--white)',
           borderRadius: 8,
-          border: '1px solid #e5e7eb',
+          border: '1px solid var(--gray-200)',
           overflow: 'hidden',
           padding: 0,
         }}>
           {loading && items.length === 0 && (
-            <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--gray-400)', fontSize: 14 }}>
               Cargando bandeja...
             </div>
           )}
           {!loading && items.length === 0 && (
-            <div style={{ padding: 40, textAlign: 'center', color: '#6b7280', fontSize: 14 }}>
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--gray-500)', fontSize: 14 }}>
               No hay referencias en la bandeja con los filtros actuales
             </div>
           )}
@@ -561,7 +561,7 @@ export default function InboxPanel({
               const colExpanded = expandedCols.has(colName);
               const colColor = collectionColor(colName);
               return (
-                <div key={colName} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                <div key={colName} style={{ borderBottom: '1px solid var(--gray-200)' }}>
                   <div
                     onClick={() => toggleExpand(setExpandedCols, colName)}
                     style={{
@@ -570,14 +570,14 @@ export default function InboxPanel({
                       gap: 8,
                       padding: '10px 14px',
                       cursor: 'pointer',
-                      backgroundColor: colExpanded ? '#f9fafb' : '#ffffff',
-                      borderBottom: colExpanded ? '1px solid #e5e7eb' : 'none',
+                      backgroundColor: colExpanded ? 'var(--gray-50)' : 'var(--white)',
+                      borderBottom: colExpanded ? '1px solid var(--gray-200)' : 'none',
                       userSelect: 'none',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
-                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = colExpanded ? '#f9fafb' : '#ffffff'; }}
+                    onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--gray-100)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = colExpanded ? 'var(--gray-50)' : 'var(--white)'; }}
                   >
-                    <span style={{ fontSize: 13, color: '#9ca3af', width: 14, textAlign: 'center' }}>
+                    <span style={{ fontSize: 13, color: 'var(--gray-400)', width: 14, textAlign: 'center' }}>
                       {colExpanded ? '▼' : '▶'}
                     </span>
                     <span style={{
@@ -587,7 +587,7 @@ export default function InboxPanel({
                       backgroundColor: colColor,
                       flexShrink: 0,
                     }} />
-                    <span style={{ fontWeight: 600, fontSize: 14, color: '#1f2937', flex: 1 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)', flex: 1 }}>
                       {colName}
                     </span>
                     <span style={{
@@ -607,7 +607,7 @@ export default function InboxPanel({
                       {Object.entries(col.years).map(([year, yearItems]) => {
                         const yearExpanded = expandedYears.has(`${colName}-${year}`);
                         return (
-                          <div key={year} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          <div key={year} style={{ borderBottom: '1px solid var(--gray-100)' }}>
                             <div
                               onClick={() => toggleExpand(setExpandedYears, `${colName}-${year}`)}
                               style={{
@@ -616,23 +616,23 @@ export default function InboxPanel({
                                 gap: 8,
                                 padding: '8px 14px 8px 32px',
                                 cursor: 'pointer',
-                                backgroundColor: yearExpanded ? '#f9fafb' : '#ffffff',
+                                backgroundColor: yearExpanded ? 'var(--gray-50)' : 'var(--white)',
                                 userSelect: 'none',
                               }}
-                              onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#f3f4f6'; }}
-                              onMouseLeave={e => { e.currentTarget.style.backgroundColor = yearExpanded ? '#f9fafb' : '#ffffff'; }}
+                              onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--gray-100)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.backgroundColor = yearExpanded ? 'var(--gray-50)' : 'var(--white)'; }}
                             >
-                              <span style={{ fontSize: 12, color: '#9ca3af', width: 12, textAlign: 'center' }}>
+                              <span style={{ fontSize: 12, color: 'var(--gray-400)', width: 12, textAlign: 'center' }}>
                                 {yearExpanded ? '▼' : '▶'}
                               </span>
-                              <span style={{ fontWeight: 600, fontSize: 13, color: '#374151', flex: 1 }}>
+                              <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--gray-700)', flex: 1 }}>
                                 {year === '—' ? 'Sin año' : `Año ${year}`}
                               </span>
                               <span style={{
                                 padding: '1px 6px',
                                 borderRadius: 8,
-                                backgroundColor: '#f3f4f6',
-                                color: '#6b7280',
+                                backgroundColor: 'var(--gray-100)',
+                                color: 'var(--gray-500)',
                                 fontSize: 11,
                                 fontWeight: 600,
                               }}>

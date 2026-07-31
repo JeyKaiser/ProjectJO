@@ -1,0 +1,173 @@
+/* ============================================
+   SISTEMA DE DISEÑO - GESTIÓN DE COLECCIONES JO
+   Design Tokens · Enterprise Professional
+   ============================================ */
+
+:root {
+  /* ── Colores Primarios — Steel Blue ── */
+  --primary-50: #f4f7fa;
+  --primary-100: #e4ebf3;
+  --primary-200: #c5d5e7;
+  --primary-300: #9ab5d3;
+  --primary-400: #7296c0;
+  --primary-500: #4a6fa5;
+  --primary-600: #3c5c8a;
+  --primary-700: #2e4970;
+  --primary-800: #213655;
+  --primary-900: #15233b;
+
+  /* ── Colores Secundarios — Slate ── */
+  --secondary-50: #f8fafc;
+  --secondary-100: #f1f5f9;
+  --secondary-200: #e2e8f0;
+  --secondary-300: #cbd5e1;
+  --secondary-400: #94a3b8;
+  --secondary-500: #64748b;
+  --secondary-600: #475569;
+  --secondary-700: #334155;
+  --secondary-800: #1e293b;
+  --secondary-900: #0f172a;
+
+  /* ── Colores de Estado ── */
+  --success-light: #ecfdf5;
+  --success: #10b981;
+  --success-dark: #047857;
+
+  --warning-light: #fffbeb;
+  --warning: #f59e0b;
+  --warning-dark: #b45309;
+
+  --error-light: #fef2f2;
+  --error: #ef4444;
+  --error-dark: #b91c1c;
+
+  --info-light: #eff6ff;
+  --info: #3b82f6;
+  --info-dark: #1d4ed8;
+
+  /* ── Grises (Slate) ── */
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+
+  /* ── Colores Base ── */
+  --white: #ffffff;
+  --black: #0f172a;
+
+  /* ── Gradientes ── */
+  --gradient-primary: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+
+  /* ── Tipografía ── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* ── Tamaños de Fuente ── */
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  /* ── Espaciado ── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* ── Bordes ── */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
+  --radius-full: 9999px;
+
+  /* ── Sombras ── */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-xl: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-2xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+
+  /* ── Transiciones ── */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms ease;
+
+  /* ── Layout ── */
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 56px;
+  --header-height: 52px;
+  --max-width: 1400px;
+
+  /* ── Temperaturas (6 Fases · Enterprise) ── */
+  --temp-frost: #f1f5f9;
+  --temp-frost-border: #cbd5e1;
+  --temp-frost-text: #475569;
+
+  --temp-cold: #e0e7ff;
+  --temp-cold-border: #a5b4fc;
+  --temp-cold-text: #3730a3;
+
+  --temp-warm: #fef3c7;
+  --temp-warm-border: #fcd34d;
+  --temp-warm-text: #92400e;
+
+  --temp-hot: #fff7ed;
+  --temp-hot-border: #fdba74;
+  --temp-hot-text: #9a3412;
+
+  --temp-fire: #fef2f2;
+  --temp-fire-border: #fca5a5;
+  --temp-fire-text: #991b1b;
+
+  --temp-blaze: #f5f3ff;
+  --temp-blaze-border: #c4b5fd;
+  --temp-blaze-text: #5b21b6;
+
+  --gradient-temperature: linear-gradient(90deg, var(--temp-frost-border) 0%, var(--temp-cold-border) 20%, var(--temp-warm-border) 40%, var(--temp-hot-border) 60%, var(--temp-fire-border) 80%, var(--temp-blaze-border) 100%);
+}
+
+/* ── Tema Oscuro ── */
+[data-theme='dark'] {
+  --white: #0f172a;
+  --black: #f1f5f9;
+
+  --gray-50: #1e293b;
+  --gray-100: #1e293b;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+  --gray-700: #e2e8f0;
+  --gray-800: #f1f5f9;
+  --gray-900: #f8fafc;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-xl: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-2xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+
+  --success-light: #064e3b;
+  --warning-light: #78350f;
+  --error-light: #7f1d1d;
+  --info-light: #1e3a5f;
+}

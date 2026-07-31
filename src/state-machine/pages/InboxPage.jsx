@@ -61,13 +61,13 @@ export default function InboxPage() {
     title: {
       fontSize: 22,
       fontWeight: 700,
-      color: '#1f2937',
+      color: 'var(--gray-800)',
       margin: 0,
       fontFamily: "'Inter', sans-serif",
     },
     subtitle: {
       fontSize: 13,
-      color: '#6b7280',
+      color: 'var(--gray-500)',
       margin: '2px 0 0',
     },
     stats: {
@@ -91,13 +91,13 @@ export default function InboxPage() {
           Referencias ordenadas por prioridad de alerta y tiempo quieto
         </p>
         <div style={styles.stats}>
-          <span style={{ ...styles.statChip, backgroundColor: '#fef2f2', color: '#dc2626' }}>
+          <span style={{ ...styles.statChip, backgroundColor: '#fef2f2', color: 'var(--error)' }}>
             🔴 {criticalCount} críticas
           </span>
-          <span style={{ ...styles.statChip, backgroundColor: '#fffbeb', color: '#d97706' }}>
+          <span style={{ ...styles.statChip, backgroundColor: '#fffbeb', color: 'var(--warning-dark)' }}>
             🟡 {warningCount} advertencias
           </span>
-          <span style={{ ...styles.statChip, backgroundColor: '#f3f4f6', color: '#4b5563' }}>
+          <span style={{ ...styles.statChip, backgroundColor: 'var(--gray-100)', color: 'var(--gray-600)' }}>
             {items.length} total
           </span>
         </div>
