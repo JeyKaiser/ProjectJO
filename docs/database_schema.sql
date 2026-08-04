@@ -433,9 +433,10 @@ CREATE TABLE jo.trazos (
     fecha_fin            DATE,
     trazador_id          INTEGER REFERENCES jo.persons(id),
     observaciones        TEXT,
+    estado               TEXT DEFAULT 'activo' CHECK (estado IN ('activo','cancelado')),
     created_at           TIMESTAMPTZ DEFAULT NOW(),
     updated_at           TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (reference_id, tipo_tela, fase, opcion_num)
+    UNIQUE (reference_id, reference_fabric_id, tipo_tela, fase, opcion_num)
 );
 
 CREATE INDEX idx_trazos_reference ON jo.trazos(reference_id);
@@ -468,6 +469,7 @@ CREATE TABLE jo.comparativo_trazos (
     justificacion_ancho_sesgo TEXT,
     difiere_telas          BOOLEAN DEFAULT FALSE,
     justificacion_telas    TEXT,
+    justificaciones_telas  TEXT,
     trazador_id            INTEGER REFERENCES jo.persons(id),
     fecha_comparativo      DATE DEFAULT CURRENT_DATE,
     observaciones          TEXT,

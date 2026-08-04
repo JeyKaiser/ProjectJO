@@ -23,6 +23,7 @@ const GestionColecciones = lazy(() => import('./pages/GestionColecciones'));
 const CorteKanban = lazy(() => import('./pages/CorteKanban'));
 const ImportarCorteCSV = lazy(() => import('./pages/ImportarCorteCSV'));
 const InformesCorte = lazy(() => import('./pages/InformesCorte'));
+const AdminCodigos = lazy(() => import('./pages/AdminCodigos'));
 
 function App() {
   return (
@@ -88,6 +89,11 @@ function App() {
             <Route path="/admin/colecciones" element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                 <GestionColecciones />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/codigos" element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminCodigos />
               </ProtectedRoute>
             } />
             <Route path="/importar/corte" element={

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Plus, Save, Trash2, RefreshCw, Shield } from 'lucide-react';
+import { Eye, EyeOff, Plus, Save, Trash2 } from 'lucide-react';
 import supabase from '../lib/supabase';
 import {
   createCollection,
-  updateCollection,
   toggleCollectionActive,
   createCollectionYear,
   toggleCollectionYearHidden,
+  useAllColors,
+  addColorToCollection,
+  removeColorFromCollection,
 } from '../lib/api';
 
 const SEASONS = ['WS', 'SS', 'RS', 'PF', 'FW'];
@@ -18,6 +20,10 @@ export default function GestionColecciones() {
   const [showCreate, setShowCreate] = useState(false);
   const [showHidden, setShowHidden] = useState(true);
   const [saving, setSaving] = useState(null);
+  const [expandedColorCol, setExpandedColorCol] = useState(null);
+  const [colorSearch, setColorSearch] = useState('');
+
+  const { colors: allColors } = useAllColors();
 
   const [form, setForm] = useState({
     code: '', name: '', season: '', description: '', year: new Date().getFullYear(),
@@ -28,7 +34,7 @@ export default function GestionColecciones() {
     try {
       const query = supabase
         .from('collections')
-        .select('*, collection_years(id, year, is_hidden)')
+        .select('*, collection_years(id, year, is_hidden), collection_colors(id, color_id, is_hidden, colors(id, code, name, hex))')
         .order('id');
       if (!showHidden) query.eq('active', true);
       const { data, error: err } = await query;
@@ -99,6 +105,32 @@ export default function GestionColecciones() {
     setSaving(`year-${yearRow.id}`);
     try {
       const { error: err } = await toggleCollectionYearHidden(yearRow.id, !yearRow.is_hidden);
+      if (err) throw err;
+      loadCollections();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleAddColorToCollection = async (collectionId, colorId) => {
+    setSaving(`color-add-${collectionId}`);
+    try {
+      const { error: err } = await addColorToCollection(collectionId, colorId);
+      if (err) throw err;
+      loadCollections();
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleRemoveColor = async (ccId) => {
+    setSaving(`color-remove-${ccId}`);
+    try {
+      const { error: err } = await removeColorFromCollection(ccId);
       if (err) throw err;
       loadCollections();
     } catch (e) {
@@ -249,6 +281,103 @@ export default function GestionColecciones() {
                   {/* Boton para agregar ano */}
                   <AddYearButton col={col} onAdd={handleAddYear} saving={saving} />
                 </div>
+              </div>
+
+              {/* Carta de Colores */}
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', textTransform: 'uppercase' }}>
+                    Carta de Colores
+                  </span>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 4 }}
+                    onClick={() => setExpandedColorCol(expandedColorCol === col.id ? null : col.id)}
+                  >
+                    <Plus size={12} /> {expandedColorCol === col.id ? 'Cerrar' : 'Gestionar'}
+                  </button>
+                </div>
+
+                {/* Colores actuales */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {(col.collection_colors || []).filter(cc => !cc.is_hidden).map(cc => (
+                    <div key={cc.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: cc.colors?.hex ? `${cc.colors.hex}22` : 'var(--primary-50)',
+                      border: `2px solid ${cc.colors?.hex || 'var(--primary-200)'}`,
+                      borderRadius: 8, padding: '2px 8px', fontSize: 12,
+                    }}>
+                      <span style={{
+                        display: 'inline-block', width: 12, height: 12, borderRadius: 3,
+                        background: cc.colors?.hex || 'var(--gray-400)',
+                        border: '1px solid rgba(0,0,0,0.15)',
+                        flexShrink: 0,
+                      }} />
+                      <span style={{ fontWeight: 700, fontSize: 11 }}>{cc.colors?.code}</span>
+                      <span style={{ color: 'var(--gray-500)', fontSize: 11 }}>{cc.colors?.name}</span>
+                      <button
+                        style={{ marginLeft: 2, cursor: 'pointer', border: 'none', background: 'transparent', color: 'var(--gray-400)', padding: 0, lineHeight: 1 }}
+                        onClick={() => handleRemoveColor(cc.id)}
+                        disabled={saving === `color-remove-${cc.id}`}
+                        title="Quitar color de la carta"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                  {(!col.collection_colors || col.collection_colors.filter(cc => !cc.is_hidden).length === 0) && (
+                    <span style={{ fontSize: 11, color: 'var(--gray-400)', fontStyle: 'italic' }}>Sin colores asignados</span>
+                  )}
+                </div>
+
+                {/* Panel de gestion de colores (expandido) */}
+                {expandedColorCol === col.id && (
+                  <div style={{ marginTop: 12, padding: 12, background: 'var(--gray-50)', borderRadius: 8, border: '1px solid var(--gray-200)' }}>
+                    <div style={{ marginBottom: 8 }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Buscar color por codigo o nombre..."
+                        value={colorSearch}
+                        onChange={e => setColorSearch(e.target.value)}
+                        style={{ fontSize: 13, padding: '6px 10px' }}
+                      />
+                    </div>
+                    <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {allColors
+                        .filter(c => {
+                          const alreadyInCollection = (col.collection_colors || []).some(cc => cc.color_id === c.id && !cc.is_hidden);
+                          if (alreadyInCollection) return false;
+                          if (colorSearch) {
+                            const q = colorSearch.toLowerCase();
+                            return c.code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
+                          }
+                          return true;
+                        })
+                        .slice(0, 100)
+                        .map(c => (
+                          <button
+                            key={c.id}
+                            className="btn btn-secondary"
+                            style={{
+                              fontSize: 11, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4,
+                              cursor: 'pointer', border: `1px solid ${c.hex || 'var(--gray-300)'}`,
+                            }}
+                            onClick={() => { handleAddColorToCollection(col.id, c.id); setColorSearch(''); }}
+                            disabled={saving === `color-add-${col.id}`}
+                            title={`${c.code} - ${c.name}`}
+                          >
+                            <span style={{
+                              display: 'inline-block', width: 10, height: 10, borderRadius: 2,
+                              background: c.hex || 'var(--gray-400)',
+                              border: '1px solid rgba(0,0,0,0.15)',
+                            }} />
+                            {c.code}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );

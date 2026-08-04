@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { useDashboardData, getFaseMacro, toggleReferenceHidden, createCutRequest } from '../lib/api';
+import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff, Edit2, X, Save } from 'lucide-react';
+import { useDashboardData, getFaseMacro, toggleReferenceHidden, createCutRequest, updateReference, useReferenciaDB, assignCode } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import supabase from '../lib/supabase';
 import TemperatureBar from '../components/TemperatureBar';
@@ -22,6 +22,25 @@ function EstadoBadge({ estado }) {
     <span style={{ background: s.bg, color: s.color, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: '999px', fontSize: 11, fontWeight: 700 }}>
       {s.icon}{estado}
     </span>
+  );
+}
+
+function ChipToggle({ active, onChange, children }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!active)}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 12px',
+        borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+        border: `1px solid ${active ? 'var(--primary-400)' : 'var(--gray-300)'}`,
+        background: active ? 'var(--primary-100)' : 'var(--white)',
+        color: active ? 'var(--primary-700)' : 'var(--gray-600)',
+      }}
+    >
+      {active && <CheckCircle size={11} />}
+      {children}
+    </button>
   );
 }
 
@@ -91,6 +110,87 @@ export default function ReferenciaDetalle() {
 
   const [isHidden, setIsHidden] = useState(ref?.isHidden || false);
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+  const [tallajeOptions, setTallajeOptions] = useState([]);
+  const { refDb, loading: refDbLoading } = useReferenciaDB(ref?.dbId);
+
+  const canEdit = isAdmin || isCreadorFicha;
+
+  const openEditModal = async () => {
+    if (!ref?.dbId) return;
+
+    const { data: tallajes } = await supabase
+      .from('tallaje_groups')
+      .select('id, name')
+      .order('id');
+    setTallajeOptions(tallajes || []);
+
+    const { data: refData } = await supabase
+      .from('references')
+      .select('*')
+      .eq('id', ref.dbId)
+      .single();
+
+    if (refData) {
+      setEditForm({
+        name: refData.name || '',
+        reference_type: refData.reference_type || '',
+        length_description: refData.length_description || '',
+        length_cm: refData.length_cm || '',
+        color: refData.color || '',
+        color_code: refData.color_code || '',
+        tallaje_group_id: refData.tallaje_group_id || '',
+        has_embroidery: refData.has_embroidery || false,
+        has_semielaborated: refData.has_semielaborated || false,
+        complejidad_corte_id: refData.complejidad_corte_id || '',
+        complejidad_confeccion_id: refData.complejidad_confeccion_id || '',
+        drop_entrega: refData.drop_entrega || '',
+        priority_first_buy: refData.priority_first_buy || '',
+        envio_confeccion_maquila: refData.envio_confeccion_maquila || false,
+        has_art_modification: refData.has_art_modification || false,
+        has_trace_location: refData.has_trace_location || false,
+        codigoMD: ref.codigoMD || '',
+        codigoPT: ref.codigoPT || '',
+      });
+    }
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!ref?.dbId) return;
+    setEditSaving(true);
+    try {
+      const { codigoMD, codigoPT, ...payload } = editForm;
+      if (payload.tallaje_group_id === '') payload.tallaje_group_id = null;
+      if (payload.complejidad_corte_id === '') payload.complejidad_corte_id = null;
+      if (payload.complejidad_confeccion_id === '') payload.complejidad_confeccion_id = null;
+      if (!payload.length_cm) payload.length_cm = null;
+      if (!payload.priority_first_buy) payload.priority_first_buy = null;
+
+      const { error: err } = await updateReference(ref.dbId, payload);
+      if (err) throw err;
+
+      // Admin: guardar codigos MD/PT
+      if (isAdmin) {
+        if (codigoMD && codigoMD.trim()) {
+          await assignCode(ref.dbId, 'MD', codigoMD.trim(), 'admin');
+        }
+        if (codigoPT && codigoPT.trim()) {
+          await assignCode(ref.dbId, 'PT', codigoPT.trim(), 'admin');
+        }
+      }
+
+      setShowEditModal(false);
+      window.location.reload();
+    } catch (e) {
+      alert('Error al guardar: ' + e.message);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   const handleToggleHidden = async () => {
     if (!ref?.dbId) return;
     const newState = !isHidden;
@@ -133,8 +233,16 @@ export default function ReferenciaDetalle() {
           {/* Códigos y nombre */}
           <div className={styles.headerInfo}>
             <div className={styles.codes}>
-              <span className="code-badge code-md" style={{ fontSize: 14, padding: '4px 12px' }}>{ref.codigoMD}</span>
-              <span className="code-badge code-pt" style={{ fontSize: 14, padding: '4px 12px' }}>{ref.codigoPT}</span>
+              <span className="code-badge code-md" style={{ fontSize: 14, padding: '4px 12px' }}>
+                {ref.codigoMD}
+                {isAdmin && ref.mdAssigned && <span title="ASIGNADO (oficial)" style={{ marginLeft: 4, color: '#22c55e', fontSize: 10 }}>●</span>}
+                {isAdmin && !ref.mdAssigned && <span title="DERIVADO (auto)" style={{ marginLeft: 4, color: '#f59e0b', fontSize: 10 }}>●</span>}
+              </span>
+              <span className="code-badge code-pt" style={{ fontSize: 14, padding: '4px 12px' }}>
+                {ref.codigoPT}
+                {isAdmin && ref.ptAssigned && <span title="ASIGNADO (oficial)" style={{ marginLeft: 4, color: '#22c55e', fontSize: 10 }}>●</span>}
+                {isAdmin && !ref.ptAssigned && <span title="DERIVADO (auto)" style={{ marginLeft: 4, color: '#f59e0b', fontSize: 10 }}>●</span>}
+              </span>
               <span style={{ background: `var(--temp-${faseMacro.tempVar})`, color: `var(--temp-${faseMacro.tempVar}-text)`, padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, border: `1px solid var(--temp-${faseMacro.tempVar}-border)` }}>
                 {ref.clasificacion}
               </span>
@@ -152,6 +260,15 @@ export default function ReferenciaDetalle() {
                 >
                   {isHidden ? <Eye size={12} /> : <EyeOff size={12} />}
                   {isHidden ? 'Mostrar' : 'Ocultar'}
+                </button>
+              )}
+              {canEdit && ref.dbId && (
+                <button
+                  className="btn btn-primary"
+                  style={{ fontSize: 11, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  onClick={openEditModal}
+                >
+                  <Edit2 size={12} /> Editar
                 </button>
               )}
             </div>
@@ -251,6 +368,7 @@ export default function ReferenciaDetalle() {
               ['Sublínea', ref.sublinea],
               ['Tallaje', ref.tallaje],
               ['Largo', ref.largo],
+              ['Largo Cms', ref.largoCms || '—'],
               ['Closure', ref.closure],
               ['Drop de Entrega', ref.dropEntrega],
               ['Prioridad First Buy', ref.prioridadFirstBuy],
@@ -519,6 +637,164 @@ export default function ReferenciaDetalle() {
               <button className="btn btn-secondary" onClick={() => setShowCorteModal(false)}>Cancelar</button>
               <button className="btn btn-primary" onClick={handleSendToCorte} disabled={sendingCorte}>
                 <Scissors size={16} /> {sendingCorte ? 'Enviando...' : 'Enviar a Corte'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Editar Referencia */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+            <div className="modal-header">
+              <h3>Editar Referencia — {ref.codigoMD}</h3>
+              <button className="modal-close" onClick={() => setShowEditModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '70vh', overflowY: 'auto' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div className="form-group">
+                  <label className="form-label">Nombre</label>
+                  <input type="text" className="form-input" value={editForm.name || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Prenda</label>
+                  <select className="form-select" value={editForm.reference_type || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, reference_type: e.target.value }))}>
+                    <option value="">Sin definir</option>
+                    <option value="SILUETA">Silueta</option>
+                    <option value="BASICA">Basica</option>
+                    <option value="SPECIAL">Special</option>
+                    <option value="OTRO">Otro</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Color</label>
+                  <input type="text" className="form-input" value={editForm.color || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, color: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Codigo de Color</label>
+                  <input type="text" className="form-input" value={editForm.color_code || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, color_code: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label form-label-required">Tallaje</label>
+                  <select className="form-select" value={editForm.tallaje_group_id || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, tallaje_group_id: e.target.value ? parseInt(e.target.value) : '' }))}>
+                    <option value="">Sin tallaje definido</option>
+                    {tallajeOptions.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  <span className="form-help">Requerido para ingresar consumos por talla.</span>
+                </div>
+                {/* MD / PT — solo admin */}
+                {isAdmin && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Código MD <span style={{ fontSize: 10, color: 'var(--primary-500)', fontWeight: 600 }}>Admin</span></label>
+                      <input type="text" className="form-input" value={editForm.codigoMD || ''}
+                        onChange={e => setEditForm(prev => ({ ...prev, codigoMD: e.target.value }))}
+                        placeholder="MD-000" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Código PT <span style={{ fontSize: 10, color: 'var(--primary-500)', fontWeight: 600 }}>Admin</span></label>
+                      <input type="text" className="form-input" value={editForm.codigoPT || ''}
+                        onChange={e => setEditForm(prev => ({ ...prev, codigoPT: e.target.value }))}
+                        placeholder="PT03000" />
+                    </div>
+                  </>
+                )}
+                <div className="form-group">
+                  <label className="form-label">Largo</label>
+                  <select className="form-select" value={editForm.length_description || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, length_description: e.target.value }))}>
+                    <option value="">Sin definir</option>
+                    <option value="Mini">Mini</option>
+                    <option value="Midi">Midi</option>
+                    <option value="Maxi">Maxi</option>
+                    <option value="Full Length">Full Length</option>
+                    <option value="Hip">Hip</option>
+                    <option value="Knee Length">Knee Length</option>
+                    <option value="Cropped">Cropped</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Largo Cms</label>
+                  <input type="number" min="0" className="form-input" value={editForm.length_cm || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, length_cm: e.target.value }))} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Drop de Entrega</label>
+                  <select className="form-select" value={editForm.drop_entrega || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, drop_entrega: e.target.value }))}>
+                    <option value="">Sin definir</option>
+                    {['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'].map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Prioridad First Buy</label>
+                  <input type="number" min="1" max="10" className="form-input" value={editForm.priority_first_buy || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, priority_first_buy: e.target.value }))} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                <ChipToggle active={editForm.has_embroidery === true}
+                  onChange={(v) => setEditForm(prev => ({ ...prev, has_embroidery: v }))}>
+                  Bordado en Prenda
+                </ChipToggle>
+                <ChipToggle active={editForm.has_semielaborated === true}
+                  onChange={(v) => setEditForm(prev => ({ ...prev, has_semielaborated: v }))}>
+                  Semielaborados
+                </ChipToggle>
+                <ChipToggle active={editForm.envio_confeccion_maquila === true}
+                  onChange={(v) => setEditForm(prev => ({ ...prev, envio_confeccion_maquila: v }))}>
+                  Enviar a Maquila
+                </ChipToggle>
+                <ChipToggle active={editForm.has_art_modification === true}
+                  onChange={(v) => setEditForm(prev => ({ ...prev, has_art_modification: v }))}>
+                  Mod. Arte
+                </ChipToggle>
+                <ChipToggle active={editForm.has_trace_location === true}
+                  onChange={(v) => setEditForm(prev => ({ ...prev, has_trace_location: v }))}>
+                  Ubicacion Trazo
+                </ChipToggle>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 4 }}>
+                <div className="form-group">
+                  <label className="form-label">Complejidad Corte</label>
+                  <select className="form-select" value={editForm.complejidad_corte_id || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, complejidad_corte_id: e.target.value || '' }))}>
+                    <option value="">Sin definir</option>
+                    <option value="1">Baja</option>
+                    <option value="2">Media</option>
+                    <option value="3">Alta</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Complejidad Confeccion</label>
+                  <select className="form-select" value={editForm.complejidad_confeccion_id || ''}
+                    onChange={e => setEditForm(prev => ({ ...prev, complejidad_confeccion_id: e.target.value || '' }))}>
+                    <option value="">Sin definir</option>
+                    <option value="1">Baja</option>
+                    <option value="2">Media</option>
+                    <option value="3">Alta</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowEditModal(false)}>Cancelar</button>
+              <button className="btn btn-primary" onClick={handleEditSave} disabled={editSaving}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Save size={16} />
+                {editSaving ? 'Guardando...' : 'Guardar Cambios'}
               </button>
             </div>
           </div>

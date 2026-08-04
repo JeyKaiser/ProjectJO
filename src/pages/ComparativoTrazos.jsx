@@ -24,6 +24,19 @@ const DIMENSIONES = [
   { key: 'telas', label: 'Cantidad de Telas Totales', icon: Info, campoCosteo: 'consumo_valor', campoContra: 'consumo_valor' },
 ];
 
+const JUSTIFICACIONES_TELA = [
+  'Se agregó pieza',
+  'Se eliminó pieza',
+  'Cambió forma de delantero/posterior',
+  'Aumenta consumo lineal',
+  'Disminuye consumo lineal',
+  'Cambió ancho del sesgo',
+  'Ya no se usa / Cancelado',
+  'Se reemplazó por pieza en otra tela',
+  'Cambió de tela',
+  'Se agregó forro/soporte',
+];
+
 function formatVal(val) {
   if (val == null || val === '') return '—';
   return String(val);
@@ -38,6 +51,8 @@ export default function ComparativoTrazos() {
   const [trazos, setTrazos] = useState([]);
   const [trazoCosteo, setTrazoCosteo] = useState(null);
   const [trazoContramuestra, setTrazoContramuestra] = useState(null);
+  const [fabricsComp, setFabricsComp] = useState([]);
+  const [justTelas, setJustTelas] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
@@ -62,6 +77,12 @@ export default function ComparativoTrazos() {
       const contraTrazo = trazos.find(t => t.id === existingComparativo.trazo_contramuestra_id);
       if (costeoTrazo) setTrazoCosteo(costeoTrazo);
       if (contraTrazo) setTrazoContramuestra(contraTrazo);
+
+      try {
+        setJustTelas(JSON.parse(existingComparativo.justificaciones_telas || '{}') || {});
+      } catch (_) {
+        setJustTelas({});
+      }
     }
   }, [existingComparativo, trazos]);
 
@@ -79,6 +100,13 @@ export default function ComparativoTrazos() {
         .order('opcion_num');
 
       setTrazos(allTrazos || []);
+
+      const { data: rfData } = await supabase
+        .from('reference_fabrics')
+        .select('id, reference_id, usage, fabrics(code, description)')
+        .eq('reference_id', numericId)
+        .eq('active', true);
+      setFabricsComp(rfData || []);
 
       if (!existingComparativo) {
         const costeoTrazos = (allTrazos || []).filter(t => t.fase === 'costeo');
@@ -104,6 +132,13 @@ export default function ComparativoTrazos() {
     setJustificaciones(prev => ({ ...prev, [key]: value }));
   }
 
+  function handleJustTela(fabricId, field, value) {
+    setJustTelas(prev => {
+      const cur = prev[fabricId] || { justificacion: '', detalle: '' };
+      return { ...prev, [fabricId]: { ...cur, [field]: value } };
+    });
+  }
+
   async function handleSave() {
     setSaving(true);
     setMessage(null);
@@ -120,6 +155,8 @@ export default function ComparativoTrazos() {
         payload[`difiere_${dim.key}`] = diffs[dim.key] || false;
         payload[`justificacion_${dim.key}`] = diffs[dim.key] ? (justificaciones[dim.key] || null) : null;
       });
+
+      payload.justificaciones_telas = JSON.stringify(justTelas);
 
       if (existingComparativo?.id) {
         payload.id = existingComparativo.id;
@@ -264,6 +301,47 @@ export default function ComparativoTrazos() {
               </tbody>
             </table>
           </div>
+
+          {fabricsComp.length > 0 && (
+            <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+              <h4 style={{ margin: '0 0 var(--space-3) 0', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Info size={16} style={{ color: 'var(--primary-600)' }} />
+                Justificaciones por Tela
+              </h4>
+              <p style={{ fontSize: 11, color: 'var(--gray-500)', marginBottom: 'var(--space-4)' }}>
+                Justificaciones específicas por cada tela comparada en este comparativo.
+              </p>
+              {fabricsComp.map(f => {
+                const fJust = justTelas[f.id] || { justificacion: '', detalle: '' };
+                return (
+                  <div key={f.id} style={{ marginBottom: 'var(--space-3)', padding: 'var(--space-3)', background: 'var(--gray-50)', borderRadius: 'var(--radius-md)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 'var(--space-2)', color: 'var(--gray-700)' }}>
+                      {f.usage || '-'}: {f.fabrics?.code || '-'} — {f.fabrics?.description || ''}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                      <select
+                        value={fJust.justificacion}
+                        onChange={(e) => handleJustTela(f.id, 'justificacion', e.target.value)}
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-300)', fontSize: 12 }}
+                      >
+                        <option value="">-- Justificación --</option>
+                        {JUSTIFICACIONES_TELA.map((j, i) => (
+                          <option key={i} value={j}>{j}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={fJust.detalle}
+                        onChange={(e) => handleJustTela(f.id, 'detalle', e.target.value)}
+                        placeholder="Detalle adicional..."
+                        style={{ width: '100%', padding: '6px 8px', borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-300)', fontSize: 12 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button className="btn btn-success" onClick={handleSave} disabled={saving}>

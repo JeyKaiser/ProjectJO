@@ -33,6 +33,7 @@ const defaultForm = {
   fecha_inicio: '',
   fecha_fin: '',
   observaciones: '',
+  estado: 'activo',
 };
 
 export default function TrazoForm({ referenceId, trazoToEdit, preselectedFabric, onSave, onCancel }) {
@@ -85,6 +86,7 @@ export default function TrazoForm({ referenceId, trazoToEdit, preselectedFabric,
         fecha_inicio: trazoToEdit.fecha_inicio || '',
         fecha_fin: trazoToEdit.fecha_fin || '',
         observaciones: trazoToEdit.observaciones || '',
+        estado: trazoToEdit.estado || 'activo',
       });
     } else if (preselectedFabric) {
       setForm({ ...defaultForm, reference_id: referenceId, reference_fabric_id: preselectedFabric.id });
@@ -124,7 +126,12 @@ export default function TrazoForm({ referenceId, trazoToEdit, preselectedFabric,
         fecha_fin: form.fecha_fin || null,
         trazador_id: null,
         observaciones: form.observaciones || null,
+        estado: form.estado || 'activo',
       };
+
+      if (form.estado === 'cancelado') {
+        payload.consumo_valor = 0;
+      }
 
       let result;
       if (trazoToEdit?.id) {
@@ -232,6 +239,21 @@ export default function TrazoForm({ referenceId, trazoToEdit, preselectedFabric,
             </div>
           </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: form.estado === 'cancelado' ? 'var(--error-dark)' : 'var(--gray-700)', fontWeight: form.estado === 'cancelado' ? 700 : 400 }}>
+              <input
+                type="checkbox"
+                checked={form.estado === 'cancelado'}
+                onChange={(e) => handleChange('estado', e.target.checked ? 'cancelado' : 'activo')}
+                style={{ width: 16, height: 16, cursor: 'pointer' }}
+              />
+              Cancelado / No se usa
+            </label>
+            {form.estado === 'cancelado' && (
+              <span style={{ fontSize: 10, background: 'var(--error-light)', color: 'var(--error-dark)', padding: '1px 6px', borderRadius: 'var(--radius-full)', fontWeight: 700 }}>CANCELADO</span>
+            )}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)', marginTop: 'var(--space-4)' }}>
             <div>
               <label style={labelStyle}><Hash size={10} style={{ display: 'inline', marginRight: 4 }} />Veces Trazadas</label>
@@ -243,7 +265,7 @@ export default function TrazoForm({ referenceId, trazoToEdit, preselectedFabric,
             </div>
             <div>
               <label style={labelStyle}>Consumo (m)</label>
-              <input type="text" value={form.consumo_valor} onChange={(e) => handleChange('consumo_valor', e.target.value)} placeholder="0.00" style={inputStyle} />
+              <input type="text" value={form.estado === 'cancelado' ? '0' : form.consumo_valor} onChange={(e) => handleChange('consumo_valor', e.target.value)} placeholder={form.estado === 'cancelado' ? 'Cancelado' : '0.00'} disabled={form.estado === 'cancelado'} style={{ ...inputStyle, opacity: form.estado === 'cancelado' ? 0.5 : 1 }} />
             </div>
           </div>
 

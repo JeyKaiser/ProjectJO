@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardData, createReference, useCollectionYears } from '../lib/api';
+import { useDashboardData, createReference, useCollectionYears, useColorLookup, useSearchReferences, assignCode } from '../lib/api';
 import supabase from '../lib/supabase';
 import { getPersonas } from '../data/personas';
+import { useAuth } from '../context/AuthContext';
 import styles from './FichaTecnicaForm.module.css';
 
 // ── Catálogos ────────────────────────────────────────────────
 const TIPO_PRENDA_OPTIONS = [
   'Vestido', 'Pantalón', 'Falda', 'Blazer', 'Jacket', 'Abrigo',
-  'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Otro',
+  'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Vest','Otro',
 ];
 
 const LINEA_OPTIONS = ['Ready To Wear', 'Couture', 'Resort', 'Pre-Fall'];
 const SUBLINEA_OPTIONS = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Jumpsuits', 'Sets'];
-const TALLAJE_OPTIONS = ['XS-S-M-L', 'XS-S-M-L-XL', 'S-M-L', 'Talla Única', 'Personalizado'];
+const TALLAJE_OPTIONS = ['XS-S-M-L', 'XS-S-M-L-XL', 'S-M-L', '0-2-4-6-8-10-12', 'Talla Única', 'Personalizado'];
 const LARGO_OPTIONS = ['Mini', 'Midi', 'Maxi', 'Full Length', 'Hip', 'Knee Length', 'Cropped'];
 const CLOSURE_OPTIONS = ['Sin cierre', 'Cremallera lateral', 'Cremallera posterior', 'Botones', 'Elástico', 'Correa', 'Otro'];
 const DROP_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
@@ -32,11 +33,11 @@ const CLASIFICACION_OPTIONS = [
 // Roles de personas involucradas en el ciclo de vida
 const ROLES_EQUIPO = [
   { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '2.1 Inicio de Coleccion', requerido: true, area: 'creativos' },
-  { key: 'patronista',        label: 'Patronista / Moldería', fase: '2.2 Prototipos (Moldería)', requerido: false, area: 'tecnicos' },
+  // { key: 'patronista',        label: 'Patronista / Moldería', fase: '2.2 Prototipos (Moldería)', requerido: false, area: 'tecnicos' },
   { key: 'disenadorTecnico',  label: 'Diseñador(a) Técnico(a)', fase: '3.2 Costeo (Tecnicos)', requerido: false, area: 'tecnicos' },
-  { key: 'cortador',          label: 'Cortador(a)', fase: '2.3 Corte', requerido: false, area: 'cortadores' },
+  // { key: 'cortador',          label: 'Cortador(a)', fase: '2.3 Corte', requerido: false, area: 'cortadores' },
   { key: 'modista',           label: 'Modista / Confección', fase: '2.4 Confeccion', requerido: false, area: 'modistas' },
-  { key: 'bordadora',         label: 'Bordadora / Proceso Especial', fase: '2.5 Bordado', requerido: false, area: 'bordadoras' },
+  // { key: 'bordadora',         label: 'Bordadora / Proceso Especial', fase: '2.5 Bordado', requerido: false, area: 'bordadoras' },
   { key: 'trazador',          label: 'Trazador(a)', fase: '3.5 Ubicaciones de Trazo', requerido: false, area: 'trazadores' },
   { key: 'equipoConsumos',    label: 'Equipo Consumos / Validación', fase: '4.3 Industrializacion', requerido: false, area: 'especificadoras' },
 ];
@@ -72,6 +73,7 @@ function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(
 // ── Componente principal ─────────────────────────────────────
 export default function FichaTecnicaForm() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const personas = getPersonas();
   const { data } = useDashboardData();
   const COLECCIONES_OPTIONS = (data?.colecciones || []).map(c => ({
@@ -87,6 +89,7 @@ export default function FichaTecnicaForm() {
   const [formData, setFormData] = useState({
     coleccion: '',
     year: '',
+    referencia: '',
     nombre: '',
     tipoPrenda: '',
     color: '',
@@ -95,8 +98,13 @@ export default function FichaTecnicaForm() {
     sublinea: '',
     tallaje: '',
     largo: '',
+    largoCms: '',
     closure: '',
+    codigoMD: '',
+    codigoPT: '',
     clasificacion: 'Sólida',
+    referente: '',
+    referenteId: null,
     // Comercial
     prioridadFirstBuy: 'A',
     dropEntrega: 'A',
@@ -110,7 +118,6 @@ export default function FichaTecnicaForm() {
     tirasContinuas: false,
     includes: '',
     tipoEmpaque: 'Individual',
-    referente: '',
     // Equipo
     disenadorCreativo: '',
     patronista: '',
@@ -128,9 +135,13 @@ export default function FichaTecnicaForm() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [difficultyMap, setDifficultyMap] = useState({});
+  const [referenteSearch, setReferenteSearch] = useState('');
+  const [referenteFocused, setReferenteFocused] = useState(false);
 
   const selectedColId = formData.coleccion ? parseInt(formData.coleccion) : null;
   const { years: colYears } = useCollectionYears(selectedColId);
+  const { color: matchedColor, loading: colorLoading } = useColorLookup(formData.codigoColor);
+  const { results: referenteResults, loading: referenteLoading } = useSearchReferences(referenteSearch, selectedColId);
 
   useEffect(() => {
     supabase
@@ -145,6 +156,12 @@ export default function FichaTecnicaForm() {
       });
   }, []);
 
+  useEffect(() => {
+    if (matchedColor && matchedColor.name) {
+      set('color', matchedColor.name);
+    }
+  }, [matchedColor]);
+
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
   const handleInput = (e) => set(e.target.name, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
 
@@ -152,9 +169,12 @@ export default function FichaTecnicaForm() {
     const err = {};
     if (!formData.coleccion) err.coleccion = 'Requerido';
     if (!formData.year) err.year = 'Requerido';
+    if (!formData.referencia) err.referencia = 'Requerido';
+    else if (!/^\d+$/.test(formData.referencia)) err.referencia = 'Debe ser un numero entero positivo';
     if (!formData.tipoPrenda) err.tipoPrenda = 'Requerido';
     if (!formData.nombre) err.nombre = 'Requerido';
     if (!formData.color) err.color = 'Requerido';
+    if (!formData.codigoColor) err.codigoColor = 'Digita el codigo de color';
     if (!formData.disenadorCreativo) err.disenadorCreativo = 'El diseñador creativo es obligatorio';
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -166,20 +186,24 @@ export default function FichaTecnicaForm() {
 
     setSaving(true);
     try {
-      // Generar reference_number unico
-      const { data: allRefs } = await supabase
-        .from('references')
-        .select('reference_number');
-
-      const numbers = (allRefs || [])
-        .map(r => parseInt(r.reference_number))
-        .filter(n => !isNaN(n));
-
-      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
-      const refNum = String(maxNum + 1).padStart(3, '0');
-
+      const refNum = formData.referencia.trim();
       const collectionId = parseInt(formData.coleccion);
       const yearInt = parseInt(formData.year);
+
+      // Verificar unicidad del reference_number
+      const { data: existingRef } = await supabase
+        .from('references')
+        .select('id')
+        .eq('reference_number', refNum)
+        .maybeSingle();
+
+      if (existingRef) {
+        setErrors(prev => ({ ...prev, referencia: 'Este numero de referencia ya existe' }));
+        setSaving(false);
+        return;
+      }
+
+      const largoCmsVal = formData.largoCms ? parseInt(formData.largoCms) : null;
 
       const { data: newRef, error: createErr } = await createReference({
         collection_id: collectionId,
@@ -188,6 +212,8 @@ export default function FichaTecnicaForm() {
         name: formData.nombre,
         color: formData.color,
         color_code: formData.codigoColor || null,
+        length_description: formData.largo || null,
+        length_cm: largoCmsVal,
         has_embroidery: formData.tieneBordado,
         has_semielaborated: formData.tieneSemielaborado,
         priority_first_buy: PRIORIDAD_OPTIONS.indexOf(formData.prioridadFirstBuy) + 1,
@@ -196,13 +222,32 @@ export default function FichaTecnicaForm() {
         complejidad_confeccion_id: difficultyMap[formData.complejidadConfeccion.toUpperCase()] || null,
         has_art_modification: formData.clasificacion === 'Mod. Arte',
         has_trace_location: formData.clasificacion === 'Ubicacion Trazo',
-        has_all_over: formData.clasificacion === 'Solida' ? false : false,
+        has_all_over: false,
       });
 
       if (createErr) throw createErr;
 
-      const nuevoMD = `MD-${refNum}`;
-      const nuevoPT = `PT03${refNum}`;
+      // Si hay referente seleccionado, guardar en references_referents
+      if (formData.referenteId && newRef) {
+        await supabase
+          .from('references_referents')
+          .insert({
+            reference_id: newRef.id,
+            referent_reference_id: formData.referenteId,
+            relationship: 'MOLDERIA_BASE',
+          });
+      }
+
+      // Admin: guardar codigos MD/PT en reference_codes
+      if (isAdmin && newRef) {
+        const mdCode = formData.codigoMD || `MD-${refNum}`;
+        const ptCode = formData.codigoPT || `PT03${refNum}`;
+        await assignCode(newRef.id, 'MD', mdCode, 'admin');
+        await assignCode(newRef.id, 'PT', ptCode, 'admin');
+      }
+
+      const nuevoMD = formData.codigoMD || `MD-${refNum}`;
+      const nuevoPT = formData.codigoPT || `PT03${refNum}`;
       setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], seasonCode: colDbToSeason[collectionId] || 'ws', year: yearInt });
     } catch (err) {
       alert('Error al crear la referencia: ' + err.message);
@@ -215,7 +260,8 @@ export default function FichaTecnicaForm() {
   const handleReset = () => {
     setGuardado(false);
     setErrors({});
-    setFormData(prev => ({ ...prev, nombre: '', color: '', codigoColor: '' }));
+    setFormData(prev => ({ ...prev, referencia: '', nombre: '', color: '', codigoColor: '', codigoMD: '', codigoPT: '', largoCms: '', referente: '', referenteId: null }));
+    setReferenteSearch('');
   };
 
   // ── Vista de éxito ──────────────────────────────────────────
@@ -267,7 +313,7 @@ export default function FichaTecnicaForm() {
             <div className="form-group">
               <label className="form-label form-label-required">Coleccion</label>
               <select name="coleccion" className={`form-select ${errors.coleccion ? 'input-error' : ''}`}
-                value={formData.coleccion} onChange={(e) => { handleInput(e); set('year', ''); }} required>
+                value={formData.coleccion} onChange={(e) => { handleInput(e); set('year', ''); set('codigoColor', ''); set('referente', ''); set('referenteId', null); setReferenteSearch(''); }} required>
                 <option value="">Selecciona...</option>
                 {COLECCIONES_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -276,7 +322,7 @@ export default function FichaTecnicaForm() {
 
             {/* Ano */}
             <div className="form-group">
-              <label className="form-label form-label-required">Ano</label>
+              <label className="form-label form-label-required">Año</label>
               <select name="year" className={`form-select ${errors.year ? 'input-error' : ''}`}
                 value={formData.year} onChange={handleInput} required
                 disabled={!formData.coleccion}>
@@ -287,6 +333,17 @@ export default function FichaTecnicaForm() {
               </select>
               {!formData.coleccion && <span className="form-help">Selecciona una coleccion primero</span>}
               {errors.year && <span className="form-error">{errors.year}</span>}
+            </div>
+
+            {/* Numero de Referencia */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Referencia #</label>
+              <input type="number" name="referencia" min="1" step="1"
+                className={`form-input ${errors.referencia ? 'input-error' : ''}`}
+                value={formData.referencia} onChange={handleInput}
+                placeholder="Ej. 19" />
+              {errors.referencia && <span className="form-error">{errors.referencia}</span>}
+              <span className="form-help">Numero unico. Si ya existe, se mostrara error.</span>
             </div>
 
             {/* Tipo de Prenda */}
@@ -309,27 +366,135 @@ export default function FichaTecnicaForm() {
               {errors.nombre && <span className="form-error">{errors.nombre}</span>}
             </div>
 
-            {/* Color */}
+            {/* Código color — input con autocompletado desde BD */}
+            <div className="form-group">
+              <label className="form-label form-label-required">Código de Color</label>
+              <input type="text" name="codigoColor"
+                className={`form-input ${errors.codigoColor ? 'input-error' : ''}`}
+                value={formData.codigoColor}
+                onChange={handleInput}
+                placeholder="Digita el código numérico (ej. 0001)"
+                autoComplete="off" />
+              {errors.codigoColor && <span className="form-error">{errors.codigoColor}</span>}
+              {colorLoading && <span className="form-help">Buscando...</span>}
+              {!colorLoading && formData.codigoColor && !matchedColor && (
+                <span className="form-help" style={{ color: 'var(--orange-500)' }}>Código no encontrado en la base</span>
+              )}
+            </div>
+
+            {/* Color — auto-fill desde código, editable */}
             <div className="form-group">
               <label className="form-label form-label-required">Color</label>
               <input type="text" name="color" className={`form-input ${errors.color ? 'input-error' : ''}`}
-                value={formData.color} onChange={handleInput} placeholder="Ej. Ecru/Sand, Ivory..." />
+                value={formData.color} onChange={handleInput}
+                placeholder={matchedColor ? '' : 'Se auto-completa al digitar el código'} />
               {errors.color && <span className="form-error">{errors.color}</span>}
             </div>
 
-            {/* Código color */}
+            {/* MD / PT — solo admin */}
+            {isAdmin && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Código MD <span className="badge badge-primary" style={{ fontSize: 10, verticalAlign: 'middle' }}>Admin</span></label>
+                  <input type="text" name="codigoMD" className="form-input"
+                    value={formData.codigoMD}
+                    onChange={handleInput}
+                    placeholder={`MD-${String(formData.referencia || '___').padStart(3, '0')}`} />
+                  <span className="form-help">Prefijo MD- seguido del número de referencia.</span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Código PT <span className="badge badge-primary" style={{ fontSize: 10, verticalAlign: 'middle' }}>Admin</span></label>
+                  <input type="text" name="codigoPT" className="form-input"
+                    value={formData.codigoPT}
+                    onChange={handleInput}
+                    placeholder={`PT03${String(formData.referencia || '___').padStart(3, '0')}`} />
+                  <span className="form-help">Prefijo PT03 seguido del número de referencia.</span>
+                </div>
+              </>
+            )}
+
+            {/* Largo */}
             <div className="form-group">
-              <label className="form-label">Código de Color</label>
-              <input type="text" name="codigoColor" className="form-input"
-                value={formData.codigoColor} onChange={handleInput} placeholder="Ej. EC-04" />
+              <label className="form-label">Largo</label>
+              <select name="largo" className="form-select" value={formData.largo} onChange={handleInput}>
+                <option value="">Selecciona...</option>
+                {LARGO_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
             </div>
 
-            {/* Referente */}
+            {/* Largo Cms — nuevo campo numérico */}
             <div className="form-group">
+              <label className="form-label">Largo Cms</label>
+              <input type="number" name="largoCms" min="0" step="1"
+                className="form-input"
+                value={formData.largoCms} onChange={handleInput}
+                placeholder="Ej. 120" />
+              <span className="form-help">Largo en centimetros (numerico)</span>
+            </div>
+
+            {/* Referente — selector con busqueda */}
+            <div className="form-group" style={{ position: 'relative' }}>
               <label className="form-label">Referente Base (Opcional)</label>
-              <input type="text" name="referente" className="form-input"
-                value={formData.referente} onChange={handleInput} placeholder="Ej. PT03402" />
-              <span className="form-help">Si aplica, heredará moldería base.</span>
+              <div style={{ position: 'relative' }}>
+                <input type="text" className="form-input"
+                  value={referenteFocused ? referenteSearch : (formData.referente || referenteSearch)}
+                  onChange={(e) => {
+                    setReferenteSearch(e.target.value);
+                    setReferenteFocused(true);
+                    if (!e.target.value) {
+                      set('referente', '');
+                      set('referenteId', null);
+                    }
+                  }}
+                  onFocus={() => {
+                    setReferenteFocused(true);
+                    if (formData.referente && !referenteSearch) setReferenteSearch(formData.referente);
+                  }}
+                  onBlur={() => setTimeout(() => setReferenteFocused(false), 200)}
+                  placeholder="Buscar por codigo PT o nombre..."
+                  autoComplete="off" />
+                <Search size={14} style={{ position: 'absolute', right: 10, top: 10, color: 'var(--gray-400)', pointerEvents: 'none' }} />
+              </div>
+              {referenteFocused && referenteSearch.length >= 2 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: 8,
+                  boxShadow: 'var(--shadow-lg)', maxHeight: 200, overflowY: 'auto',
+                }}>
+                  {referenteLoading && <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--gray-400)' }}>Buscando...</div>}
+                  {!referenteLoading && referenteResults.length === 0 && (
+                    <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--gray-400)' }}>Sin resultados</div>
+                  )}
+                  {referenteResults.map(ref => (
+                    <div key={ref.id}
+                      style={{
+                        padding: '8px 12px', cursor: 'pointer', fontSize: 13,
+                        borderBottom: '1px solid var(--gray-100)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-50)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      onMouseDown={() => {
+                        const label = `PT03${String(ref.reference_number).padStart(3, '0')} – ${ref.name || '(sin nombre)'}`;
+                        set('referente', label);
+                        set('referenteId', ref.id);
+                        setReferenteSearch(label);
+                        setReferenteFocused(false);
+                      }}>
+                      <span style={{ fontWeight: 600 }}>
+                        PT03{String(ref.reference_number).padStart(3, '0')}
+                      </span>
+                      <span style={{ color: 'var(--gray-500)', flex: 1, marginLeft: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {ref.name || '(sin nombre)'}
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--gray-400)', marginLeft: 8 }}>
+                        {ref.collections?.code || ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <span className="form-help">Si aplica, heredara molderia base. Busca por codigo PT03XXX o nombre.</span>
             </div>
 
             {/* Línea */}
@@ -364,15 +529,6 @@ export default function FichaTecnicaForm() {
               <select name="tallaje" className="form-select" value={formData.tallaje} onChange={handleInput}>
                 <option value="">Selecciona...</option>
                 {TALLAJE_OPTIONS.map(o => <option key={o}>{o}</option>)}
-              </select>
-            </div>
-
-            {/* Largo */}
-            <div className="form-group">
-              <label className="form-label">Largo</label>
-              <select name="largo" className="form-select" value={formData.largo} onChange={handleInput}>
-                <option value="">Selecciona...</option>
-                {LARGO_OPTIONS.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
 

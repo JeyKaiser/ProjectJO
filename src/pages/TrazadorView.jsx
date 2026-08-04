@@ -63,7 +63,7 @@ export default function TrazadorView() {
           usage: rf.usage || '-',
           code: rf.fabrics?.code || '-',
           description: rf.fabrics?.description || '-',
-          width: rf.width_cm ? `${Number(rf.width_cm) / 100}m` : '-',
+          width: rf.width_cm ? `${parseFloat(rf.width_cm).toFixed(2)}` : '-',
         });
       }
 
@@ -285,7 +285,19 @@ export default function TrazadorView() {
 
                                     return (
                                       <tr key={f.id} style={{ borderBottom: '1px solid var(--gray-100)' }}>
-                                        <td style={{ padding: '8px 12px', fontWeight: 500 }}>{f.usage}</td>
+                                        <td style={{ padding: '8px 12px', fontWeight: 500 }}>
+                                          {f.usage}
+                                          {(f.usage || '').toLowerCase().includes('sesgo') && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 6, background: 'var(--secondary-100)', color: 'var(--secondary-700)', padding: '1px 5px', borderRadius: 'var(--radius-full)', fontSize: 9, fontWeight: 700 }}>
+                                              SESGO
+                                              {fabricTrazos.filter(t => t.ancho_sesgo).map(t => (
+                                                <span key={t.id} style={{ color: 'var(--secondary-600)', fontWeight: 400 }}>
+                                                  {t.ancho_sesgo}{t.consumo_lineal != null ? ` / ${t.consumo_lineal}m` : ''}
+                                                </span>
+                                              ))}
+                                            </span>
+                                          )}
+                                        </td>
                                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 11 }}>{f.code}</td>
                                         <td style={{ padding: '8px 12px', fontSize: 11, color: 'var(--gray-600)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                           {f.description}
@@ -300,6 +312,7 @@ export default function TrazadorView() {
                                                 >
                                                   <Ruler size={10} />
                                                   {TIPOS_TELA_LABEL[t.tipo_tela] || t.tipo_tela}: {t.consumo_valor || '?'}m
+                                                  {t.estado === 'cancelado' && <span style={{ fontSize: 8, background: 'var(--error-light)', color: 'var(--error-dark)', padding: '0 3px', borderRadius: 2, marginLeft: 2 }}>CANC</span>}
                                                 </button>
                                               ))}
                                             </div>
@@ -314,6 +327,7 @@ export default function TrazadorView() {
                                                 >
                                                   <Ruler size={10} />
                                                   {TIPOS_TELA_LABEL[t.tipo_tela] || t.tipo_tela}: {t.consumo_valor || '?'}m
+                                                  {t.estado === 'cancelado' && <span style={{ fontSize: 8, background: 'var(--error-light)', color: 'var(--error-dark)', padding: '0 3px', borderRadius: 2, marginLeft: 2 }}>CANC</span>}
                                                 </button>
                                               ))}
                                             </div>

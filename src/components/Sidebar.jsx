@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon, Shield, FileSpreadsheet, BarChart2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useState, useEffect } from 'react';
@@ -154,6 +154,13 @@ export default function Sidebar() {
             <NavLink to="/admin/colecciones" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Gestion Colecciones' : undefined}>
               <span className="nav-item-icon"><Shield size={20} /></span>
               <span>Gestion Colecciones</span>
+            </NavLink>
+          )}
+
+          {(isAdmin) && (
+            <NavLink to="/admin/codigos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Codigos MD/PT' : undefined}>
+              <span className="nav-item-icon"><Hash size={20} /></span>
+              <span>Codigos MD/PT</span>
             </NavLink>
           )}
 

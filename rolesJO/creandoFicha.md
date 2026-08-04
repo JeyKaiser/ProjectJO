@@ -1,0 +1,9 @@
+En /ficha-nueva, te mencionare las novedades de algunas casillas o lo que se espera que contengan:
+1. Casilla año: No me aparecen los años disponibles para la coleccion FALL WINTER 26, solo aparece el placeholder "Selecciona..." 
+2. Casilla Referencia (no existe aun): Quisiera un campo que almacene un numero entero positivo (unico), que sera el numero de la referencia, este numero debe guardarse en la base de datos. analiza que cambios se requieren en la BD, ya que este numero es importante en todas las colecciones.
+3. Casilla Codigo de Color: Ayudame a crear una carta de colores, en el sistema existira una tabla de colores maestra y de esa tabla maestra nacen cartas de color (una carta de color por cada coleccion), que seran colores que se seleccionan de la tabla maestra y se usan en una o varias colecciones, ejemplo, digamos que la tabla maestra de colores tiene 5000 colores, y que para la carta de colores de una coleccion X, se escogen 210 colores y para una coleccion Y, se escogen 185 colores. Restricciones: Los colores seran unicos, por el codigo, no pueden haber colores repetidos en la tabla maestra ni en la carta de color de una coleccion, si es posible que un color de la tabla maestra se use en varias colecciones. 
+4. Casilla Color: al crear una /ficha-nueva necesito que la carta de colores de la coleccion a la cual se esta intentando crear una nueva referencia, se le carguen los codigos de los colores en la casilla "Codigo de Color" y que el nombre se cargue de manera dinamica en la casilla "Color".
+5. Casilla Referente Base (Opcional): Añadir a las tareas pendientes que la seleccion de un referente sea mas configurable.
+6. Casilla Largo Cms (No existe aun): Agregar una casilla donde se ingresen numeros enteros positivos, es diferente a la casilla "Largo".
+7. Casilla "Crear y Asignar Codigo MD": realmente hace algo?
+

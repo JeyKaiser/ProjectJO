@@ -1,17 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRef } from 'react';
-import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Upload } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Upload, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase, { STORAGE_BUCKET, getImageUrl } from '../lib/supabase';
-import { useFabrics, useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos } from '../lib/api';
+import { useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos } from '../lib/api';
+
+const ROLE_TO_DB_ENUM = {
+  'Diseñador Creativo': 'CREATIVO',
+  'Diseñador Técnico': 'TECNICO',
+  'Trazador': 'TRAZADOR',
+  'Administrador': 'CREATIVO',
+  'Creador de Ficha': 'CREATIVO',
+};
+
+function mapRoleToDB(role) {
+  return ROLE_TO_DB_ENUM[role] || role;
+}
 
 
 export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const { role } = useAuth();
-  const { fabrics } = useFabrics();
-  const { refFabrics, loading: loadingFabrics } = useReferenceFabrics(refId);
-
+  
   const [dbRefId, setDbRefId] = useState(null);
+  const { refFabrics, loading: loadingFabrics } = useReferenceFabrics(dbRefId);
   const [tallas, setTallas] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [localFabrics, setLocalFabrics] = useState([]);
@@ -25,7 +36,16 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [codeSearch, setCodeSearch] = useState('');
+  const [codeSearching, setCodeSearching] = useState(false);
   const fileInputRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  const isSesgo = usoPrenda.toUpperCase().startsWith('SESGO');
+  const [consumoLineal, setConsumoLineal] = useState('');
+  const [anchoSesgo, setAnchoSesgo] = useState('');
+  const [sentidoSesgo, setSentidoSesgo] = useState('');
 
   useEffect(() => {
     setLocalFabrics(refFabrics || []);
@@ -71,15 +91,31 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     setError(null);
     setIsAdding(false);
     setEditingId(null);
+    setCodeSearch('');
+    setConsumoLineal('');
+    setAnchoSesgo('');
+    setSentidoSesgo('');
   }, []);
 
   const handleCodeChange = (code) => {
-    const found = fabrics.find(f => f.code === code);
-    if (found) {
-      setSelectedFabric(found);
-    } else {
-      setSelectedFabric(null);
-    }
+    setCodeSearch(code);
+    setSelectedFabric(null);
+    if (!code || code.trim().length < 3) return;
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setCodeSearching(true);
+      const { data: fabric, error: _ } = await supabase
+        .from('fabrics')
+        .select('id, code, description, width_cm, image_url')
+        .eq('code', code.trim())
+        .maybeSingle();
+
+      if (fabric) {
+        setSelectedFabric(fabric);
+      }
+      setCodeSearching(false);
+    }, 350);
   };
 
   const handleImageUpload = async (e) => {
@@ -119,12 +155,35 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     setIsAdding(true);
   };
 
-  const startEdit = (rf) => {
+  const startEdit = async (rf) => {
     const fab = rf.fabrics;
     setSelectedFabric(fab ? { ...fab, width_cm: fab.width_cm } : null);
     setUsoPrenda(rf.usage || '');
     setEditingId(rf.id);
     setIsAdding(true);
+    setCodeSearch(fab?.code || '');
+
+    const usage = (rf.usage || '').toUpperCase();
+    const dbRole = mapRoleToDB(role);
+    if (usage.startsWith('SESGO')) {
+      const { data: cons } = await supabase
+        .from('consumos')
+        .select('*')
+        .eq('reference_fabric_id', rf.id)
+        .eq('role', dbRole)
+        .order('version', { ascending: false })
+        .limit(1);
+
+      if (cons?.length) {
+        const c = cons[0];
+        setConsumoLineal(c.consumo_valor ? String(c.consumo_valor) : '');
+        const obs = c.observaciones || '';
+        const anchoM = obs.match(/Ancho sesgo:\s*([\d.]+)/);
+        const sentM = obs.match(/Sentido:\s*(.+)/);
+        if (anchoM) setAnchoSesgo(anchoM[1]);
+        if (sentM) setSentidoSesgo(sentM[1]);
+      }
+    }
   };
 
   const handleSave = async () => {
@@ -144,20 +203,58 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
       if (rfErr) throw rfErr;
 
       const refFabricId = rfData.id;
+      const dbRole = mapRoleToDB(role);
 
-      if (Object.keys(consumosValues).length > 0) {
+      if (isSesgo && consumoLineal) {
+        const { data: existing } = await supabase
+          .from('consumos')
+          .select('version')
+          .eq('reference_fabric_id', refFabricId)
+          .eq('role', dbRole)
+          .order('version', { ascending: false })
+          .limit(1);
+
+        const nextVer = (existing?.length > 0) ? existing[0].version + 1 : 1;
+
+        const obsParts = [];
+        if (anchoSesgo) obsParts.push(`Ancho sesgo: ${anchoSesgo} cms`);
+        if (sentidoSesgo) obsParts.push(`Sentido: ${sentidoSesgo}`);
+        await saveConsumos([{
+          reference_id: dbRefId,
+          reference_fabric_id: refFabricId,
+          role: dbRole,
+          tipo_tela: 'SOLIDO',
+          version: nextVer,
+          talla: null,
+          consumo_valor: parseFloat(consumoLineal),
+          unidades: 1,
+          observaciones: obsParts.join(', ') || null,
+          es_final: true,
+        }]);
+      } else if (Object.keys(consumosValues).length > 0) {
+        const { data: existing } = await supabase
+          .from('consumos')
+          .select('version')
+          .eq('reference_fabric_id', refFabricId)
+          .eq('role', dbRole)
+          .order('version', { ascending: false })
+          .limit(1);
+
+        const nextVer = (existing?.length > 0) ? existing[0].version + 1 : 1;
+
         const consumosToSave = Object.entries(consumosValues)
           .filter(([, val]) => val !== '' && val !== null)
           .map(([talla, valor]) => ({
             reference_id: dbRefId,
             reference_fabric_id: refFabricId,
-            role: role,
+            role: dbRole,
             tipo_tela: 'SOLIDO',
-            version: 1,
+            version: nextVer,
             talla,
             consumo_valor: parseFloat(valor),
             unidades: 1,
             observaciones: null,
+            es_final: true,
           }));
 
         if (consumosToSave.length > 0) {
@@ -174,6 +271,9 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
 
       if (freshData) setLocalFabrics(freshData);
 
+      setToast(editingId ? 'Consumo actualizado correctamente' : 'Consumo ingresado correctamente');
+      setTimeout(() => setToast(null), 3500);
+
       resetForm();
     } catch (e) {
       setError(e.message || 'Error al guardar');
@@ -188,11 +288,6 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     if (delErr) return;
     setLocalFabrics(prev => prev.filter(f => f.id !== id));
   };
-
-  const customCodes = [...new Set([
-    ...(selectedFabric?.code ? [selectedFabric.code] : []),
-    ...fabrics.map(f => f.code),
-  ])];
 
   return (
     <div>
@@ -317,12 +412,30 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)', marginBottom: 12 }}>
             <div className="form-group">
               <label className="form-label" style={{ fontSize: 12, fontWeight: 600 }}>Uso en Prenda</label>
-              <input type="text" className="form-input" value={usoPrenda}
-                onChange={(e) => setUsoPrenda(e.target.value)}
-                placeholder="Ej. TELA LUCIR, TELA FORRO..." />
+              <select className="form-select" value={usoPrenda}
+                onChange={(e) => setUsoPrenda(e.target.value)}>
+                <option value="">Selecciona...</option>
+                <option value="TELA LUCIR">TELA LUCIR</option>
+                <option value="TELA LUCIR 2">TELA LUCIR 2</option>
+                <option value="TELA LUCIR 3">TELA LUCIR 3</option>
+                <option value="TELA LUCIR 4">TELA LUCIR 4</option>
+                <option value="TELA FORRO">TELA FORRO</option>
+                <option value="TELA FORRO 2">TELA FORRO 2</option>
+                <option value="TELA FORRO 3">TELA FORRO 3</option>
+                <option value="FUSIONABLE">FUSIONABLE</option>
+                <option value="FUSIONABLE 2">FUSIONABLE 2</option>
+                <option value="SESGO LUCIR">SESGO LUCIR</option>
+                <option value="SESGO LUCIR 2">SESGO LUCIR 2</option>
+                <option value="SESGO LUCIR 3">SESGO LUCIR 3</option>
+                <option value="SESGO FORRO">SESGO FORRO</option>
+                <option value="SESGO FORRO 2">SESGO FORRO 2</option>
+                <option value="SESGO FORRO 3">SESGO FORRO 3</option>
+                <option value="SESGO FUSIONABLE">SESGO FUSIONABLE</option>
+                <option value="SESGO FUSIONABLE 2">SESGO FUSIONABLE 2</option>
+              </select>
             </div>
           </div>
 
@@ -332,19 +445,20 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
               <input
                 type="text"
                 className="form-input"
-                list="fabric-codes-list"
-                value={selectedFabric?.code || ''}
-                onChange={(e) => handleCodeChange(e.target.value)}
-                placeholder="Buscar codigo..."
+                value={codeSearch}
+                onChange={(e) => handleCodeChange(e.target.value.toUpperCase())}
+                placeholder="Ej. TE00002103"
                 autoComplete="off"
               />
-              <datalist id="fabric-codes-list">
-                {customCodes.map(code => (
-                  <option key={code} value={code}>
-                    {fabrics.find(f => f.code === code)?.description || code}
-                  </option>
-                ))}
-              </datalist>
+              {codeSearch.length >= 3 && codeSearching && (
+                <span className="form-help" style={{ color: 'var(--primary-500)' }}>Buscando...</span>
+              )}
+              {codeSearch.length >= 3 && !codeSearching && !selectedFabric && (
+                <span className="form-help" style={{ color: 'var(--error)' }}>Codigo no encontrado en el catalogo</span>
+              )}
+              {codeSearch.length >= 3 && !codeSearching && selectedFabric && (
+                <span className="form-help" style={{ color: 'var(--success)' }}>Tela encontrada</span>
+              )}
             </div>
 
             <div className="form-group">
@@ -360,7 +474,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
             </div>
           </div>
 
-          {selectedFabric && tallas.length > 0 && (
+          {selectedFabric && !isSesgo && tallas.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <label className="form-label" style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'block' }}>
                 Consumos ({role})
@@ -387,6 +501,40 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
             </div>
           )}
 
+          {selectedFabric && isSesgo && (
+            <div style={{ marginTop: 16, padding: 'var(--space-4)', background: 'var(--warning-light)', borderRadius: 'var(--radius-md)', border: '1px solid var(--warning)' }}>
+              <label className="form-label" style={{ fontSize: 12, fontWeight: 600, marginBottom: 12, display: 'block', color: 'var(--warning-dark)' }}>
+                Detalles del Sesgo ({role})
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: 11, fontWeight: 600 }}>Consumo Lineal (mts)</label>
+                  <input type="number" step="0.01" min="0" className="form-input"
+                    value={consumoLineal}
+                    onChange={(e) => setConsumoLineal(e.target.value)}
+                    placeholder="Ej. 1.38" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: 11, fontWeight: 600 }}>Ancho Sesgo (cms)</label>
+                  <input type="number" step="0.1" min="0" className="form-input"
+                    value={anchoSesgo}
+                    onChange={(e) => setAnchoSesgo(e.target.value)}
+                    placeholder="Ej. 3" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontSize: 11, fontWeight: 600 }}>Sentido</label>
+                  <select className="form-select" value={sentidoSesgo}
+                    onChange={(e) => setSentidoSesgo(e.target.value)}>
+                    <option value="">Selecciona...</option>
+                    <option value="AL HILO">AL HILO</option>
+                    <option value="A TRAVEZ">A TRAVEZ</option>
+                    <option value="AL SESGO">AL SESGO</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 20, justifyContent: 'flex-end' }}>
             <button className="btn btn-secondary" onClick={resetForm}>
               Cancelar
@@ -397,6 +545,19 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
               {saving ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+          background: 'var(--success)', color: 'white', padding: '12px 20px',
+          borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)', fontSize: 14, fontWeight: 600,
+          animation: 'fadeInUp 0.3s ease',
+        }}>
+          <CheckCircle size={18} />
+          {toast}
         </div>
       )}
     </div>

@@ -157,11 +157,14 @@ export function useDashboardData() {
         // Fetch references
         const { data: refs, error: refErr } = await supabase
           .from('references')
-          .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, created_at');
+          .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), reference_type, complejidad_corte_id, complejidad_confeccion_id, created_at');
 
         if (refErr) throw refErr;
 
         if (cancelled) return;
+
+        const refIds = (refs || []).map(r => r.id);
+        const codeMap = await resolveReferenceCodes(refIds);
 
         // Mapa rápido: collection_id -> years
         const yearsByCollection = {};
@@ -193,33 +196,37 @@ export function useDashboardData() {
                     : r.has_all_over ? 'All Over'
                     : 'Solida';
 
+                  const rcCodes = codeMap[r.id] || {};
                   return {
                     id: `REF-${r.reference_number}`,
                     dbId: r.id,
-                    codigoMD: `MD-${String(r.reference_number).padStart(3, '0')}`,
-                    codigoPT: `PT03${String(r.reference_number).padStart(3, '0')}`,
+                    codigoMD: rcCodes.MD || `MD-${String(r.reference_number).padStart(3, '0')}`,
+                    codigoPT: rcCodes.PT || `PT03${String(r.reference_number).padStart(3, '0')}`,
+                    mdAssigned: !!rcCodes.MD,
+                    ptAssigned: !!rcCodes.PT,
                     nombre: r.name,
-                    tipoPrenda: col.name || '',
-                    color: '',
-                    codigoColor: '',
+                    tipoPrenda: r.reference_type || col.name || '',
+                    color: r.color || '',
+                    codigoColor: r.color_code || '',
                     imagen: r.main_image_url || null,
                     linea: '',
                     sublinea: '',
-                    tallaje: '',
-                    largo: '',
+                    tallaje: r.tallaje_groups?.name || '',
+                    largo: r.length_description || '',
+                    largoCms: r.length_cm || '',
                     closure: '',
                     faseActual: sf,
                     subfaseNombre: getProcesoNombre(sf),
                     responsable: '',
                     tiempoFase: '',
                     clasificacion,
-                    prioridadFirstBuy: r.drop_entrega || '',
+                    prioridadFirstBuy: r.priority_first_buy || '',
                     dropEntrega: r.drop_entrega || '',
-                    enviarMaquila: false,
+                    enviarMaquila: r.envio_confeccion_maquila || false,
                     complejidadCorte: '',
                     complejidadConfeccion: '',
                     tieneBordado: r.has_embroidery || false,
-                    tieneSemielaborado: false,
+                    tieneSemielaborado: r.has_semielaborated || false,
                     montajeManiqui: '',
                     tirasContinuas: false,
                     includes: '',
@@ -261,26 +268,29 @@ export function useDashboardData() {
                       : r.has_trace_location ? 'Ubicacion Trazo'
                       : r.has_all_over ? 'All Over'
                       : 'Solida';
+                    const fcCodes = codeMap[r.id] || {};
                     return {
                       id: `REF-${r.reference_number}`,
                       dbId: r.id,
-                      codigoMD: `MD-${String(r.reference_number).padStart(3, '0')}`,
-                      codigoPT: `PT03${String(r.reference_number).padStart(3, '0')}`,
+                      codigoMD: fcCodes.MD || `MD-${String(r.reference_number).padStart(3, '0')}`,
+                      codigoPT: fcCodes.PT || `PT03${String(r.reference_number).padStart(3, '0')}`,
+                      mdAssigned: !!fcCodes.MD,
+                      ptAssigned: !!fcCodes.PT,
                       nombre: r.name,
-                      tipoPrenda: col.name || '',
-                      color: '', codigoColor: '',
+                      tipoPrenda: r.reference_type || col.name || '',
+                      color: r.color || '', codigoColor: r.color_code || '',
                       imagen: r.main_image_url || null,
-                      linea: '', sublinea: '', tallaje: '', largo: '', closure: '',
+                      linea: '', sublinea: '', tallaje: r.tallaje_groups?.name || '', largo: r.length_description || '', largoCms: r.length_cm || '', closure: '',
                       faseActual: sf,
                       subfaseNombre: getProcesoNombre(sf),
                       responsable: '', tiempoFase: '',
                       clasificacion,
-                      prioridadFirstBuy: r.drop_entrega || '',
+                      prioridadFirstBuy: r.priority_first_buy || '',
                       dropEntrega: r.drop_entrega || '',
-                      enviarMaquila: false,
+                      enviarMaquila: r.envio_confeccion_maquila || false,
                       complejidadCorte: '', complejidadConfeccion: '',
                       tieneBordado: r.has_embroidery || false,
-                      tieneSemielaborado: false,
+                      tieneSemielaborado: r.has_semielaborated || false,
                       montajeManiqui: '', tirasContinuas: false,
                       includes: '', tipoEmpaque: '',
                       isHidden: r.is_hidden || false,
@@ -363,14 +373,19 @@ export function useReferenciaDetalle(refId) {
 
         if (cancelled) return;
 
+        const codeMap = await resolveReferenceCodes(refData.id);
+        const rcCodes = codeMap[refData.id] || {};
+
         const sf = STATUS_TO_SUBFASE[refData.status_id] || 1.1;
         const fm = getFaseMacro(sf);
 
         setRef({
           ...refData,
           id: refId,
-          codigoMD: `MD-${String(refData.reference_number).padStart(3, '0')}`,
-          codigoPT: `PT03${String(refData.reference_number).padStart(3, '0')}`,
+          codigoMD: rcCodes.MD || `MD-${String(refData.reference_number).padStart(3, '0')}`,
+          codigoPT: rcCodes.PT || `PT03${String(refData.reference_number).padStart(3, '0')}`,
+          mdAssigned: !!rcCodes.MD,
+          ptAssigned: !!rcCodes.PT,
           faseActual: sf,
           subfaseNombre: getProcesoNombre(sf),
           coleccionNombre: refData.collections?.name || '',
@@ -548,10 +563,17 @@ export async function saveConsumos(consumosArray) {
           unidades: c.unidades,
           consumo_valor: c.consumo_valor,
           observaciones: c.observaciones,
+          es_final: c.es_final || false,
+          registrado_por: c.registrado_por || null,
         })
         .select('*')
         .single();
-      if (!error) results.push(data);
+      if (!error) {
+        results.push(data);
+      } else {
+        console.error('saveConsumos error:', error);
+        throw error;
+      }
     }
   }
   return results;
@@ -632,7 +654,7 @@ export async function createReference(data) {
   const {
     collection_id, year, reference_number, name, color, color_code,
     reference_type, line_id, subline_id, tallaje_group_id,
-    length_description, closure_type_id, package_type_id,
+    length_description, length_cm, closure_type_id, package_type_id,
     has_art_modification, has_trace_location, has_all_over,
     has_embroidery, has_semielaborated,
     complejidad_corte_id, complejidad_confeccion_id,
@@ -647,7 +669,7 @@ export async function createReference(data) {
       collection_id, year, reference_number, name, color, color_code,
       reference_type: reference_type || 'SILUETA',
       line_id, subline_id, tallaje_group_id,
-      length_description, closure_type_id, package_type_id,
+      length_description, length_cm, closure_type_id, package_type_id,
       has_art_modification: has_art_modification || false,
       has_trace_location: has_trace_location || false,
       has_all_over: has_all_over || false,
@@ -797,6 +819,7 @@ export async function createTrazo(data) {
       fecha_fin: data.fecha_fin,
       trazador_id: data.trazador_id,
       observaciones: data.observaciones,
+      estado: data.estado || 'activo',
     })
     .select('*')
     .single();
@@ -821,6 +844,7 @@ export async function updateTrazo(id, data) {
       fecha_fin: data.fecha_fin,
       trazador_id: data.trazador_id,
       observaciones: data.observaciones,
+      estado: data.estado || 'activo',
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -862,6 +886,133 @@ export function useComparativo(refId) {
   }, [refId]);
 
   return { comparativo, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hooks: Colores (Catalogo maestro + Carta por coleccion)
+// ═══════════════════════════════════════════════════════════════
+
+export function useAllColors() {
+  const [colors, setColors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('colors')
+        .select('*')
+        .eq('active', true)
+        .order('code');
+      if (!error && !cancelled) setColors(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  return { colors, loading };
+}
+
+export function useCollectionColors(collectionId) {
+  const [colors, setColors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!collectionId) { setColors([]); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('collection_colors')
+        .select('id, colors(id, code, name, hex)')
+        .eq('collection_id', collectionId)
+        .eq('is_hidden', false)
+        .order('id');
+      if (!error && !cancelled) {
+        setColors((data || []).map(cc => cc.colors).filter(Boolean));
+      }
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [collectionId]);
+
+  return { colors, loading };
+}
+
+export function useColorLookup(code) {
+  const [color, setColor] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!code || code.trim().length === 0) { setColor(null); setLoading(false); return; }
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('colors')
+        .select('code, name')
+        .eq('code', code.trim())
+        .maybeSingle();
+      if (!cancelled) {
+        setColor(error || !data ? null : data);
+        setLoading(false);
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timeout); };
+  }, [code]);
+
+  return { color, loading };
+}
+
+export async function addColorToCollection(collectionId, colorId) {
+  return supabase
+    .from('collection_colors')
+    .insert({ collection_id: collectionId, color_id: colorId })
+    .select('*')
+    .single();
+}
+
+export async function removeColorFromCollection(id) {
+  return supabase
+    .from('collection_colors')
+    .update({ is_hidden: true })
+    .eq('id', id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hook: useSearchReferences — busqueda de referencias para selector de referente
+// ═══════════════════════════════════════════════════════════════
+
+export function useSearchReferences(searchTerm, collectionId) {
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!searchTerm || searchTerm.length < 2) { setResults([]); return; }
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      setLoading(true);
+      let query = supabase
+        .from('references')
+        .select('id, reference_number, name, color, collection_id, collections(name, code)')
+        .ilike('name', `%${searchTerm}%`)
+        .eq('is_hidden', false)
+        .order('reference_number')
+        .limit(20);
+
+      if (collectionId) query = query.eq('collection_id', collectionId);
+
+      const { data, error } = await query;
+      if (!cancelled) {
+        if (!error) setResults(data || []);
+        setLoading(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timeout); };
+  }, [searchTerm, collectionId]);
+
+  return { results, loading };
 }
 
 export async function saveComparativo(data) {
@@ -921,4 +1072,314 @@ export async function saveComparativo(data) {
     })
     .select('*')
     .single();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hook: useReferenciaDB — fetch full reference from DB
+// ═══════════════════════════════════════════════════════════════
+
+export function useReferenciaDB(dbRefId) {
+  const [refDb, setRefDb] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!dbRefId) { setRefDb(null); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('references')
+        .select('*')
+        .eq('id', dbRefId)
+        .single();
+
+      if (!error && !cancelled) setRefDb(data);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [dbRefId]);
+
+  return { refDb, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Code Management: resolve codes from DB or derive as fallback
+// ═══════════════════════════════════════════════════════════════
+
+function deriveMD(refNumber) {
+  return `MD-${String(refNumber).padStart(3, '0')}`;
+}
+function derivePT(refNumber) {
+  return `PT03${String(refNumber).padStart(3, '0')}`;
+}
+
+export async function resolveReferenceCodes(referenceIds) {
+  const ids = Array.isArray(referenceIds) ? referenceIds : [referenceIds];
+  if (ids.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('reference_codes')
+    .select('reference_id, code_type, code, active')
+    .in('reference_id', ids)
+    .eq('active', true);
+
+  if (error || !data) return {};
+
+  const map = {};
+  data.forEach(rc => {
+    if (!map[rc.reference_id]) map[rc.reference_id] = {};
+    map[rc.reference_id][rc.code_type] = rc.code;
+  });
+  return map;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hook: useReferenceCodes — fetch official codes for a single reference
+// ═══════════════════════════════════════════════════════════════
+
+export function useReferenceCodes(dbRefId, referenceNumber) {
+  const [codes, setCodes] = useState({ md: null, pt: null, mdStatus: 'DERIVADO', ptStatus: 'DERIVADO' });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!dbRefId) { setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('reference_codes')
+        .select('code_type, code, active')
+        .eq('reference_id', dbRefId)
+        .eq('active', true);
+
+      if (cancelled) return;
+      if (error) { setLoading(false); return; }
+
+      const mdRow = (data || []).find(r => r.code_type === 'MD');
+      const ptRow = (data || []).find(r => r.code_type === 'PT');
+
+      const num = referenceNumber || '';
+      setCodes({
+        md: mdRow ? mdRow.code : deriveMD(num),
+        pt: ptRow ? ptRow.code : derivePT(num),
+        mdDbId: mdRow ? mdRow : null,
+        ptDbId: ptRow ? ptRow : null,
+        mdStatus: mdRow ? 'ASIGNADO' : 'DERIVADO',
+        ptStatus: ptRow ? 'ASIGNADO' : 'DERIVADO',
+      });
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [dbRefId, referenceNumber]);
+
+  return { codes, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hook: useCodePool — admin panel code catalog
+// ═══════════════════════════════════════════════════════════════
+
+export function useCodePool(filters = {}) {
+  const [codes, setCodes] = useState([]);
+  const [stats, setStats] = useState({ total: 0, disponible: 0, asignado: 0, reservado: 0, retirado: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let query = supabase.from('code_pool').select('*', { count: 'exact' });
+
+      if (filters.codeType) query = query.eq('code_type', filters.codeType);
+      if (filters.status) query = query.eq('status', filters.status);
+      if (filters.prefix) query = query.ilike('code', `${filters.prefix}%`);
+      if (filters.search) query = query.ilike('code', `%${filters.search}%`);
+
+      query = query.order('code_type').order('code');
+
+      if (filters.limit) query = query.limit(filters.limit);
+      else query = query.limit(500);
+
+      const { data, error, count } = await query;
+      if (cancelled) return;
+      if (!error) setCodes(data || []);
+
+      // Stats
+      const { data: statsData } = await supabase
+        .from('code_pool')
+        .select('status');
+
+      if (!cancelled && statsData) {
+        setStats({
+          total: statsData.length,
+          disponible: statsData.filter(s => s.status === 'DISPONIBLE').length,
+          asignado: statsData.filter(s => s.status === 'ASIGNADO').length,
+          reservado: statsData.filter(s => s.status === 'RESERVADO').length,
+          retirado: statsData.filter(s => s.status === 'RETIRADO').length,
+        });
+      }
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [filters.codeType, filters.status, filters.prefix, filters.search, filters.limit]);
+
+  return { codes, stats, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hook: useCodeLog — audit trail
+// ═══════════════════════════════════════════════════════════════
+
+export function useCodeLog(filters = {}) {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let query = supabase
+        .from('code_log')
+        .select('*')
+        .order('changed_at', { ascending: false });
+
+      if (filters.referenceId) query = query.eq('reference_id', filters.referenceId);
+      if (filters.codeType) query = query.eq('code_type', filters.codeType);
+      if (filters.action) query = query.eq('action', filters.action);
+      if (filters.limit) query = query.limit(filters.limit);
+      else query = query.limit(200);
+
+      const { data, error } = await query;
+      if (cancelled) return;
+      if (!error) setLogs(data || []);
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [filters.referenceId, filters.codeType, filters.action, filters.limit]);
+
+  return { logs, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hook: useReferencesWithCodeStatus — admin panel: all refs with code info
+// ═══════════════════════════════════════════════════════════════
+
+export function useReferencesWithCodeStatus(collectionId = null) {
+  const [references, setReferences] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let refQuery = supabase
+        .from('references')
+        .select('id, reference_number, name, collection_id, is_hidden, collections(code, name)')
+        .eq('is_hidden', false)
+        .order('reference_number');
+
+      if (collectionId) refQuery = refQuery.eq('collection_id', collectionId);
+
+      const { data: refs, error: refErr } = await refQuery;
+      if (refErr || cancelled) { if (!cancelled) setLoading(false); return; }
+
+      const refIds = (refs || []).map(r => r.id);
+
+      const codeMap = await resolveReferenceCodes(refIds);
+
+      const result = (refs || []).map(r => {
+        const codes = codeMap[r.id] || {};
+        return {
+          id: r.id,
+          referenceNumber: r.reference_number,
+          name: r.name,
+          collectionId: r.collection_id,
+          collectionCode: r.collections?.code || '',
+          collectionName: r.collections?.name || '',
+          codigoMD: codes.MD || deriveMD(r.reference_number),
+          codigoPT: codes.PT || derivePT(r.reference_number),
+          mdStatus: codes.MD ? 'ASIGNADO' : 'DERIVADO',
+          ptStatus: codes.PT ? 'ASIGNADO' : 'DERIVADO',
+        };
+      });
+
+      if (!cancelled) {
+        setReferences(result);
+        setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [collectionId]);
+
+  return { references, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Functions: assign / unassign / bulk derive codes
+// ═══════════════════════════════════════════════════════════════
+
+export async function assignCode(refDbId, codeType, code, assignedBy = 'admin', notes = '') {
+  return supabase
+    .from('reference_codes')
+    .upsert({
+      reference_id: refDbId,
+      code_type: codeType,
+      code,
+      assigned_by: assignedBy,
+      notes,
+      active: true,
+    }, { onConflict: 'reference_id,code_type' })
+    .select('*')
+    .single();
+}
+
+export async function unassignCode(refDbId, codeType, assignedBy = 'admin') {
+  return supabase
+    .from('reference_codes')
+    .update({ active: false, assigned_by: assignedBy })
+    .eq('reference_id', refDbId)
+    .eq('code_type', codeType)
+    .eq('active', true);
+}
+
+export async function bulkDeriveCodes(collectionId, assignedBy = 'admin') {
+  const { data: refs, error } = await supabase
+    .from('references')
+    .select('id, reference_number')
+    .eq('collection_id', collectionId)
+    .eq('is_hidden', false);
+
+  if (error || !refs) return { error, count: 0 };
+
+  const codeMap = await resolveReferenceCodes(refs.map(r => r.id));
+  const inserts = [];
+
+  refs.forEach(r => {
+    const existing = codeMap[r.id] || {};
+    if (!existing.MD) {
+      inserts.push({ reference_id: r.id, code_type: 'MD', code: deriveMD(r.reference_number), assigned_by: assignedBy, active: true });
+    }
+    if (!existing.PT) {
+      inserts.push({ reference_id: r.id, code_type: 'PT', code: derivePT(r.reference_number), assigned_by: assignedBy, active: true });
+    }
+  });
+
+  if (inserts.length === 0) return { count: 0 };
+
+  const { error: insErr } = await supabase.from('reference_codes').insert(inserts);
+  return { error: insErr, count: inserts.length };
+}
+
+export async function generateCodePoolRanges(ranges) {
+  const results = [];
+  for (const range of ranges) {
+    const { data, error } = await supabase.rpc('generate_code_pool', {
+      p_prefix: range.prefix,
+      p_code_type: range.codeType,
+      p_start: range.start,
+      p_end: range.end,
+    });
+    results.push({ range, data, error });
+  }
+  return results;
 }
