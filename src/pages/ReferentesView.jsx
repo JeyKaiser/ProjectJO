@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   useTiposPrenda,
   useCantidadesTelas,
@@ -14,7 +15,8 @@ import supabase from '../lib/supabase';
 import { Search, Copy, FileText, Upload, Plus, Check, X, ChevronLeft, Layers, Tag, Camera } from 'lucide-react';
 
 export default function ReferentesView() {
-  const [activeTab, setActiveTab] = useState('consulta');
+  const [activeTab, setActiveTab] = useState('catalogo');
+  const { isAdmin } = useAuth();
 
   return (
     <div className="fade-in">
@@ -24,15 +26,15 @@ export default function ReferentesView() {
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-6)', borderBottom: '2px solid var(--gray-200)', marginBottom: 'var(--space-6)' }}>
-        <button onClick={() => setActiveTab('consulta')} style={tabStyle(activeTab === 'consulta')}>Consulta de Consumo</button>
         <button onClick={() => setActiveTab('catalogo')} style={tabStyle(activeTab === 'catalogo')}>Catálogo de Referentes</button>
+        <button onClick={() => setActiveTab('consulta')} style={tabStyle(activeTab === 'consulta')}>Consulta de Consumo</button>
         <button onClick={() => setActiveTab('admin')} style={tabStyle(activeTab === 'admin')}>Administración</button>
       </div>
 
       <div className="tab-content">
+        {activeTab === 'catalogo' && <CatalogoTab isAdmin={isAdmin} />}
         {activeTab === 'consulta' && <ConsultaTab />}
-        {activeTab === 'catalogo' && <CatalogoTab />}
-        {activeTab === 'admin' && <AdminTab />}
+        {activeTab === 'admin' && <AdminTab isAdmin={isAdmin} />}
       </div>
     </div>
   );
@@ -196,7 +198,7 @@ function BuscarConsumoResultado({ tipoPrenda, cantidadTelas, variante, tela, uso
 // TAB 2: Catálogo de Referentes (drill-down 3 niveles)
 // ═══════════════════════════════════════════════════════════════
 
-function CatalogoTab() {
+function CatalogoTab({ isAdmin }) {
   const [nivel, setNivel] = useState(1);
   const [tipoSeleccionado, setTipoSeleccionado] = useState(null);
   const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
@@ -224,12 +226,12 @@ function CatalogoTab() {
 
       {/* NIVEL 1: Tipos de Prenda */}
       {nivel === 1 && (
-        <NivelTiposPrenda tipos={tipos} loading={loadingTipos} onSelect={goToTipo} />
+        <NivelTiposPrenda tipos={tipos} loading={loadingTipos} onSelect={goToTipo} isAdmin={isAdmin} />
       )}
 
       {/* NIVEL 2: Grupos (cantidad_telas + variante) */}
       {nivel === 2 && (
-        <NivelGrupos tipoPrenda={tipoSeleccionado} grupos={grupos} loading={loadingGrupos} onSelect={goToGrupo} />
+        <NivelGrupos tipoPrenda={tipoSeleccionado} grupos={grupos} loading={loadingGrupos} onSelect={goToGrupo} isAdmin={isAdmin} />
       )}
 
       {/* NIVEL 3: Tabla de filas */}
@@ -240,20 +242,20 @@ function CatalogoTab() {
   );
 }
 
-function NivelTiposPrenda({ tipos, loading, onSelect }) {
+function NivelTiposPrenda({ tipos, loading, onSelect, isAdmin }) {
   if (loading) return <p style={{ color: 'var(--gray-500)' }}>Cargando...</p>;
   if (tipos.length === 0) return <p style={{ color: 'var(--gray-500)' }}>No hay tipos de prenda registrados.</p>;
 
   return (
     <div className="grid grid-cols-3">
       {tipos.map(tipo => (
-        <TipoPrendaCard key={tipo} tipo={tipo} onSelect={onSelect} />
+        <TipoPrendaCard key={tipo} tipo={tipo} onSelect={onSelect} isAdmin={isAdmin} />
       ))}
     </div>
   );
 }
 
-function TipoPrendaCard({ tipo, onSelect }) {
+function TipoPrendaCard({ tipo, onSelect, isAdmin }) {
   const { fotoUrl, reload } = useReferentPhoto(tipo, null, null);
   const fileRef = useRef(null);
 
@@ -269,24 +271,26 @@ function TipoPrendaCard({ tipo, onSelect }) {
   };
 
   return (
-    <div className="card" onClick={(e) => { if (e.target.closest('.photo-zone')) return; onSelect(tipo); }} style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow var(--transition-fast)' }}
+    <div className="card" onClick={(e) => { if (e.target.closest('.photo-zone') && isAdmin) return; onSelect(tipo); }} style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow var(--transition-fast)' }}
       onMouseOver={e => { e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
       onMouseOut={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
       <div className="photo-zone" style={{ height: '140px', background: 'var(--gray-100)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {fotoUrl ? (
           <img src={fotoUrl} alt={tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
+        ) : isAdmin ? (
           <button onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} style={{ background: 'var(--white)', border: '2px dashed var(--gray-300)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-1)' }}>
             <Camera size={20} style={{ color: 'var(--gray-400)' }} />
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)' }}>Subir foto</span>
           </button>
+        ) : (
+          <span style={{ color: 'var(--gray-400)', fontSize: 'var(--text-sm)' }}>Sin imagen</span>
         )}
-        {fotoUrl && (
+        {fotoUrl && isAdmin && (
           <button onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 'var(--radius-md)', padding: 'var(--space-1) var(--space-2)', cursor: 'pointer', color: 'var(--white)', fontSize: 'var(--text-xs)' }}>
             <Camera size={12} style={{ marginRight: '4px' }} /> Cambiar
           </button>
         )}
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />
+        {isAdmin && <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />}
       </div>
       <div style={{ padding: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
@@ -301,7 +305,7 @@ function TipoPrendaCard({ tipo, onSelect }) {
   );
 }
 
-function NivelGrupos({ tipoPrenda, grupos, loading, onSelect }) {
+function NivelGrupos({ tipoPrenda, grupos, loading, onSelect, isAdmin }) {
   if (loading) return <p style={{ color: 'var(--gray-500)' }}>Cargando...</p>;
   if (grupos.length === 0) return <p style={{ color: 'var(--gray-500)' }}>No hay variantes para "{tipoPrenda}".</p>;
 
@@ -312,14 +316,14 @@ function NivelGrupos({ tipoPrenda, grupos, loading, onSelect }) {
       </p>
       <div className="grid grid-cols-3">
         {grupos.map((g, idx) => (
-          <GrupoCard key={idx} tipoPrenda={tipoPrenda} grupo={g} onSelect={onSelect} />
+          <GrupoCard key={idx} tipoPrenda={tipoPrenda} grupo={g} onSelect={onSelect} isAdmin={isAdmin} />
         ))}
       </div>
     </div>
   );
 }
 
-function GrupoCard({ tipoPrenda, grupo, onSelect }) {
+function GrupoCard({ tipoPrenda, grupo, onSelect, isAdmin }) {
   const { fotoUrl, reload } = useReferentPhoto(tipoPrenda, grupo.cantidad_telas, grupo.variante);
   const fileRef = useRef(null);
 
@@ -335,24 +339,26 @@ function GrupoCard({ tipoPrenda, grupo, onSelect }) {
   };
 
   return (
-    <div className="card" onClick={(e) => { if (e.target.closest('.photo-zone')) return; onSelect(grupo); }} style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow var(--transition-fast)' }}
+    <div className="card" onClick={(e) => { if (e.target.closest('.photo-zone') && isAdmin) return; onSelect(grupo); }} style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow var(--transition-fast)' }}
       onMouseOver={e => { e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
       onMouseOut={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
       <div className="photo-zone" style={{ height: '110px', background: 'var(--gray-100)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {fotoUrl ? (
           <img src={fotoUrl} alt={`${tipoPrenda} - ${grupo.cantidad_telas}T V${grupo.variante}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
+        ) : isAdmin ? (
           <button onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} style={{ background: 'var(--white)', border: '2px dashed var(--gray-300)', borderRadius: 'var(--radius-lg)', padding: 'var(--space-2)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-1)' }}>
             <Camera size={16} style={{ color: 'var(--gray-400)' }} />
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--gray-400)' }}>Subir foto</span>
           </button>
+        ) : (
+          <span style={{ color: 'var(--gray-400)', fontSize: 'var(--text-xs)' }}>Sin imagen</span>
         )}
-        {fotoUrl && (
+        {fotoUrl && isAdmin && (
           <button onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: 'var(--radius-md)', padding: '2px var(--space-2)', cursor: 'pointer', color: 'var(--white)', fontSize: 'var(--text-xs)' }}>
             <Camera size={10} style={{ marginRight: '2px' }} /> Cambiar
           </button>
         )}
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />
+        {isAdmin && <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUpload} />}
       </div>
       <div style={{ padding: 'var(--space-4)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
@@ -416,7 +422,16 @@ function NivelFilas({ tipoPrenda, grupo, filas, loading }) {
 // TAB 3: Administración (formulario plano + CSV import)
 // ═══════════════════════════════════════════════════════════════
 
-function AdminTab() {
+function AdminTab({ isAdmin }) {
+  if (!isAdmin) {
+    return (
+      <div className="card fade-in" style={{ textAlign: 'center', padding: 'var(--space-10)' }}>
+        <h3 style={{ color: 'var(--gray-500)' }}>Acceso Restringido</h3>
+        <p style={{ color: 'var(--gray-400)' }}>Solo el administrador puede gestionar referentes.</p>
+      </div>
+    );
+  }
+
   const [showForm, setShowForm] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
