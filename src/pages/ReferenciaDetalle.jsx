@@ -9,6 +9,15 @@ import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
 import SeccionColapsable from '../components/SeccionColapsable';
 import styles from './ReferenciaDetalle.module.css';
 
+const STATUS_COLORS = {
+  'APROBADO': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
+  'CANCELADO': { bg: '#f1f5f9', border: '#94a3b8', text: '#475569' },
+  'EN_PROCESO': { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
+  'PAQUETE_COMPLETO': { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
+  'RECHAZADO': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+  'PENDIENTE': { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+};
+
 
 function EstadoBadge({ estado }) {
   const map = {
@@ -114,6 +123,7 @@ export default function ReferenciaDetalle() {
   const [editForm, setEditForm] = useState({});
   const [editSaving, setEditSaving] = useState(false);
   const [tallajeOptions, setTallajeOptions] = useState([]);
+  const [statusOptions, setStatusOptions] = useState([]);
   const { refDb, loading: refDbLoading } = useReferenciaDB(ref?.dbId);
 
   const canEdit = isAdmin || isCreadorFicha;
@@ -121,11 +131,12 @@ export default function ReferenciaDetalle() {
   const openEditModal = async () => {
     if (!ref?.dbId) return;
 
-    const { data: tallajes } = await supabase
-      .from('tallaje_groups')
-      .select('id, name')
-      .order('id');
-    setTallajeOptions(tallajes || []);
+    const [tallajesRes, statusesRes] = await Promise.all([
+      supabase.from('tallaje_groups').select('id, name').order('id'),
+      supabase.from('reference_statuses').select('id, status').eq('active', true).order('id'),
+    ]);
+    setTallajeOptions(tallajesRes.data || []);
+    setStatusOptions(statusesRes.data || []);
 
     const { data: refData } = await supabase
       .from('references')
@@ -151,6 +162,7 @@ export default function ReferenciaDetalle() {
         envio_confeccion_maquila: refData.envio_confeccion_maquila || false,
         has_art_modification: refData.has_art_modification || false,
         has_trace_location: refData.has_trace_location || false,
+        status_id: refData.status_id || '',
         codigoMD: ref.codigoMD || '',
         codigoPT: ref.codigoPT || '',
       });
@@ -168,6 +180,7 @@ export default function ReferenciaDetalle() {
       if (payload.complejidad_confeccion_id === '') payload.complejidad_confeccion_id = null;
       if (!payload.length_cm) payload.length_cm = null;
       if (!payload.priority_first_buy) payload.priority_first_buy = null;
+      if (payload.status_id === '') payload.status_id = null;
 
       const { error: err } = await updateReference(ref.dbId, payload);
       if (err) throw err;
@@ -224,7 +237,7 @@ export default function ReferenciaDetalle() {
             <ChevronRight size={14} className="breadcrumb-separator" />
             <Link to={`/colecciones/${seasonCode || coleccion?.season?.toLowerCase()}/${coleccionId}/${anio}`} className="breadcrumb-link">{anio}</Link>
             <ChevronRight size={14} className="breadcrumb-separator" />
-            <span className="breadcrumb-current">{ref.codigoMD}</span>
+            <span className="breadcrumb-current">#{ref.codigoMD.replace('MD-', '')}</span>
           </nav>
 
       {/* Header Fijo de la Referencia */}
@@ -233,6 +246,10 @@ export default function ReferenciaDetalle() {
           {/* Códigos y nombre */}
           <div className={styles.headerInfo}>
             <div className={styles.codes}>
+              <span style={{ fontSize: 40, fontWeight: 900, color: 'var(--gray-900)', lineHeight: 1, marginRight: 40 }}>
+                {/* {ref.codigoMD.replace('MD-0', '')} */}
+                {ref.id.replace('REF-', '')}
+              </span>
               <span className="code-badge code-md" style={{ fontSize: 14, padding: '4px 12px' }}>
                 {ref.codigoMD}
                 {isAdmin && ref.mdAssigned && <span title="ASIGNADO (oficial)" style={{ marginLeft: 4, color: '#22c55e', fontSize: 10 }}>●</span>}
@@ -246,6 +263,16 @@ export default function ReferenciaDetalle() {
               <span style={{ background: `var(--temp-${faseMacro.tempVar})`, color: `var(--temp-${faseMacro.tempVar}-text)`, padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, border: `1px solid var(--temp-${faseMacro.tempVar}-border)` }}>
                 {ref.clasificacion}
               </span>
+              {ref.status && (
+                <span style={{
+                  padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700,
+                  background: STATUS_COLORS[ref.status]?.bg || 'var(--gray-100)',
+                  color: STATUS_COLORS[ref.status]?.text || 'var(--gray-600)',
+                  border: `1px solid ${STATUS_COLORS[ref.status]?.border || 'var(--gray-300)'}`,
+                }}>
+                  {ref.status.replace('_', ' ')}
+                </span>
+              )}
               {isHidden && (
                 <span style={{ background: 'var(--gray-200)', color: 'var(--gray-500)', padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   <EyeOff size={12} /> Oculta
@@ -690,6 +717,18 @@ export default function ReferenciaDetalle() {
                   </select>
                   <span className="form-help">Requerido para ingresar consumos por talla.</span>
                 </div>
+                {canEdit && (
+                  <div className="form-group">
+                    <label className="form-label">Estado de la Referencia</label>
+                    <select className="form-select" value={editForm.status_id || ''}
+                      onChange={e => setEditForm(prev => ({ ...prev, status_id: e.target.value ? parseInt(e.target.value) : '' }))}>
+                      <option value="">Sin cambiar</option>
+                      {statusOptions.map(s => (
+                        <option key={s.id} value={s.id}>{s.status.replace('_', ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {/* MD / PT — solo admin */}
                 {isAdmin && (
                   <>

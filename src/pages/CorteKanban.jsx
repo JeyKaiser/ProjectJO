@@ -71,7 +71,7 @@ export default function CorteKanban() {
   const [solicitanteManual, setSolicitanteManual] = useState(false);
 
   useEffect(() => {
-    supabase.from('collections').select('id,code,name').order('id').then(({ data }) => {
+    supabase.from('collections').select('id,code,name').eq('active', true).order('id').then(({ data }) => {
       if (data) setCollections(data);
     });
   }, []);

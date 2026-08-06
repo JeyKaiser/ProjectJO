@@ -345,6 +345,39 @@ CREATE TABLE jo.references_referents (
 );
 
 -- ===========================================================================
+-- 6.1 CATÁLOGO DE REFERENTES — tabla plana con 11 campos
+--     Cada fila = combinación única tipo_prenda + cant_telas + variante + tela + uso + base + color + ancho
+--     Sin relaciones con otras tablas. Consulta libre para todos los roles.
+-- ===========================================================================
+
+CREATE TABLE jo.referents (
+    id              SERIAL PRIMARY KEY,
+    tipo_prenda     TEXT NOT NULL,
+    cantidad_telas  INTEGER NOT NULL CHECK (cantidad_telas > 0),
+    variante        INTEGER NOT NULL DEFAULT 1 CHECK (variante > 0),
+    tela            INTEGER NOT NULL CHECK (tela > 0),
+    uso_prenda      TEXT NOT NULL,
+    base_textil     TEXT NOT NULL,
+    color           TEXT DEFAULT 'SOLIDO',
+    ancho_tela      TEXT NOT NULL,
+    consumo         TEXT NOT NULL,
+    descripcion     TEXT,
+    terminacion     TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (tipo_prenda, cantidad_telas, variante, tela, uso_prenda, base_textil, color, ancho_tela)
+);
+
+CREATE TABLE jo.referent_photos (
+    id              SERIAL PRIMARY KEY,
+    tipo_prenda     TEXT NOT NULL,
+    cantidad_telas  INTEGER,
+    variante        INTEGER,
+    foto_url        TEXT NOT NULL,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (tipo_prenda, cantidad_telas, variante)
+);
+
+-- ===========================================================================
 -- 7. TELAS E INSUMOS POR REFERENCIA (relacion N:M limpia)
 --    Campos duplicados del maestro fabrics fueron eliminados.
 --    referencia → usage, width_cm y consumo_base son propios del contexto.
@@ -953,3 +986,5 @@ COMMENT ON TABLE jo.quality_issues    IS 'Hallazgos de calidad en validacion de 
 COMMENT ON TABLE jo.production_feedback IS 'Feedback de produccion clasificado por area';
 COMMENT ON TABLE jo.sewings           IS 'Registro de confecciones por modista';
 COMMENT ON TABLE jo.cuts              IS 'Registro de cortes (hasta 4 por referencia)';
+COMMENT ON TABLE jo.referents         IS 'Catalogo plano de referentes: 11 campos. Cada fila = combinacion tipo_prenda + cant_telas + variante + tela + uso + base + color + ancho = consumo';
+COMMENT ON TABLE jo.referent_photos   IS 'Fotos asociadas a cards de referentes (Nivel 1: tipo_prenda; Nivel 2: tipo_prenda + cant_telas + variante)';

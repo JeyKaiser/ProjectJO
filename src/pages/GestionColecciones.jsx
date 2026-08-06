@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Plus, Save, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Plus, Save, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import supabase from '../lib/supabase';
 import {
   createCollection,
@@ -13,6 +13,15 @@ import {
 
 const SEASONS = ['WS', 'SS', 'RS', 'PF', 'FW'];
 
+const STATUS_COLORS = {
+  'APROBADO': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
+  'CANCELADO': { bg: '#f1f5f9', border: '#94a3b8', text: '#475569' },
+  'EN_PROCESO': { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
+  'PAQUETE_COMPLETO': { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
+  'RECHAZADO': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+  'PENDIENTE': { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+};
+
 export default function GestionColecciones() {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +31,51 @@ export default function GestionColecciones() {
   const [saving, setSaving] = useState(null);
   const [expandedColorCol, setExpandedColorCol] = useState(null);
   const [colorSearch, setColorSearch] = useState('');
+  const [expandedSeasons, setExpandedSeasons] = useState({});
+  const [statuses, setStatuses] = useState([]);
+  const [showAddStatus, setShowAddStatus] = useState(false);
+  const [newStatus, setNewStatus] = useState({ status: '', description: '' });
+
+  const toggleSeason = (s) => setExpandedSeasons(prev => ({ ...prev, [s]: prev[s] === false }));
+  const isSeasonOpen = (s) => expandedSeasons[s] !== false;
+
+  const loadStatuses = useCallback(async () => {
+    const { data } = await supabase
+      .from('reference_statuses')
+      .select('*')
+      .order('id');
+    if (data) setStatuses(data);
+  }, []);
+
+  useEffect(() => { loadStatuses(); }, [loadStatuses]);
+
+  const handleToggleStatus = async (st) => {
+    setSaving(`status-${st.id}`);
+    try {
+      const { error: err } = await supabase
+        .from('reference_statuses')
+        .update({ active: st.active === false ? true : false })
+        .eq('id', st.id);
+      if (err) throw err;
+      loadStatuses();
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setSaving(null); }
+  };
+
+  const handleAddStatus = async () => {
+    if (!newStatus.status) return;
+    setSaving('add-status');
+    try {
+      const { error: err } = await supabase
+        .from('reference_statuses')
+        .insert({ status: newStatus.status, description: newStatus.description, active: true });
+      if (err) throw err;
+      setShowAddStatus(false);
+      setNewStatus({ status: '', description: '' });
+      loadStatuses();
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { setSaving(null); }
+  };
 
   const { colors: allColors } = useAllColors();
 
@@ -215,9 +269,44 @@ export default function GestionColecciones() {
         </div>
       )}
 
-      {/* Lista de colecciones */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {collections.map(col => {
+      {/* Lista de colecciones agrupada por temporada */}
+      {(() => {
+        const SEASON_NAMES = {
+          WS: 'WINTER SUN', RS: 'RESORT RTW', SS: 'SPRING SUMMER',
+          SV: 'SUMMER VACATION', PF: 'PREFALL RTW', FW: 'FALL WINTER',
+        };
+        const gro = {};
+        for (const col of collections) {
+          const s = col.season || 'other';
+          if (!gro[s]) gro[s] = [];
+          gro[s].push(col);
+        }
+        const orden = ['WS', 'RS', 'SS', 'SV', 'PF', 'FW', 'other'];
+        return orden.filter(s => gro[s]).map(season => {
+          const cols = gro[season];
+          const name = SEASON_NAMES[season] || 'Sin temporada';
+          const open = isSeasonOpen(season);
+          return (
+            <div key={season} style={{ marginBottom: 'var(--space-6)' }}>
+              <div
+                onClick={() => toggleSeason(season)}
+                style={{
+                  fontSize: 13, fontWeight: 800, color: 'var(--gray-500)', cursor: 'pointer',
+                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                  marginBottom: 'var(--space-3)', paddingBottom: 'var(--space-2)',
+                  borderBottom: '2px solid var(--gray-200)',
+                  display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none',
+                }}>
+                {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {name}
+                <span style={{
+                  background: 'var(--gray-100)', color: 'var(--gray-600)',
+                  fontSize: 11, padding: '1px 8px', borderRadius: 999,
+                }}>{cols.length}</span>
+              </div>
+              {open && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {cols.map(col => {
           const years = col.collection_years || [];
           const isInactive = !col.active;
           return (
@@ -382,6 +471,99 @@ export default function GestionColecciones() {
             </div>
           );
         })}
+              </div>
+              )}
+            </div>
+          );
+        })}
+      )()}
+
+      {/* Gestión de Estados de Referencia */}
+      <div style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '2px solid var(--gray-200)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--gray-900)', margin: 0 }}>
+              Estados de Referencia
+            </h3>
+            <p style={{ color: 'var(--gray-500)', fontSize: 13, margin: '4px 0 0 0' }}>
+              Gestiona los estados disponibles para las referencias
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowAddStatus(true)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Plus size={14} /> Nuevo Estado
+          </button>
+        </div>
+
+        {showAddStatus && (
+          <div className="card" style={{ padding: 'var(--space-4)', marginBottom: 'var(--space-4)', border: '1px solid var(--primary-300)', background: 'var(--primary-50)' }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div className="form-group" style={{ flex: 1, minWidth: 150 }}>
+                <label className="form-label">Código</label>
+                <select className="form-select" value={newStatus.status}
+                  onChange={e => setNewStatus(prev => ({ ...prev, status: e.target.value }))}>
+                  <option value="">Selecciona...</option>
+                  {['EN_PROCESO','APROBADO','CANCELADO','PAQUETE_COMPLETO','RECHAZADO','PENDIENTE'].map(s => (
+                    <option key={s} value={s} disabled={statuses.some(st => st.status === s && st.active !== false)}>
+                      {s.replace('_', ' ')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group" style={{ flex: 2, minWidth: 200 }}>
+                <label className="form-label">Descripción</label>
+                <input type="text" className="form-input" value={newStatus.description}
+                  onChange={e => setNewStatus(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Ej. Referencia activa en desarrollo" />
+              </div>
+              <button className="btn btn-primary" onClick={handleAddStatus} disabled={saving === 'add-status' || !newStatus.status}>
+                <Save size={14} /> {saving === 'add-status' ? 'Guardando...' : 'Crear'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setShowAddStatus(false); setNewStatus({ status: '', description: '' }); }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {statuses.map(st => {
+            const isInactive = st.active === false;
+            const cols = STATUS_COLORS[st.status] || {};
+            return (
+              <div key={st.id} className="card" style={{
+                opacity: isInactive ? 0.5 : 1, padding: 'var(--space-3) var(--space-4)',
+                borderLeft: `4px solid ${isInactive ? 'var(--gray-400)' : (cols.border || 'var(--primary-500)')}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{
+                    padding: '3px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+                    background: cols.bg || 'var(--gray-100)', color: cols.text || 'var(--gray-600)',
+                    border: `1px solid ${cols.border || 'var(--gray-300)'}`,
+                  }}>
+                    {st.status.replace('_', ' ')}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>{st.description || ''}</span>
+                  {isInactive && (
+                    <span style={{ background: 'var(--gray-200)', color: 'var(--gray-500)', padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+                      <EyeOff size={11} style={{ verticalAlign: 'middle', marginRight: 3 }} /> Oculto
+                    </span>
+                  )}
+                </div>
+                <button
+                  className={`btn ${isInactive ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: 12 }}
+                  onClick={() => handleToggleStatus(st)}
+                  disabled={saving === `status-${st.id}`}
+                  title={isInactive ? 'Mostrar estado' : 'Ocultar estado'}
+                >
+                  {isInactive ? <Eye size={14} /> : <EyeOff size={14} />}
+                  {isInactive ? ' Mostrar' : ' Ocultar'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

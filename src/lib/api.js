@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import supabase from './supabase';
+import supabase, { uploadImage } from './supabase';
 
 // ═══════════════════════════════════════════════════════════════
 // Helpers
@@ -157,7 +157,7 @@ export function useDashboardData() {
         // Fetch references
         const { data: refs, error: refErr } = await supabase
           .from('references')
-          .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), reference_type, complejidad_corte_id, complejidad_confeccion_id, created_at');
+          .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), reference_type, complejidad_corte_id, complejidad_confeccion_id, reference_statuses(status), created_at');
 
         if (refErr) throw refErr;
 
@@ -188,6 +188,7 @@ export function useDashboardData() {
                 const pausadas = yearRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
                 const enProceso = total - completadas - pausadas;
 
+                yearRefs.sort((a, b) => (Number(a.reference_number) || 0) - (Number(b.reference_number) || 0));
                 const referencias = yearRefs.map(r => {
                   const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
                   const fm = getFaseMacro(sf);
@@ -262,6 +263,7 @@ export function useDashboardData() {
                   const completadas = yearRefs.filter(r => r.status_id === 2 || r.status_id === 4).length;
                   const pausadas = yearRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
                   const enProceso = total - completadas - pausadas;
+                  yearRefs.sort((a, b) => (Number(a.reference_number) || 0) - (Number(b.reference_number) || 0));
                   return yearRefs.map(r => {
                     const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
                     const clasificacion = r.has_art_modification ? 'Mod. Arte'
@@ -285,6 +287,8 @@ export function useDashboardData() {
                       subfaseNombre: getProcesoNombre(sf),
                       responsable: '', tiempoFase: '',
                       clasificacion,
+                      status: r.reference_statuses?.status || '',
+                    status: r.reference_statuses?.status || '',
                       prioridadFirstBuy: r.priority_first_buy || '',
                       dropEntrega: r.drop_entrega || '',
                       enviarMaquila: r.envio_confeccion_maquila || false,
@@ -1013,6 +1017,291 @@ export function useSearchReferences(searchTerm, collectionId) {
   }, [searchTerm, collectionId]);
 
   return { results, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Catálogo de Referentes — tabla plana jo.referents (11 campos)
+// Consulta libre para todos los roles, creación solo admin
+// ═══════════════════════════════════════════════════════════════
+
+export function useTiposPrenda() {
+  const [tipos, setTipos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('tipo_prenda')
+      .order('tipo_prenda')
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) {
+          setTipos([...new Set(data.map(d => d.tipo_prenda))]);
+        }
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  return { tipos, loading };
+}
+
+export function useGruposVariante(tipoPrenda) {
+  const [grupos, setGrupos] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!tipoPrenda) { setGrupos([]); return; }
+    setLoading(true);
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('cantidad_telas, variante, descripcion, terminacion')
+      .eq('tipo_prenda', tipoPrenda)
+      .order('cantidad_telas')
+      .order('variante')
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) {
+          const seen = new Set();
+          const unique = [];
+          for (const r of data) {
+            const key = `${r.cantidad_telas}||${r.variante}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              unique.push(r);
+            }
+          }
+          setGrupos(unique);
+        }
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tipoPrenda]);
+
+  return { grupos, loading };
+}
+
+export function useFilasReferente(tipoPrenda, cantidadTelas, variante) {
+  const [filas, setFilas] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!tipoPrenda || !cantidadTelas || !variante) { setFilas([]); return; }
+    setLoading(true);
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('*')
+      .eq('tipo_prenda', tipoPrenda)
+      .eq('cantidad_telas', cantidadTelas)
+      .eq('variante', variante)
+      .order('tela')
+      .order('uso_prenda')
+      .then(({ data, error }) => {
+        if (!cancelled && !error) setFilas(data || []);
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tipoPrenda, cantidadTelas, variante]);
+
+  return { filas, loading };
+}
+
+export function useCantidadesTelas(tipoPrenda) {
+  const [cantidades, setCantidades] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!tipoPrenda) { setCantidades([]); return; }
+    setLoading(true);
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('cantidad_telas')
+      .eq('tipo_prenda', tipoPrenda)
+      .order('cantidad_telas')
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) {
+          setCantidades([...new Set(data.map(d => d.cantidad_telas))]);
+        }
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tipoPrenda]);
+
+  return { cantidades, loading };
+}
+
+export function useVariantes(tipoPrenda, cantidadTelas) {
+  const [variantes, setVariantes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!tipoPrenda || !cantidadTelas) { setVariantes([]); return; }
+    setLoading(true);
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('variante')
+      .eq('tipo_prenda', tipoPrenda)
+      .eq('cantidad_telas', cantidadTelas)
+      .order('variante')
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) {
+          setVariantes([...new Set(data.map(d => d.variante))]);
+        }
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tipoPrenda, cantidadTelas]);
+
+  return { variantes, loading };
+}
+
+export function useTelasDeReferente(tipoPrenda, cantidadTelas, variante) {
+  const [telas, setTelas] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!tipoPrenda || !cantidadTelas || !variante) { setTelas([]); setItems([]); return; }
+    setLoading(true);
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('*')
+      .eq('tipo_prenda', tipoPrenda)
+      .eq('cantidad_telas', cantidadTelas)
+      .eq('variante', variante)
+      .order('tela')
+      .order('uso_prenda')
+      .then(({ data, error }) => {
+        if (!cancelled && !error) {
+          setItems(data || []);
+          const uniqueTelas = [...new Set((data || []).map(d => d.numero_tela || d.tela))];
+          setTelas(uniqueTelas);
+        }
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [tipoPrenda, cantidadTelas, variante]);
+
+  return { telas, items, loading };
+}
+
+export async function createReferentRow(row) {
+  return supabase
+    .from('referents')
+    .insert({
+      tipo_prenda: row.tipoPrenda.trim(),
+      cantidad_telas: parseInt(row.cantidadTelas) || 1,
+      variante: parseInt(row.variante) || 1,
+      tela: parseInt(row.tela) || 1,
+      uso_prenda: row.usoPrenda.trim(),
+      base_textil: row.baseTextil.trim(),
+      color: row.color?.trim() || 'SOLIDO',
+      ancho_tela: row.anchoTela.trim(),
+      consumo: row.consumo.trim(),
+      descripcion: row.descripcion?.trim() || null,
+      terminacion: row.terminacion?.trim() || null,
+    })
+    .select('*')
+    .single();
+}
+
+export async function bulkImportReferentes(rows, options = {}) {
+  const { onProgress } = options;
+  let created = 0;
+  let skipped = 0;
+  let errors = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    try {
+      const { error } = await supabase
+        .from('referents')
+        .upsert({
+          tipo_prenda: row.tipoPrenda.trim(),
+          cantidad_telas: parseInt(row.cantidadTelas) || 1,
+          variante: parseInt(row.variante) || 1,
+          tela: parseInt(row.tela) || 1,
+          uso_prenda: row.usoPrenda.trim(),
+          base_textil: row.baseTextil.trim(),
+          color: row.color?.trim() || 'SOLIDO',
+          ancho_tela: row.anchoTela.trim(),
+          consumo: row.consumo.trim(),
+          descripcion: row.descripcion?.trim() || null,
+          terminacion: row.terminacion?.trim() || null,
+        }, {
+          onConflict: 'tipo_prenda,cantidad_telas,variante,tela,uso_prenda,base_textil,color,ancho_tela',
+        });
+
+      if (error) {
+        errors.push({ row: i + 1, tipoPrenda: row.tipoPrenda, error: error.message });
+      } else {
+        created++;
+      }
+    } catch (e) {
+      errors.push({ row: i + 1, tipoPrenda: row.tipoPrenda, error: e.message });
+    }
+    if (onProgress) onProgress({ current: i + 1, total: rows.length, created, skipped, errors: errors.length });
+  }
+
+  return { created, skipped, errors };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Fotos de referentes (cards Nivel 1 y Nivel 2)
+// ═══════════════════════════════════════════════════════════════
+
+export function useReferentPhoto(tipoPrenda, cantidadTelas, variante) {
+  const [fotoUrl, setFotoUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const reload = useCallback(() => {
+    if (!tipoPrenda) { setFotoUrl(null); setLoading(false); return; }
+    setLoading(true);
+    let cancelled = false;
+    let query = supabase
+      .from('referent_photos')
+      .select('foto_url')
+      .eq('tipo_prenda', tipoPrenda);
+
+    if (cantidadTelas != null) query = query.eq('cantidad_telas', cantidadTelas);
+    else query = query.is('cantidad_telas', null);
+    if (variante != null) query = query.eq('variante', variante);
+    else query = query.is('variante', null);
+
+    query.maybeSingle().then(({ data, error }) => {
+      if (!cancelled) {
+        if (!error && data) setFotoUrl(data.foto_url);
+        else setFotoUrl(null);
+        setLoading(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [tipoPrenda, cantidadTelas, variante]);
+
+  useEffect(() => {
+    const cleanup = reload();
+    return cleanup;
+  }, [reload]);
+
+  return { fotoUrl, loading, reload };
+}
+
+export async function uploadReferentPhoto(file, tipoPrenda, cantidadTelas, variante) {
+  const url = await uploadImage(file, 'referentes');
+  return supabase
+    .from('referent_photos')
+    .upsert({
+      tipo_prenda: tipoPrenda,
+      cantidad_telas: cantidadTelas != null ? cantidadTelas : null,
+      variante: variante != null ? variante : null,
+      foto_url: url,
+    }, { onConflict: 'tipo_prenda,cantidad_telas,variante' })
+    .select('*')
+    .single();
 }
 
 export async function saveComparativo(data) {

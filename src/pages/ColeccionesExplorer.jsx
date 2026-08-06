@@ -15,6 +15,15 @@ const SEASON_COLORS = {
   FW: '#6366F1',
 };
 
+const STATUS_COLORS = {
+  'APROBADO': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
+  'CANCELADO': { bg: '#f1f5f9', border: '#94a3b8', text: '#475569' },
+  'EN_PROCESO': { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
+  'PAQUETE_COMPLETO': { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
+  'RECHAZADO': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
+  'PENDIENTE': { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
+};
+
 function groupNameFromCode(code) {
   const map = { WS: 'WINTER SUN', RS: 'RESORT RTW', SS: 'SPRING SUMMER', SV: 'SUMMER VACATION', PF: 'PREFALL RTW', FW: 'FALL WINTER' };
   return map[code] || code;
@@ -81,6 +90,7 @@ export default function ColeccionesExplorer() {
 
         <div className={styles.referenciasGrid}>
           {visibleRefs.map((ref) => {
+            // console.log('Referencia:', ref);
             const faseMacro = getFaseMacro(ref.faseActual);
             return (
               <div
@@ -95,18 +105,26 @@ export default function ColeccionesExplorer() {
                     <img src={ref.imagen} alt={ref.nombre} />
                   </div>
                 )}
+                <div className={styles.referenciaNumero}>{ref.id.replace('REF-', '')}</div>
                 <div className={styles.referenciaCardHeader}>
-                  <div className="referencia-codes">
-                    <span className="code-badge code-md">{ref.codigoMD}</span>
-                    <span className="code-badge code-pt">{ref.codigoPT}</span>
-                  </div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     {ref.isHidden && <EyeOff size={12} style={{ color: 'var(--gray-400)' }} />}
                     <span className={styles.referenciaClasificacion}>{ref.clasificacion}</span>
                   </div>
                 </div>
+                {ref.status && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span style={{
+                      display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                      background: STATUS_COLORS[ref.status]?.bg || 'var(--gray-100)',
+                      color: STATUS_COLORS[ref.status]?.text || 'var(--gray-600)',
+                      border: `1px solid ${STATUS_COLORS[ref.status]?.border || 'var(--gray-300)'}`,
+                    }}>
+                      {ref.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                )}
                 <h4 className={styles.referenciaNombre}>{ref.nombre}</h4>
-                <p className={styles.referenciaTipo}>{ref.tipoPrenda} · {ref.color}</p>
                 <div className={styles.referenciaFase} style={{ background: `var(--temp-${faseMacro.tempVar})`, borderColor: `var(--temp-${faseMacro.tempVar}-border)` }}>
                   <div className={styles.referenciaFaseLabel}>
                     <span className={styles.referenciaFaseNumber} style={{ color: `var(--temp-${faseMacro.tempVar}-text)` }}>{ref.faseActual}</span>
@@ -158,8 +176,9 @@ export default function ColeccionesExplorer() {
         <div className={styles.aniosGrid}>
           {visibleYears.map((a) => (
             <div key={`${a.collectionId}-${a.anio}`} className={styles.anioCard}
-              style={{ opacity: a.isHidden ? 0.55 : 1 }}
-              onClick={() => navigate(`/colecciones/${upperSeason.toLowerCase()}/${a.collectionId}/${a.anio}`)}>
+              style={{ opacity: a.isHidden ? 0.55 : 1, cursor: a.isHidden ? 'not-allowed' : 'pointer' }}
+              onClick={() => { if (!a.isHidden) navigate(`/colecciones/${upperSeason.toLowerCase()}/${a.collectionId}/${a.anio}`); }}
+              title={a.isHidden ? 'Año oculto — solo visible para administradores' : ''}>
               <h3 className={styles.anioCardYear}>
                 {a.anio}
                 {a.isHidden && <EyeOff size={13} style={{ marginLeft: 6, color: 'var(--gray-400)', verticalAlign: 'middle' }} />}

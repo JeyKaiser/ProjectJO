@@ -18,12 +18,7 @@ export default function Header() {
         </div>
       </div>
       
-      <div className="header-right">
-        <select className="header-select" defaultValue="">
-          <option value="">Todas las Colecciones</option>
-          <option value="WINTER SUN 2026">Winter Sun 2026</option>
-          <option value="FALL WINTER 2026">Fall Winter 2026</option>
-        </select>
+      <div className="header-right">       
 
         {/* Simulador de Roles */}
         {isServer ? (

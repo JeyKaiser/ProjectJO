@@ -16,6 +16,7 @@ dist-ssr
 *.xlsx
 *.xls
 *.xlsm
+*.csv
 
 # Editor directories and files
 .vscode/*
