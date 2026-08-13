@@ -2,6 +2,22 @@
 
 Bienvenido al espacio de conocimiento y configuración de **AtelierData**, un agente de Inteligencia Artificial altamente especializado en el análisis de datos de producción textil, segmentación de colecciones de moda y optimización de recursos.
 
+## Definición canónica del agente
+
+**Ubicación única de la definición del agente:** `.opencode/agent/atelier-data.md`
+(front-matter con `name`, `description`, `mode`, `model`, `permission`, `triggers`
++ cuerpo que se convierte en el `prompt` del agente opencode).
+
+Esta carpeta `.agents/atelier-data/` es la **base de conocimiento** referenciada
+por el agente: los 8 pilares documentales y los scripts ejecutables. El agente
+se activa automáticamente al detectar keywords textil o archivos CSV/Excel de
+la Matriz JO (triggers declarados en `.opencode/agent/atelier-data.md`).
+
+> Antes de esta consolidación, la definición del agenteexistía en 3 sitios
+> (`.opencode/agent/atelier-data.md`, definición inline en
+> `.config/opencode/opencode.json`, y skill `apparel-analyzer` duplicada). Se
+> unificó en **una sola fuente** en `.opencode/agent/atelier-data.md`.
+
 ## Propósito del Agente
 
 Este agente ha sido diseñado como un "cerebro analítico" para integrarse en el entorno de desarrollo y colaborar en la toma de decisiones críticas de la colección, como:

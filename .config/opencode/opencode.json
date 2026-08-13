@@ -3,27 +3,16 @@
     "plugin": [
         "@warp-dot-dev/opencode-warp"
     ],
-    "agent": {
-        "atelier-data": {
-            "description": "Agente especialista en análisis de datos de manufactura textil y colecciones de moda (Matriz JO). Audita, segmenta, analiza eficiencia textil y genera reportes premium de archivos CSV/Excel.",
-            "mode": "subagent",
-            "model": "opencode-go/deepseek-v4-pro",
-            "permission": {
-                "edit": "ask",
-                "bash": "ask"
-            }
-        }
-    },
     "skills": {
         "paths": [
             ".agents/skills"
         ]
     },
     "mcp": {
-    "supabase": {
-      "type": "remote",
-      "url": "https://mcp.supabase.com/mcp?project_ref=tstxmyowfesgaczlgjxp",
-      "enabled": true
+        "supabase": {
+            "type": "remote",
+            "url": "https://mcp.supabase.com/mcp?project_ref=tstxmyowfesgaczlgjxp",
+            "enabled": true
+        }
     }
-  }
 }
