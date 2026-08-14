@@ -1267,10 +1267,8 @@ export function useReferentPhoto(tipoPrenda, cantidadTelas, variante) {
       .select('foto_url')
       .eq('tipo_prenda', tipoPrenda);
 
-    if (cantidadTelas != null) query = query.eq('cantidad_telas', cantidadTelas);
-    else query = query.is('cantidad_telas', null);
-    if (variante != null) query = query.eq('variante', variante);
-    else query = query.is('variante', null);
+    query = query.eq('cantidad_telas', cantidadTelas ?? 0);
+    query = query.eq('variante', variante ?? 0);
 
     query.maybeSingle().then(({ data, error }) => {
       if (!cancelled) {
@@ -1296,8 +1294,8 @@ export async function uploadReferentPhoto(file, tipoPrenda, cantidadTelas, varia
     .from('referent_photos')
     .upsert({
       tipo_prenda: tipoPrenda,
-      cantidad_telas: cantidadTelas != null ? cantidadTelas : null,
-      variante: variante != null ? variante : null,
+      cantidad_telas: cantidadTelas ?? 0,
+      variante: variante ?? 0,
       foto_url: url,
     }, { onConflict: 'tipo_prenda,cantidad_telas,variante' })
     .select('*')

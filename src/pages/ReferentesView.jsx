@@ -247,7 +247,7 @@ function NivelTiposPrenda({ tipos, loading, onSelect, isAdmin }) {
   if (tipos.length === 0) return <p style={{ color: 'var(--gray-500)' }}>No hay tipos de prenda registrados.</p>;
 
   return (
-    <div className="grid grid-cols-3">
+    <div className="grid grid-cols-4">
       {tipos.map(tipo => (
         <TipoPrendaCard key={tipo} tipo={tipo} onSelect={onSelect} isAdmin={isAdmin} />
       ))}
@@ -274,7 +274,7 @@ function TipoPrendaCard({ tipo, onSelect, isAdmin }) {
     <div className="card" onClick={(e) => { if (e.target.closest('.photo-zone') && isAdmin) return; onSelect(tipo); }} style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow var(--transition-fast)' }}
       onMouseOver={e => { e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
       onMouseOut={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
-      <div className="photo-zone" style={{ height: '140px', background: 'var(--gray-100)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="photo-zone" style={{ height: '200px', background: 'var(--gray-100)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {fotoUrl ? (
           <img src={fotoUrl} alt={tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : isAdmin ? (
@@ -314,7 +314,7 @@ function NivelGrupos({ tipoPrenda, grupos, loading, onSelect, isAdmin }) {
       <p style={{ color: 'var(--gray-500)', marginBottom: 'var(--space-4)' }}>
         Seleccioná una combinación de <strong>cantidad de telas + variante</strong> para "{tipoPrenda}":
       </p>
-      <div className="grid grid-cols-3">
+      <div className="grid grid-cols-4">
         {grupos.map((g, idx) => (
           <GrupoCard key={idx} tipoPrenda={tipoPrenda} grupo={g} onSelect={onSelect} isAdmin={isAdmin} />
         ))}
@@ -342,7 +342,7 @@ function GrupoCard({ tipoPrenda, grupo, onSelect, isAdmin }) {
     <div className="card" onClick={(e) => { if (e.target.closest('.photo-zone') && isAdmin) return; onSelect(grupo); }} style={{ padding: 0, overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow var(--transition-fast)' }}
       onMouseOver={e => { e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; }}
       onMouseOut={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}>
-      <div className="photo-zone" style={{ height: '110px', background: 'var(--gray-100)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="photo-zone" style={{ height: '200px', background: 'var(--gray-100)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {fotoUrl ? (
           <img src={fotoUrl} alt={`${tipoPrenda} - ${grupo.cantidad_telas}T V${grupo.variante}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : isAdmin ? (
@@ -375,15 +375,56 @@ function GrupoCard({ tipoPrenda, grupo, onSelect, isAdmin }) {
 }
 
 function NivelFilas({ tipoPrenda, grupo, filas, loading }) {
+  const [filtroUso, setFiltroUso] = useState('');
+  const [filtroBase, setFiltroBase] = useState('');
+  const [filtroColor, setFiltroColor] = useState('');
+  const [filtroAncho, setFiltroAncho] = useState('');
+
   if (loading) return <p style={{ color: 'var(--gray-500)' }}>Cargando...</p>;
   if (filas.length === 0) return <p style={{ color: 'var(--gray-500)' }}>No hay combinaciones para {tipoPrenda} / {grupo.cantidad_telas} Telas - Var {grupo.variante}.</p>;
+
+  const usosUnicos = [...new Set(filas.map(f => f.uso_prenda))];
+  const basesUnicas = [...new Set(filas.map(f => f.base_textil))];
+  const coloresUnicos = [...new Set(filas.map(f => f.color))];
+  const anchosUnicos = [...new Set(filas.map(f => f.ancho_tela))];
+
+  const filasFiltradas = filas.filter(f =>
+    (!filtroUso || f.uso_prenda === filtroUso) &&
+    (!filtroBase || f.base_textil === filtroBase) &&
+    (!filtroColor || f.color === filtroColor) &&
+    (!filtroAncho || String(f.ancho_tela) === String(filtroAncho))
+  );
+
+  const limpiarFiltros = () => {
+    setFiltroUso('');
+    setFiltroBase('');
+    setFiltroColor('');
+    setFiltroAncho('');
+  };
+
+  const hayFiltros = filtroUso || filtroBase || filtroColor || filtroAncho;
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       <div className="card-header">
         <h3 className="card-title">{tipoPrenda} — {grupo.cantidad_telas} Telas / Variante {grupo.variante}</h3>
-        <span className="badge badge-info">{filas.length} combinaciones</span>
+        <span className="badge badge-info">{filasFiltradas.length} de {filas.length} combinaciones</span>
       </div>
+
+      <div style={{ padding: 'var(--space-4)', borderBottom: '1px solid var(--gray-200)', background: 'var(--gray-50)' }}>
+        <div className="grid grid-cols-4" style={{ marginBottom: hayFiltros ? 'var(--space-3)' : 0, gap: 'var(--space-3)' }}>
+          <SelectField label="Uso en Prenda" value={filtroUso} onChange={setFiltroUso} options={usosUnicos} />
+          <SelectField label="Base Textil" value={filtroBase} onChange={setFiltroBase} options={basesUnicas} />
+          <SelectField label="Color / Tipo" value={filtroColor} onChange={setFiltroColor} options={coloresUnicos} />
+          <SelectField label="Ancho Tela" value={filtroAncho} onChange={setFiltroAncho} options={anchosUnicos} />
+        </div>
+        {hayFiltros && (
+          <button onClick={limpiarFiltros} className="btn btn-outline" style={{ background: 'var(--white)' }}>
+            Limpiar filtros
+          </button>
+        )}
+      </div>
+
       <div style={{ overflowX: 'auto' }}>
         <table className="form-table" style={{ width: '100%', margin: 0 }}>
           <thead>
@@ -399,7 +440,13 @@ function NivelFilas({ tipoPrenda, grupo, filas, loading }) {
             </tr>
           </thead>
           <tbody>
-            {filas.map((f, i) => (
+            {filasFiltradas.length === 0 ? (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 'var(--space-6)' }}>
+                  Sin resultados para los filtros seleccionados.
+                </td>
+              </tr>
+            ) : filasFiltradas.map((f, i) => (
               <tr key={i}>
                 <td>{f.tela}</td>
                 <td>{f.uso_prenda}</td>

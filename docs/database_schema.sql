@@ -370,8 +370,8 @@ CREATE TABLE jo.referents (
 CREATE TABLE jo.referent_photos (
     id              SERIAL PRIMARY KEY,
     tipo_prenda     TEXT NOT NULL,
-    cantidad_telas  INTEGER,
-    variante        INTEGER,
+    cantidad_telas  INTEGER NOT NULL DEFAULT 0,
+    variante        INTEGER NOT NULL DEFAULT 0,
     foto_url        TEXT NOT NULL,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (tipo_prenda, cantidad_telas, variante)
