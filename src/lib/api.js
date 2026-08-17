@@ -494,7 +494,7 @@ export function useReferenceFabrics(refId) {
     async function load() {
       const { data, error } = await supabase
         .from('reference_fabrics')
-        .select('id, reference_id, fabric_id, usage, width_cm, consumo_base, notes, active, fabrics(id, code, description, width_cm, image_url)')
+        .select('id, reference_id, fabric_id, usage, width_cm, consumo_base, notes, active, usada, confirmada_por, fabrics(id, code, description, width_cm, image_url)')
         .eq('reference_id', refId)
         .eq('active', true)
         .order('id');
@@ -533,6 +533,15 @@ export async function deleteReferenceFabric(id) {
     .from('reference_fabrics')
     .update({ active: false })
     .eq('id', id);
+}
+
+export async function toggleReferenceFabricUsada(id, usada, confirmada_por) {
+  return supabase
+    .from('reference_fabrics')
+    .update({ usada, confirmada_por })
+    .eq('id', id)
+    .select('*')
+    .single();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1669,4 +1678,581 @@ export async function generateCodePoolRanges(ranges) {
     results.push({ range, data, error });
   }
   return results;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Insumos y Bodega (Fase A)
+//   Catálogo maestro: jo.supplies
+//   Solicitudes del creativo: jo.supply_requests (SOLICITADO -> ENTREGADO -> usado)
+// ═══════════════════════════════════════════════════════════════
+
+export function useSupplies() {
+  const [supplies, setSupplies] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error: err } = await supabase
+      .from('supplies')
+      .select('*')
+      .eq('active', true)
+      .order('code');
+    if (err) setError(err.message);
+    else setSupplies(data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { supplies, loading, error, refresh: load };
+}
+
+export async function createSupply({ code, description, category, unit_of_measure, supplier }) {
+  return supabase
+    .from('supplies')
+    .insert({ code, description, category, unit_of_measure, supplier, active: true })
+    .select('*')
+    .single();
+}
+
+export async function updateSupply(id, data) {
+  return supabase
+    .from('supplies')
+    .update(data)
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function toggleSupplyActive(id, active) {
+  return supabase
+    .from('supplies')
+    .update({ active })
+    .eq('id', id);
+}
+
+export function useSupplyRequests(referenceId) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from('supply_requests')
+      .select('*, supplies(code, description, unit_of_measure)')
+      .order('created_at', { ascending: false });
+    if (referenceId) query = query.eq('reference_id', referenceId);
+    const { data, error: err } = await query;
+    if (err) setError(err.message);
+    else setRequests(data || []);
+    setLoading(false);
+  }, [referenceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { requests, loading, error, refresh: load };
+}
+
+export async function createSupplyRequest({ reference_id, supply_id, description, quantity_requested, unit_of_measure, requested_by, notes }) {
+  return supabase
+    .from('supply_requests')
+    .insert({
+      reference_id,
+      supply_id: supply_id || null,
+      description,
+      quantity_requested,
+      unit_of_measure,
+      status: 'SOLICITADO',
+      requested_by,
+      requested_at: new Date().toISOString(),
+      notes,
+    })
+    .select('*, supplies(code, description, unit_of_measure)')
+    .single();
+}
+
+export async function deliverSupplyRequest(id, { delivered_code, quantity_delivered, delivered_by, notes }) {
+  return supabase
+    .from('supply_requests')
+    .update({
+      status: 'ENTREGADO',
+      delivered_code,
+      quantity_delivered,
+      delivered_by,
+      delivered_at: new Date().toISOString(),
+      notes,
+    })
+    .eq('id', id)
+    .select('*, supplies(code, description, unit_of_measure)')
+    .single();
+}
+
+export async function cancelSupplyRequest(id) {
+  return supabase
+    .from('supply_requests')
+    .update({ status: 'CANCELADO' })
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function confirmSupplyAsUsed(reference_id, request) {
+  const { error: insertErr } = await supabase
+    .from('reference_supplies')
+    .insert({
+      reference_id,
+      supply_id: request.supply_id || null,
+      quantity: request.quantity_delivered != null
+        ? request.quantity_delivered
+        : request.quantity_requested,
+      unit_of_measure: request.unit_of_measure,
+      notes: request.notes,
+    })
+    .select('*')
+    .single();
+
+  if (insertErr) return { error: insertErr };
+
+  const { error: updateErr } = await supabase
+    .from('supply_requests')
+    .update({ used_confirmed: true })
+    .eq('id', request.id);
+
+  return { error: updateErr };
+}
+
+export function useReferenceSupplies(referenceId) {
+  const [supplies, setSupplies] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!referenceId) { setSupplies([]); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('reference_supplies')
+        .select('*, supplies(code, description, unit_of_measure)')
+        .eq('reference_id', referenceId)
+        .order('id');
+      if (!error && !cancelled) setSupplies(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [referenceId]);
+
+  return { supplies, loading };
+}
+
+export async function saveReferenceSupply({ id, reference_id, supply_id, talla = null, quantity, unit_of_measure, notes }) {
+  if (id) {
+    return supabase
+      .from('reference_supplies')
+      .update({ supply_id, talla, quantity, unit_of_measure, notes })
+      .eq('id', id)
+      .select('*, supplies(code, description, unit_of_measure)')
+      .single();
+  }
+  return supabase
+    .from('reference_supplies')
+    .insert({ reference_id, supply_id, talla, quantity, unit_of_measure, notes })
+    .select('*, supplies(code, description, unit_of_measure)')
+    .single();
+}
+
+export async function deleteReferenceSupply(id) {
+  return supabase
+    .from('reference_supplies')
+    .delete()
+    .eq('id', id);
+}
+
+// Reemplaza el consumo por talla de un insumo: elimina las filas por-talla de ese
+// insumo en la referencia y reinserta las tallas con valor.
+export async function saveReferenceSuppliesByTalla(reference_id, supply_id, unit_of_measure, rows) {
+  const { error: delErr } = await supabase
+    .from('reference_supplies')
+    .delete()
+    .eq('reference_id', reference_id)
+    .eq('supply_id', supply_id)
+    .not('talla', 'is', null);
+
+  if (delErr) return { error: delErr };
+
+  const inserts = rows
+    .filter(r => r.talla && r.quantity != null && r.quantity !== '')
+    .map(r => ({
+      reference_id,
+      supply_id,
+      talla: r.talla,
+      quantity: parseFloat(r.quantity),
+      unit_of_measure,
+      notes: r.notes || null,
+    }));
+
+  if (inserts.length === 0) return { error: null, count: 0 };
+
+  const { error, count } = await supabase.from('reference_supplies').insert(inserts);
+  return { error, count: inserts.length };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Medición y Aprobación de Muestra (Fase C)
+//   jo.mediciones: una fila por sesión de medición.
+//   resultado APROBADA -> la referencia pasa al rack de aprobadas.
+// ═══════════════════════════════════════════════════════════════
+
+export function useMediciones(referenceId) {
+  const [mediciones, setMediciones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    if (!referenceId) { setMediciones([]); setLoading(false); return; }
+    const { data, error: err } = await supabase
+      .from('mediciones')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .order('created_at', { ascending: false });
+    if (err) setError(err.message);
+    else setMediciones(data || []);
+    setLoading(false);
+  }, [referenceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { mediciones, loading, error, refresh: load };
+}
+
+export async function createMedicion(data) {
+  return supabase
+    .from('mediciones')
+    .insert({
+      reference_id: data.reference_id,
+      fecha: data.fecha || new Date().toISOString().slice(0, 10),
+      talla_medida: data.talla_medida || null,
+      resultado: data.resultado,
+      tipo_cambio: data.tipo_cambio || 'NINGUNO',
+      requiere_nueva_muestra: data.requiere_nueva_muestra || false,
+      analisis_largos: data.analisis_largos || null,
+      analisis_horma: data.analisis_horma || null,
+      posicion_estampado: data.posicion_estampado || null,
+      cambios_molderia: data.cambios_molderia || null,
+      observaciones: data.observaciones || null,
+      medido_por: data.medido_por || null,
+      ubicacion_rack: data.ubicacion_rack || null,
+    })
+    .select('*')
+    .single();
+}
+
+export async function deleteMedicion(id) {
+  return supabase
+    .from('mediciones')
+    .delete()
+    .eq('id', id);
+}
+
+// Actualiza el status de la referencia por su nombre (ej. 'APROBADO' -> rack).
+export async function updateReferenceStatusByNombre(referenceId, statusNombre) {
+  const { data: st } = await supabase
+    .from('reference_statuses')
+    .select('id')
+    .eq('status', statusNombre)
+    .maybeSingle();
+
+  if (!st) return { error: { message: `Status ${statusNombre} no encontrado en reference_statuses` } };
+
+  return supabase
+    .from('references')
+    .update({ status_id: st.id })
+    .eq('id', referenceId)
+    .select('*, reference_statuses(status, description)')
+    .single();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Laboratorios de Molde y Molderia (Fase D)
+//   Pruebas de molde del creativo con workflow de estados.
+// ═══════════════════════════════════════════════════════════════
+
+export function useLaboratorios(referenceId) {
+  const [laboratorios, setLaboratorios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    if (!referenceId) { setLaboratorios([]); setLoading(false); return; }
+    const { data, error: err } = await supabase
+      .from('laboratorios')
+      .select('*')
+      .eq('reference_id', referenceId)
+      .order('created_at', { ascending: false });
+    if (err) setError(err.message);
+    else setLaboratorios(data || []);
+    setLoading(false);
+  }, [referenceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { laboratorios, loading, error, refresh: load };
+}
+
+export async function createLaboratorio(data) {
+  return supabase
+    .from('laboratorios')
+    .insert({
+      reference_id: data.reference_id,
+      fecha: data.fecha || new Date().toISOString().slice(0, 10),
+      fecha_inicio: data.fecha_inicio || data.fecha || new Date().toISOString().slice(0, 10),
+      descripcion: data.descripcion || null,
+      tipo_molde: data.tipo_molde || 'DIGITAL',
+      estado: data.estado || 'EN_PREPARACION',
+      realizado_por_nombre: data.realizado_por_nombre || null,
+      observaciones: data.observaciones || null,
+    })
+    .select('*')
+    .single();
+}
+
+export async function updateLaboratorio(id, data) {
+  return supabase
+    .from('laboratorios')
+    .update(data)
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function deleteLaboratorio(id) {
+  return supabase
+    .from('laboratorios')
+    .delete()
+    .eq('id', id);
+}
+
+export function useMolderia(referenceId) {
+  const [molderia, setMolderia] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!referenceId) { setMolderia([]); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('molderia')
+        .select('*')
+        .eq('reference_id', referenceId)
+        .order('fecha_inicio', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: false });
+      if (!error && !cancelled) setMolderia(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [referenceId]);
+
+  return { molderia, loading };
+}
+
+export async function createMolderia({ reference_id, disenador, fecha_inicio, fecha_fin, comentarios }) {
+  return supabase
+    .from('molderia')
+    .insert({ reference_id, disenador, fecha_inicio, fecha_fin, comentarios })
+    .select('*')
+    .single();
+}
+
+export async function deleteMolderia(id) {
+  return supabase
+    .from('molderia')
+    .delete()
+    .eq('id', id);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Corte y Confección de Muestra (Fase E)
+//   jo.cuts (corte de muestra) + jo.sewings (confección).
+// ═══════════════════════════════════════════════════════════════
+
+export function useCorteTypes() {
+  const [tipos, setTipos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('corte_types')
+        .select('id, type, description')
+        .order('id');
+      if (!error && !cancelled) setTipos(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  return { tipos, loading };
+}
+
+export function useCutsMuestra(referenceId) {
+  const [cuts, setCuts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!referenceId) { setCuts([]); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('cuts')
+        .select('*')
+        .eq('reference_id', referenceId)
+        .order('created_at', { ascending: false });
+      if (!error && !cancelled) setCuts(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [referenceId]);
+
+  return { cuts, loading };
+}
+
+export async function createCutMuestra(data) {
+  return supabase
+    .from('cuts')
+    .insert({
+      reference_id: data.reference_id,
+      cut_date: data.cut_date || new Date().toISOString().slice(0, 10),
+      cut_type_id: data.cut_type_id || null,
+      units_piece: data.units_piece || null,
+      units_sample: data.units_sample || null,
+      quien_corto: data.quien_corto || null,
+      origen_corte: data.origen_corte || 'CREATIVO',
+      observations: data.observations || null,
+    })
+    .select('*')
+    .single();
+}
+
+export async function deleteCut(id) {
+  return supabase
+    .from('cuts')
+    .delete()
+    .eq('id', id);
+}
+
+export function useSewingsMuestra(referenceId) {
+  const [sewings, setSewings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!referenceId) { setSewings([]); setLoading(false); return; }
+    let cancelled = false;
+    async function load() {
+      const { data, error } = await supabase
+        .from('sewings')
+        .select('*')
+        .eq('reference_id', referenceId)
+        .order('created_at', { ascending: false });
+      if (!error && !cancelled) setSewings(data || []);
+      if (!cancelled) setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [referenceId]);
+
+  return { sewings, loading };
+}
+
+export async function createSewing(data) {
+  return supabase
+    .from('sewings')
+    .insert({
+      reference_id: data.reference_id,
+      modista_nombre: data.modista_nombre || null,
+      tipo_muestra: data.tipo_muestra || 'MUESTRA',
+      start_date: data.start_date || new Date().toISOString().slice(0, 10),
+      end_date: data.end_date || null,
+      status: data.status || 'PENDIENTE',
+      notes: data.notes || null,
+    })
+    .select('*')
+    .single();
+}
+
+export async function updateSewing(id, data) {
+  return supabase
+    .from('sewings')
+    .update(data)
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function deleteSewing(id) {
+  return supabase
+    .from('sewings')
+    .delete()
+    .eq('id', id);
+}
+
+export function usePanelCreativo(refIds) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const key = (refIds || []).join(',');
+
+  const refresh = useCallback(async () => {
+    if (!refIds || refIds.length === 0) { setData({}); setLoading(false); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const q = {
+        laboratorios: supabase.from('laboratorios').select('id, reference_id, estado, integrado_molderia').in('reference_id', refIds).order('id', { ascending: false }),
+        cuts: supabase.from('cuts').select('reference_id, cut_date').in('reference_id', refIds).order('created_at', { ascending: false }),
+        sewings: supabase.from('sewings').select('reference_id, status').in('reference_id', refIds).order('created_at', { ascending: false }),
+        mediciones: supabase.from('mediciones').select('reference_id, resultado, fecha').in('reference_id', refIds).order('fecha', { ascending: false }),
+        supplyRequests: supabase.from('supply_requests').select('reference_id, status').in('reference_id', refIds),
+        supplies: supabase.from('reference_supplies').select('reference_id, talla').in('reference_id', refIds),
+        fabrics: supabase.from('reference_fabrics').select('reference_id, usada').in('reference_id', refIds),
+        consumos: supabase.from('consumos').select('reference_id, role').eq('role', 'CREATIVO').in('reference_id', refIds),
+      };
+      const [lab, cuts, sew, med, req, sup, fab, cons] = await Promise.all([
+        q.laboratorios, q.cuts, q.sewings, q.mediciones, q.supplyRequests, q.supplies, q.fabrics, q.consumos,
+      ]);
+      const errs = [lab, cuts, sew, med, req, sup, fab, cons].filter(r => r.error);
+      if (errs.length) throw errs[0].error;
+
+      const byRef = {};
+      refIds.forEach(id => {
+        byRef[id] = { laboratorios: [], cuts: [], sewings: [], mediciones: [], supplyRequests: [], suppliesTalla: 0, fabricsUsadas: 0, fabricsTotal: 0, consumosCreativo: 0 };
+      });
+      (lab.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].laboratorios.push(r); });
+      (cuts.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].cuts.push(r); });
+      (sew.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].sewings.push(r); });
+      (med.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].mediciones.push(r); });
+      (req.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].supplyRequests.push(r); });
+      (sup.data || []).forEach(r => { if (byRef[r.reference_id] && r.talla) byRef[r.reference_id].suppliesTalla += 1; });
+      (fab.data || []).forEach(r => {
+        if (byRef[r.reference_id]) { byRef[r.reference_id].fabricsTotal += 1; if (r.usada) byRef[r.reference_id].fabricsUsadas += 1; }
+      });
+      (cons.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].consumosCreativo += 1; });
+
+      setData(byRef);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setLoading(false);
+    }
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  return { data, loading, error, refresh };
 }

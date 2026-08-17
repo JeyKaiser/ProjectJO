@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen, Package, Palette } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useState, useEffect } from 'react';
@@ -54,6 +54,13 @@ export default function Sidebar() {
             <NavLink to="/ficha-nueva" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Nueva Ficha Técnica' : undefined}>
               <span className="nav-item-icon"><FileText size={20} /></span>
               <span>Nueva Ficha Técnica</span>
+            </NavLink>
+          )}
+
+          {(isAdmin || isCreativo) && (
+            <NavLink to="/creativo" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Panel del Creativo' : undefined}>
+              <span className="nav-item-icon"><Palette size={20} /></span>
+              <span>Panel del Creativo</span>
             </NavLink>
           )}
 
@@ -161,6 +168,13 @@ export default function Sidebar() {
             <NavLink to="/admin/codigos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Codigos MD/PT' : undefined}>
               <span className="nav-item-icon"><Hash size={20} /></span>
               <span>Codigos MD/PT</span>
+            </NavLink>
+          )}
+
+          {(isAdmin) && (
+            <NavLink to="/admin/insumos" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Insumos' : undefined}>
+              <span className="nav-item-icon"><Package size={20} /></span>
+              <span>Insumos</span>
             </NavLink>
           )}
 

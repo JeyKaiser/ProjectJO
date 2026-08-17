@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-export default function SeccionColapsable({ titulo, icono, children, defaultOpen = true, accentColor }) {
+export default function SeccionColapsable({ titulo, icono, children, defaultOpen = false, accentColor }) {
     const [open, setOpen] = useState(defaultOpen);
     return (
         <div className="detalle-seccion" style={{ borderLeftColor: accentColor }}>
@@ -13,7 +13,9 @@ export default function SeccionColapsable({ titulo, icono, children, defaultOpen
                 </div>
                 {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </button>
-            {open && <div className="detalle-seccion-body">{children}</div>}
+            {open && <div className="detalle-seccion-body">
+                        {children}
+                    </div>}
         </div>
     );
 }

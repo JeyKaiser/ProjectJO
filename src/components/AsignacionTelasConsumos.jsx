@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Upload, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase, { STORAGE_BUCKET, getImageUrl } from '../lib/supabase';
-import { useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos } from '../lib/api';
+import { useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos, toggleReferenceFabricUsada } from '../lib/api';
 
 const ROLE_TO_DB_ENUM = {
   'Diseñador Creativo': 'CREATIVO',
@@ -20,6 +20,9 @@ function mapRoleToDB(role) {
 
 export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const { role } = useAuth();
+
+  const canConfirmarTela = role === 'Administrador' || role === 'Diseñador Creativo';
+  const dbRole = mapRoleToDB(role);
   
   const [dbRefId, setDbRefId] = useState(null);
   const { refFabrics, loading: loadingFabrics } = useReferenceFabrics(dbRefId);
@@ -29,6 +32,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
 
   const [editingId, setEditingId] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [confirmandoId, setConfirmandoId] = useState(null);
 
   const [selectedFabric, setSelectedFabric] = useState(null);
   const [usoPrenda, setUsoPrenda] = useState('');
@@ -289,6 +293,22 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     setLocalFabrics(prev => prev.filter(f => f.id !== id));
   };
 
+  const handleConfirmarTela = async (rf) => {
+    setConfirmandoId(rf.id);
+    try {
+      const nuevaUsada = !rf.usada;
+      const { error } = await toggleReferenceFabricUsada(rf.id, nuevaUsada, role);
+      if (error) throw error;
+      setLocalFabrics(prev => prev.map(f => f.id === rf.id ? { ...f, usada: nuevaUsada, confirmada_por: role } : f));
+      setToast(nuevaUsada ? 'Tela confirmada como usada en la muestra' : 'Tela marcada como no usada');
+      setTimeout(() => setToast(null), 3000);
+    } catch (e) {
+      setError(e.message || 'Error al confirmar tela');
+    } finally {
+      setConfirmandoId(null);
+    }
+  };
+
   return (
     <div>
       {localFabrics.length > 0 && (
@@ -301,6 +321,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
                 <th>Codigo</th>
                 <th>Descripcion</th>
                 <th>Ancho (cm)</th>
+                <th style={{ width: 90 }}>Usada</th>
                 <th style={{ width: 80 }}>Acciones</th>
               </tr>
             </thead>
@@ -323,6 +344,36 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
                     <td><span className="code-badge code-md" style={{ fontSize: 12 }}>{fab?.code || '—'}</span></td>
                     <td style={{ color: 'var(--gray-600)' }}>{fab?.description || '—'}</td>
                     <td style={{ textAlign: 'center' }}>{fab?.width_cm || rf.width_cm || '—'}</td>
+                    <td>
+                      {canConfirmarTela ? (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmarTela(rf)}
+                          disabled={confirmandoId === rf.id}
+                          title={rf.usada ? 'Click para marcar como NO usada' : 'Click para confirmar como usada en la muestra'}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                            cursor: confirmandoId === rf.id ? 'wait' : 'pointer',
+                            border: 'none',
+                            background: rf.usada ? '#dcfce7' : 'var(--gray-200)',
+                            color: rf.usada ? '#166534' : 'var(--gray-600)',
+                          }}
+                        >
+                          {confirmandoId === rf.id ? '...' : <CheckCircle size={12} />}
+                          {rf.usada ? 'Usada' : 'No usada'}
+                        </button>
+                      ) : (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                          background: rf.usada ? '#dcfce7' : 'var(--gray-200)',
+                          color: rf.usada ? '#166534' : 'var(--gray-600)',
+                        }}>
+                          {rf.usada ? 'Usada' : 'No usada'}
+                        </span>
+                      )}
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn-icon" title="Editar" onClick={() => startEdit(rf)}

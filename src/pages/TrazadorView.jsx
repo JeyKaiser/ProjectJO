@@ -15,6 +15,8 @@ export default function TrazadorView() {
   const [referencias, setReferencias] = useState([]);
   const [trazos, setTrazos] = useState([]);
   const [fabricsByRef, setFabricsByRef] = useState({});
+  const [collections, setCollections] = useState([]);
+  const [expandedCols, setExpandedCols] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pendiente');
   const [expandedRef, setExpandedRef] = useState(null);
@@ -30,12 +32,20 @@ export default function TrazadorView() {
     try {
       const { data: refs, error: refsErr } = await supabase
         .from('references')
-        .select('id, reference_number, name, has_art_modification, has_trace_location, has_all_over, has_embroidery')
+        .select('id, reference_number, name, collection_id, has_art_modification, has_trace_location, has_all_over, has_embroidery')
         .eq('is_hidden', false)
         .order('reference_number')
         .limit(200);
 
       if (refsErr) { console.error('Error loading references:', refsErr); setReferencias([]); setLoading(false); return; }
+
+      const { data: cols, error: colsErr } = await supabase
+        .from('collections')
+        .select('id, code, name, year')
+        .eq('active', true)
+        .order('code');
+      if (colsErr) { console.error('Error loading collections:', colsErr); }
+      setCollections(cols || []);
 
       const refIds = (refs || []).map(r => r.id);
 
@@ -98,6 +108,33 @@ export default function TrazadorView() {
     if (filter === 'todos') return refsWithTrazos;
     return refsWithTrazos.filter(r => r.status === filter);
   }, [refsWithTrazos, filter]);
+
+  const groupedByCollection = useMemo(() => {
+    const colMap = new Map();
+    collections.forEach(c => colMap.set(c.id, {
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      year: c.year,
+      refs: [],
+    }));
+    const sinColeccion = { id: null, code: 'SIN', name: 'Sin colección', year: null, refs: [] };
+    filtered.forEach(r => {
+      if (r.collection_id && colMap.has(r.collection_id)) colMap.get(r.collection_id).refs.push(r);
+      else sinColeccion.refs.push(r);
+    });
+    const groups = Array.from(colMap.values()).filter(g => g.refs.length > 0);
+    if (sinColeccion.refs.length > 0) groups.push(sinColeccion);
+    return groups;
+  }, [filtered, collections]);
+
+  function toggleCollection(id) {
+    setExpandedCols(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   const kpis = useMemo(() => {
     const total = refsWithTrazos.length;
@@ -177,30 +214,64 @@ export default function TrazadorView() {
         ))}
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'auto' }}>
-        <div className="table-wrapper">
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: 'var(--gray-100)', borderBottom: '2px solid var(--gray-200)' }}>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, width: 30 }}></th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600 }}>Ref. PT</th>
-                <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600 }}>Nombre</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Telas</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Tipos</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Estado</th>
-                <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--gray-400)' }}>No hay referencias en este estado.</td></tr>
-              ) : (
-                filtered.map(ref => {
-                  const isExpanded = expandedRef === ref.id;
-                  const fabrics = fabricsByRef[ref.id] || [];
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        {groupedByCollection.length === 0 ? (
+          <div className="card" style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-400)' }}>
+            No hay referencias en este estado.
+          </div>
+        ) : (
+          groupedByCollection.map(col => {
+            const isCollapsed = !expandedCols.has(col.id);
+            const pendientes = col.refs.filter(r => r.status === 'pendiente').length;
+            const enProgreso = col.refs.filter(r => r.status === 'en-progreso').length;
+            const completados = col.refs.filter(r => r.status === 'completado').length;
 
-                  return (
-                    <tr key={ref.id} style={{ borderBottom: '1px solid var(--gray-100)' }}>
+            return (
+              <div key={col.id ?? 'sin-col'} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div
+                  onClick={() => toggleCollection(col.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 'var(--space-3)',
+                    padding: '14px 16px', cursor: 'pointer', userSelect: 'none',
+                    background: isCollapsed ? 'var(--gray-100)' : 'var(--primary-50)',
+                    borderBottom: isCollapsed ? 'none' : '1px solid var(--primary-100)',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--primary-600)' }}>
+                    {isCollapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                  </span>
+                  <span className="code-badge" style={{ fontSize: 12, padding: '2px 8px', background: 'var(--primary-600)', color: '#fff' }}>{col.code}</span>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--gray-800)' }}>{col.name}</span>
+                  {col.year && <span className="badge badge-secondary" style={{ fontSize: 10 }}>{col.year}</span>}
+                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-3)', fontSize: 11, color: 'var(--gray-500)' }}>
+                    <span>{col.refs.length} refs</span>
+                    {pendientes > 0 && <span style={{ color: 'var(--warning-dark)' }}>{pendientes} pend.</span>}
+                    {enProgreso > 0 && <span style={{ color: 'var(--secondary-600)' }}>{enProgreso} en prog.</span>}
+                    {completados > 0 && <span style={{ color: 'var(--success-dark)' }}>{completados} compl.</span>}
+                  </span>
+                </div>
+
+                {!isCollapsed && (
+                  <div className="table-wrapper">
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--gray-100)', borderBottom: '2px solid var(--gray-200)' }}>
+                          <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, width: 30 }}></th>
+                          <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600 }}>Ref. PT</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600 }}>Nombre</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Telas</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Tipos</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Estado</th>
+                          <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600 }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {col.refs.map(ref => {
+                          const isExpanded = expandedRef === ref.id;
+                          const fabrics = fabricsByRef[ref.id] || [];
+
+                          return (
+                            <tr key={ref.id} style={{ borderBottom: '1px solid var(--gray-100)' }}>
                       <td style={{ padding: '10px 8px', textAlign: 'center', cursor: 'pointer', verticalAlign: 'top' }}
                         onClick={() => setExpandedRef(isExpanded ? null : ref.id)}>
                         {isExpanded ? <ChevronDown size={14} style={{ color: 'var(--primary-600)' }} /> : <ChevronRight size={14} style={{ color: 'var(--gray-400)' }} />}
@@ -359,11 +430,15 @@ export default function TrazadorView() {
                       )}
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {showTrazoForm && (

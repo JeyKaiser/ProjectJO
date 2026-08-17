@@ -24,6 +24,8 @@ const CorteKanban = lazy(() => import('./pages/CorteKanban'));
 const ImportarCorteCSV = lazy(() => import('./pages/ImportarCorteCSV'));
 const InformesCorte = lazy(() => import('./pages/InformesCorte'));
 const AdminCodigos = lazy(() => import('./pages/AdminCodigos'));
+const AdminInsumos = lazy(() => import('./pages/AdminInsumos'));
+const PanelCreativo = lazy(() => import('./pages/PanelCreativo'));
 
 function App() {
   return (
@@ -94,6 +96,16 @@ function App() {
             <Route path="/admin/codigos" element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
                 <AdminCodigos />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/insumos" element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN]}>
+                <AdminInsumos />
+              </ProtectedRoute>
+            } />
+            <Route path="/creativo" element={
+              <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CREATIVO]}>
+                <PanelCreativo />
               </ProtectedRoute>
             } />
             <Route path="/importar/corte" element={

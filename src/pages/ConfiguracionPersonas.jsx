@@ -12,6 +12,7 @@ const AREA_ICONS = {
   especificadoras: '📝',
   trazadores: '📏',
   bordadoras: '🪡',
+  bodega: '📦',
 };
 
 export default function ConfiguracionPersonas() {

@@ -1,11 +1,15 @@
 ﻿import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff, Edit2, X, Save } from 'lucide-react';
+import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff, Edit2, X, Save, FlaskConical } from 'lucide-react';
 import { useDashboardData, getFaseMacro, toggleReferenceHidden, createCutRequest, updateReference, useReferenciaDB, assignCode } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import supabase from '../lib/supabase';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
+import InsumosBodega from '../components/InsumosBodega';
+import MedicionMuestra from '../components/MedicionMuestra';
+import LaboratoriosMolderia from '../components/LaboratoriosMolderia';
+import CorteConfeccionMuestra from '../components/CorteConfeccionMuestra';
 import SeccionColapsable from '../components/SeccionColapsable';
 import styles from './ReferenciaDetalle.module.css';
 
@@ -418,7 +422,7 @@ export default function ReferenciaDetalle() {
         </SeccionColapsable>
 
         {/* SECCIÓN 1.5: Reprogramación / Referente */}
-        <SeccionColapsable titulo="Reprogramación / Referente" icono={<BookMarked size={18} />} accentColor="var(--primary-color)" defaultOpen={true}>
+        <SeccionColapsable titulo="Reprogramación / Referente" icono={<BookMarked size={18} />} accentColor="var(--primary-color)" defaultOpen={false}>
           <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
             <div style={{ flex: 1 }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#1e293b' }}>¿Es esta referencia una reprogramación?</h4>
@@ -438,7 +442,7 @@ export default function ReferenciaDetalle() {
         </SeccionColapsable>
 
         {/* SECCIÓN 2: Telas y Consumos */}
-        <SeccionColapsable titulo="Telas y Consumos" icono={<Scissors size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={true}>
+        <SeccionColapsable titulo="Telas y Consumos" icono={<Scissors size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
           <AsignacionTelasConsumos refId={refId} />
         </SeccionColapsable>
 
@@ -449,33 +453,34 @@ export default function ReferenciaDetalle() {
           </SeccionColapsable>
         )}
 
-        {/* SECCIÓN 3: Insumos No Textiles */}
-        <SeccionColapsable titulo="Insumos No Textiles" icono={<Package size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
-          {ref.insumos && ref.insumos.length > 0 ? (
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr><th>Código</th><th>Descripción</th><th>Unidad</th><th>Cantidad</th></tr>
-                </thead>
-                <tbody>
-                  {ref.insumos.map(ins => (
-                    <tr key={ins.id}>
-                      <td><strong>{ins.codigo}</strong></td>
-                      <td>{ins.descripcion}</td>
-                      <td>{ins.unidad}</td>
-                      <td style={{ fontWeight: 700 }}>{ins.cantidad}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className={styles.vacio}>No hay insumos registrados aún.</p>
-          )}
+        {/* SECCIÓN 2.7: Medición y Aprobación de Muestra */}
+        {ref?.dbId && (
+          <SeccionColapsable titulo="Medición y Aprobación" icono={<CheckCircle size={18} />} accentColor="var(--primary-500)" defaultOpen={false}>
+            <MedicionMuestra dbRefId={ref.dbId} referenceLabel={`Ref ${ref.referenceNumber || ''}`} />
+          </SeccionColapsable>
+        )}
+
+        {/* SECCIÓN 2.8: Laboratorios de Molde y Molderia */}
+        {ref?.dbId && (
+          <SeccionColapsable titulo="Laboratorios y Molderia" icono={<FlaskConical size={18} />} accentColor="var(--success)" defaultOpen={false}>
+            <LaboratoriosMolderia dbRefId={ref.dbId} referenceLabel={`Ref ${ref.referenceNumber || ''}`} />
+          </SeccionColapsable>
+        )}
+
+        {/* SECCIÓN 2.9: Corte y Confección de Muestra */}
+        {ref?.dbId && (
+          <SeccionColapsable titulo="Corte y Confección de Muestra" icono={<Scissors size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
+            <CorteConfeccionMuestra dbRefId={ref.dbId} referenceLabel={`Ref ${ref.referenceNumber || ''}`} />
+          </SeccionColapsable>
+        )}
+
+        {/* SECCIÓN 3: Insumos y Bodega */}
+        <SeccionColapsable titulo="Insumos y Bodega" icono={<Package size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
+          <InsumosBodega dbRefId={ref?.dbId} referenceLabel={`Ref ${ref.referenceNumber || ''}`} />
         </SeccionColapsable>
 
         {/* SECCIÓN 4: Historial de Fases (Timeline) */}
-        <SeccionColapsable titulo="Historial de Fases" icono={<Clock size={18} />} accentColor="var(--primary-500)" defaultOpen={true}>
+        <SeccionColapsable titulo="Historial de Fases" icono={<Clock size={18} />} accentColor="var(--primary-500)" defaultOpen={false}>
           {ref.historialFases && ref.historialFases.length > 0 ? (
             <div className={styles.timeline}>
               {ref.historialFases.map((h, i) => {

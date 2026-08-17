@@ -12,6 +12,7 @@ export const ROLES = {
   ESPECIFICADORA: 'Especificadora',
   CORTADOR: 'Cortador',
   LIDER_CORTADOR: 'Líder de Cortadores',
+  BODEGA: 'Bodega',
   VISITANTE: 'Visitante',
 };
 
@@ -74,6 +75,7 @@ export const AuthProvider = ({ children }) => {
     isEspecificadora: role === ROLES.ESPECIFICADORA,
     isCortador: role === ROLES.CORTADOR,
     isLiderCortadores: role === ROLES.LIDER_CORTADOR,
+    isBodega: role === ROLES.BODEGA,
   }), [role, isServer, roleLocked, loading]);
 
   if (loading) {

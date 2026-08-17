@@ -68,6 +68,10 @@ export const PERSONAS_DEFAULT = {
     { id: 'BOR-006', nombre: 'PAULA GARCIA', rol: 'Bordadora', activo: true, fechaIngreso: '2024-05-01', cedula: '', correo: '', telefono: '' },
     { id: 'BOR-007', nombre: 'ALEJANDRA MORALES', rol: 'Bordadora', activo: true, fechaIngreso: '2024-06-01', cedula: '', correo: '', telefono: '' },
   ],
+  bodega: [
+    { id: 'BOD-001', nombre: 'GLORIA BANGUERA', rol: 'Bodega', activo: true, fechaIngreso: '2024-01-15', cedula: '', correo: '', telefono: '' },
+    { id: 'BOD-002', nombre: 'DANIELA GARCIA', rol: 'Bodega', activo: true, fechaIngreso: '2024-03-01', cedula: '', correo: '', telefono: '' },
+  ],
 };
 
 export const AREAS = [
@@ -78,6 +82,7 @@ export const AREAS = [
   { key: 'especificadoras', label: 'Especificadoras', singular: 'Especificadora' },
   { key: 'trazadores', label: 'Trazadores', singular: 'Trazador' },
   { key: 'bordadoras', label: 'Bordadoras', singular: 'Bordadora' },
+  { key: 'bodega', label: 'Bodega', singular: 'Bodega' },
 ];
 
 const generateNextId = (data, prefix) => {
@@ -134,6 +139,7 @@ export const ID_PREFIXES = {
   especificadoras: 'ESP',
   trazadores: 'TRA',
   bordadoras: 'BOR',
+  bodega: 'BOD',
 };
 
 export const getPersonasByRol = (rol) => {
@@ -145,6 +151,7 @@ export const getPersonasByRol = (rol) => {
     'Especificadora': 'especificadoras',
     'Trazador': 'trazadores',
     'Bordadora': 'bordadoras',
+    'Bodega': 'bodega',
   };
   const key = rolMap[rol];
   if (!key) return [];
