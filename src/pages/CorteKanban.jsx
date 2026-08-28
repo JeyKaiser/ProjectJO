@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Clock, User, Tag, Scissors, CheckCircle2, Play, ArrowRight, AlertCircle, Check, Eye, EyeOff, Archive, RefreshCw, Plus, Save, Trash2 } from 'lucide-react';
 import { useCutRequests, updateCutRequest } from '../lib/api';
-import { getPersonas } from '../data/personas';
+import { usePersonsByArea } from '../hooks/usePersons';
 import supabase from '../lib/supabase';
 
 const COLUMNS = [
@@ -49,8 +49,7 @@ function formatDateFull(dateStr) {
 
 export default function CorteKanban() {
   const { items, loading, error, refresh } = useCutRequests({ source: 'app' });
-  const personas = getPersonas();
-  const cortadoresActivos = (personas.cortadores || []).filter(p => p.activo !== false);
+  const { data: cortadoresActivos } = usePersonsByArea('cortadores');
   const [selectedFilter, setSelectedFilter] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [showEntregados, setShowEntregados] = useState(true);

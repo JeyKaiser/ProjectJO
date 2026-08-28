@@ -4,6 +4,7 @@ import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, P
 import { useDashboardData, getFaseMacro, toggleReferenceHidden, createCutRequest, updateReference, useReferenciaDB, assignCode } from '../lib/api';
 import { useAuth, ROLES } from '../context/AuthContext';
 import supabase from '../lib/supabase';
+import { useComplejidad, useLargos } from '../hooks/useCatalogos';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
 import InsumosBodega from '../components/InsumosBodega';
@@ -60,6 +61,10 @@ function ChipToggle({ active, onChange, children }) {
 export default function ReferenciaDetalle() {
   const { seasonCode, coleccionId, anio, refId } = useParams();
   const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
+
+  // Hooks de catálogos desde BD
+  const { data: complejidad } = useComplejidad();
+  const { data: largos } = useLargos();
 
   // Mock estado de flujo de trabajo (Hand-off)
   const [workflowState, setWorkflowState] = useState({
@@ -401,6 +406,8 @@ export default function ReferenciaDetalle() {
               ['Largo', ref.largo],
               ['Largo Cms', ref.largoCms || '—'],
               ['Closure', ref.closure],
+              ['¿Tiene Forro?', ref.linned ? 'Sí' : 'No'],
+              ['¿Requiere Muestra?', ref.requiereMuestra ? 'Sí' : 'No'],
               ['Drop de Entrega', ref.dropEntrega],
               ['Prioridad First Buy', ref.prioridadFirstBuy],
               ['Enviar a Maquila', ref.enviarMaquila ? 'Sí' : 'No'],
@@ -409,9 +416,10 @@ export default function ReferenciaDetalle() {
               ['Bordado en Prenda', ref.tieneBordado ? 'Sí' : 'No'],
               ['Semielaborados', ref.tieneSemielaborado ? 'Sí' : 'No'],
               ['Montaje Maniquí', ref.montajeManiqui],
-              ['Tiras Continuas', ref.tirasContinuas ? 'Sí' : 'No'],
+              ['Tiras Continuas', ref.tirasContinuas || 'No aplica'],
               ['Includes', ref.includes || '—'],
               ['Tipo de Empaque', ref.tipoEmpaque],
+              ['Especificación Confeccion', ref.especificacionConfeccion || '—'],
             ].map(([label, val]) => (
               <div key={label} className={styles.infoItem}>
                 <span className={styles.infoLabel}>{label}</span>
@@ -756,13 +764,7 @@ export default function ReferenciaDetalle() {
                   <select className="form-select" value={editForm.length_description || ''}
                     onChange={e => setEditForm(prev => ({ ...prev, length_description: e.target.value }))}>
                     <option value="">Sin definir</option>
-                    <option value="Mini">Mini</option>
-                    <option value="Midi">Midi</option>
-                    <option value="Maxi">Maxi</option>
-                    <option value="Full Length">Full Length</option>
-                    <option value="Hip">Hip</option>
-                    <option value="Knee Length">Knee Length</option>
-                    <option value="Cropped">Cropped</option>
+                    {largos.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
@@ -816,9 +818,7 @@ export default function ReferenciaDetalle() {
                   <select className="form-select" value={editForm.complejidad_corte_id || ''}
                     onChange={e => setEditForm(prev => ({ ...prev, complejidad_corte_id: e.target.value || '' }))}>
                     <option value="">Sin definir</option>
-                    <option value="1">Baja</option>
-                    <option value="2">Media</option>
-                    <option value="3">Alta</option>
+                    {complejidad.map(c => <option key={c.id} value={c.id}>{c.level}</option>)}
                   </select>
                 </div>
                 <div className="form-group">
@@ -826,9 +826,7 @@ export default function ReferenciaDetalle() {
                   <select className="form-select" value={editForm.complejidad_confeccion_id || ''}
                     onChange={e => setEditForm(prev => ({ ...prev, complejidad_confeccion_id: e.target.value || '' }))}>
                     <option value="">Sin definir</option>
-                    <option value="1">Baja</option>
-                    <option value="2">Media</option>
-                    <option value="3">Alta</option>
+                    {complejidad.map(c => <option key={c.id} value={c.id}>{c.level}</option>)}
                   </select>
                 </div>
               </div>

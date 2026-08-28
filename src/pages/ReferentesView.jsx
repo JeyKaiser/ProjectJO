@@ -35,7 +35,7 @@ export default function ReferentesView() {
         {activeTab === 'catalogo' && <CatalogoTab isAdmin={isAdmin} />}
         {activeTab === 'consulta' && <ConsultaTab />}
         {activeTab === 'admin' && <AdminTab isAdmin={isAdmin} />}
-      </div>
+      </div>             
     </div>
   );
 }
@@ -200,7 +200,7 @@ function BuscarConsumoResultado({ tipoPrenda, cantidadTelas, variante, tela, uso
 
 function CatalogoTab({ isAdmin }) {
   const [nivel, setNivel] = useState(1);
-  const [tipoSeleccionado, setTipoSeleccionado] = useState(null);
+  const [tipoSeleccionado, setTipoSeleccionado] = useState(null);  
   const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
 
   const { tipos, loading: loadingTipos } = useTiposPrenda();
@@ -239,6 +239,7 @@ function CatalogoTab({ isAdmin }) {
         <NivelFilas tipoPrenda={tipoSeleccionado} grupo={grupoSeleccionado} filas={filas} loading={loadingFilas} />
       )}
     </div>
+    
   );
 }
 

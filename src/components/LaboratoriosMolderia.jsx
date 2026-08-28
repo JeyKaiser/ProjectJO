@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, FlaskConical, CheckCircle, XCircle, RotateCcw, FileScan, Scissors, Ruler, PackagePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getPersonas } from '../data/personas';
+import { usePersonsByArea } from '../hooks/usePersons';
 import { useLaboratorios, createLaboratorio, updateLaboratorio, deleteLaboratorio, useMolderia, createMolderia, deleteMolderia } from '../lib/api';
 
 const ESTADOS = {
@@ -29,8 +29,7 @@ export default function LaboratoriosMolderia({ dbRefId, referenceLabel = '' }) {
   const { laboratorios, loading, refresh } = useLaboratorios(dbRefId);
   const { molderia, loading: loadingMolderia, refresh: refreshMolderia } = useMolderia(dbRefId);
 
-  const personas = getPersonas();
-  const creativos = (personas.creativos || []).filter(p => p.activo !== false);
+  const { data: creativos } = usePersonsByArea('creativos');
 
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);

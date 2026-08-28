@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Plus, Save, Trash2, Ruler } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
-import { getPersonas } from '../data/personas';
+import { usePersonsByArea } from '../hooks/usePersons';
 import { useMediciones, createMedicion, deleteMedicion, updateReferenceStatusByNombre } from '../lib/api';
 
 const RESULTADO_BADGE = {
@@ -33,8 +33,7 @@ export default function MedicionMuestra({ dbRefId, referenceLabel = '' }) {
   const [toast, setToast] = useState(null);
   const [error, setError] = useState(null);
 
-  const personas = getPersonas();
-  const creativos = (personas.creativos || []).filter(p => p.activo !== false);
+  const { data: creativos } = usePersonsByArea('creativos');
 
   const [form, setForm] = useState({
     fecha: new Date().toISOString().slice(0, 10),

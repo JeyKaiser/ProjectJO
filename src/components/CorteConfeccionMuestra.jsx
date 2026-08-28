@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Save, Trash2, Scissors, Shirt, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getPersonas } from '../data/personas';
+import { usePersonsByArea } from '../hooks/usePersons';
 import {
   useCorteTypes,
   useCutsMuestra,
@@ -36,9 +36,8 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
   const { cuts, loading: loadingCuts } = useCutsMuestra(dbRefId);
   const { sewings, loading: loadingSewings } = useSewingsMuestra(dbRefId);
 
-  const personas = getPersonas();
-  const creativos = (personas.creativos || []).filter(p => p.activo !== false);
-  const modistas = (personas.modistas || []).filter(p => p.activo !== false);
+  const { data: creativos } = usePersonsByArea('creativos');
+  const { data: modistas } = usePersonsByArea('modistas');
 
   const [showCorte, setShowCorte] = useState(false);
   const [showSewing, setShowSewing] = useState(false);

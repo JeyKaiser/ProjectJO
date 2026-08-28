@@ -5,10 +5,6 @@ import { parseMatriz, detectFormat } from '../lib/matrizParser';
 import { useDashboardData } from '../lib/api';
 import supabase from '../lib/supabase';
 
-// ── Status mapping para MATRIZ ──
-const STATUS_MAP = { 'APROBADO': 2, 'EN PROCESO': 1, 'EN_PROCESO': 1, 'CANCELADO': 3, 'CANCELADO CORTADO': 3, 'CANCELADO SIN CORTAR': 3, 'JUST FOR SHOW': 3, 'PAQUETE COMPLETO': 4, 'PENDIENTE': 6, 'TERMINADO': 2 };
-const DIFICULTAD_MAP = { 'BAJA': 1, 'BAJO': 1, 'MEDIA': 2, 'MEDIO': 2, 'INTERMEDIA': 2, 'INTERMEDIO': 2, 'ALTA': 3, 'ALTO': 3, 'CRITICO': 3, 'CRITICA': 3, 'MENOR': 1, 'MAYOR': 3 };
-
 async function getOrCreateFabric(code, desc) {
   if (!code) return null;
   const { data } = await supabase.from('fabrics').select('id').eq('code', code).single();

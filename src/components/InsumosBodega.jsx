@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Package, Plus, Truck, CheckCircle, X, ClipboardList, PackageCheck, Ruler } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getPersonas } from '../data/personas';
+import { usePersonsByArea } from '../hooks/usePersons';
+import { useUnidades } from '../hooks/useCatalogos';
 import ConsumosInsumosPorTalla from './ConsumosInsumosPorTalla';
 import {
   useSupplies,
@@ -12,8 +13,6 @@ import {
   confirmSupplyAsUsed,
   useReferenceSupplies,
 } from '../lib/api';
-
-const UNIDADES = ['metros', 'unidades'];
 
 const STATUS_BADGE = {
   SOLICITADO: { bg: '#fef9c3', color: '#854d0e', label: 'Solicitado' },
@@ -43,9 +42,9 @@ export default function InsumosBodega({ dbRefId, referenceLabel = '' }) {
   const { requests, loading: loadingRequests, refresh: refreshRequests } = useSupplyRequests(dbRefId);
   const { supplies: usedSupplies, loading: loadingUsed, refresh: refreshUsed } = useReferenceSupplies(dbRefId);
 
-  const personas = getPersonas();
-  const creativos = (personas.creativos || []).filter(p => p.activo !== false);
-  const bodega = (personas.bodega || []).filter(p => p.activo !== false);
+  const { data: creativos } = usePersonsByArea('creativos');
+  const { data: bodega } = usePersonsByArea('bodega');
+  const { data: unidades } = useUnidades();
 
   // ── Form de solicitud ──
   const [form, setForm] = useState({ modo: 'catalogo', supplyId: '', description: '', quantity: '', unit: 'metros', notes: '' });
@@ -272,7 +271,7 @@ export default function InsumosBodega({ dbRefId, referenceLabel = '' }) {
                     value={form.unit}
                     onChange={(e) => setForm(prev => ({ ...prev, unit: e.target.value }))}
                   >
-                    {UNIDADES.map(u => <option key={u} value={u}>{u}</option>)}
+                    {unidades.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
                   </select>
                 </div>
               </div>

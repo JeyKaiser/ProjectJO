@@ -3,26 +3,21 @@ import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, Chevron
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData, createReference, useCollectionYears, useColorLookup, useSearchReferences, assignCode } from '../lib/api';
 import supabase from '../lib/supabase';
-import { getPersonas } from '../data/personas';
+import { useLineas, useSublineas, useTallajes, useClosures, useEmpaques, useComplejidad, useLargos } from '../hooks/useCatalogos';
+import { usePersonsByArea } from '../hooks/usePersons';
 import { useAuth } from '../context/AuthContext';
 import styles from './FichaTecnicaForm.module.css';
 
-// ── Catálogos ────────────────────────────────────────────────
+// ── Catálogos (mantenidos como constantes UI) ────────────────
 const TIPO_PRENDA_OPTIONS = [
   'Vestido', 'Pantalón', 'Falda', 'Blazer', 'Jacket', 'Abrigo',
   'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Vest','Otro',
 ];
 
-const LINEA_OPTIONS = ['Ready To Wear', 'Couture', 'Resort', 'Pre-Fall'];
-const SUBLINEA_OPTIONS = ['Dresses', 'Tops', 'Bottoms', 'Outerwear', 'Jumpsuits', 'Sets'];
-const TALLAJE_OPTIONS = ['XS-S-M-L', 'XS-S-M-L-XL', 'S-M-L', '0-2-4-6-8-10-12', 'Talla Única', 'Personalizado'];
 const LARGO_OPTIONS = ['Mini', 'Midi', 'Maxi', 'Full Length', 'Hip', 'Knee Length', 'Cropped'];
-const CLOSURE_OPTIONS = ['Sin cierre', 'Cremallera lateral', 'Cremallera posterior', 'Botones', 'Elástico', 'Correa', 'Otro'];
 const DROP_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
 const PRIORIDAD_OPTIONS = ['A', 'B', 'C'];
-const COMPLEJIDAD_OPTIONS = ['Baja', 'Media', 'Alta', 'Muy Alta'];
 const MONTAJE_OPTIONS = ['No aplica', 'Drapeado', 'Descole', 'Prensados'];
-const EMPAQUE_OPTIONS = ['Individual', 'Doble', 'Set'];
 
 const CLASIFICACION_OPTIONS = [
   { value: 'Sólida', label: 'Sólida' },
@@ -74,7 +69,6 @@ function FormSeccion({ titulo, children, defaultOpen = true, accentColor = 'var(
 export default function FichaTecnicaForm() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const personas = getPersonas();
   const { data } = useDashboardData();
   const COLECCIONES_OPTIONS = (data?.colecciones || []).map(c => ({
     value: c.dbId,  // DB id para guardar en references.collection_id
@@ -94,12 +88,12 @@ export default function FichaTecnicaForm() {
     tipoPrenda: '',
     color: '',
     codigoColor: '',
-    linea: '',
-    sublinea: '',
-    tallaje: '',
+    linea_id: null,
+    sublinea_id: null,
+    tallaje_id: null,
     largo: '',
     largoCms: '',
-    closure: '',
+    closure_id: null,
     codigoMD: '',
     codigoPT: '',
     clasificacion: 'Sólida',
@@ -109,22 +103,23 @@ export default function FichaTecnicaForm() {
     prioridadFirstBuy: 'A',
     dropEntrega: 'A',
     enviarMaquila: false,
-    complejidadCorte: 'Media',
-    complejidadConfeccion: 'Media',
+    complejidad_corte_id: null,
+    complejidad_confeccion_id: null,
     // Procesos (toggle: null = no aplica, true = aplica)
     tieneBordado: false,
     tieneSemielaborado: false,
     montajeManiqui: 'No aplica',
-    tirasContinuas: false,
+    tirasContinuas: '',
     includes: '',
-    tipoEmpaque: 'Individual',
+    empaque_id: null,
+    // Nuevos campos
+    linned: false,
+    requiereMuestra: false,
+    especificacionConfeccion: '',
     // Equipo
     disenadorCreativo: '',
-    patronista: '',
     disenadorTecnico: '',
-    cortador: '',
     modista: '',
-    bordadora: '',
     trazador: '',
     equipoConsumos: '',
     // Boceto
@@ -134,7 +129,6 @@ export default function FichaTecnicaForm() {
   const [guardado, setGuardado] = useState(false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const [difficultyMap, setDifficultyMap] = useState({});
   const [referenteSearch, setReferenteSearch] = useState('');
   const [referenteFocused, setReferenteFocused] = useState(false);
 
@@ -143,18 +137,29 @@ export default function FichaTecnicaForm() {
   const { color: matchedColor, loading: colorLoading } = useColorLookup(formData.codigoColor);
   const { results: referenteResults, loading: referenteLoading } = useSearchReferences(referenteSearch, selectedColId);
 
-  useEffect(() => {
-    supabase
-      .from('difficulty_levels')
-      .select('id, level')
-      .then(({ data: levels, error: _ }) => {
-        if (levels) {
-          const map = {};
-          levels.forEach(l => { map[l.level] = l.id; });
-          setDifficultyMap(map);
-        }
-      });
-  }, []);
+  // ── Hooks de catálogos desde BD ────────────────────────────
+  const { data: lineas } = useLineas();
+  const { data: sublineas } = useSublineas(formData.linea_id);
+  const { data: tallajes } = useTallajes();
+  const { data: closures } = useClosures();
+  const { data: empaques } = useEmpaques();
+  const { data: complejidad } = useComplejidad();
+  const { data: largos } = useLargos();
+
+  // ── Hooks de personas desde BD ─────────────────────────────
+  const { data: personasCreativos } = usePersonsByArea('creativos');
+  const { data: personasTecnicos } = usePersonsByArea('tecnicos');
+  const { data: personasModistas } = usePersonsByArea('modistas');
+  const { data: personasTrazadores } = usePersonsByArea('trazadores');
+  const { data: personasEspecificadoras } = usePersonsByArea('especificadoras');
+
+  const personasMap = {
+    creativos: personasCreativos,
+    tecnicos: personasTecnicos,
+    modistas: personasModistas,
+    trazadores: personasTrazadores,
+    especificadoras: personasEspecificadoras,
+  };
 
   useEffect(() => {
     if (matchedColor && matchedColor.name) {
@@ -218,11 +223,21 @@ export default function FichaTecnicaForm() {
         has_semielaborated: formData.tieneSemielaborado,
         priority_first_buy: PRIORIDAD_OPTIONS.indexOf(formData.prioridadFirstBuy) + 1,
         drop_entrega: formData.dropEntrega,
-        complejidad_corte_id: difficultyMap[formData.complejidadCorte.toUpperCase()] || null,
-        complejidad_confeccion_id: difficultyMap[formData.complejidadConfeccion.toUpperCase()] || null,
+        complejidad_corte_id: formData.complejidad_corte_id,
+        complejidad_confeccion_id: formData.complejidad_confeccion_id,
         has_art_modification: formData.clasificacion === 'Mod. Arte',
         has_trace_location: formData.clasificacion === 'Ubicacion Trazo',
         has_all_over: false,
+        line_id: formData.linea_id,
+        subline_id: formData.sublinea_id,
+        closure_type_id: formData.closure_id,
+        tallaje_group_id: formData.tallaje_id,
+        package_type_id: formData.empaque_id,
+        status_id: 2,
+        linned: formData.linned,
+        requiere_muestra: formData.requiereMuestra,
+        tiras_continuas: formData.tirasContinuas || null,
+        especificacion_confeccion: formData.especificacionConfeccion || null,
       });
 
       if (createErr) throw createErr;
@@ -418,7 +433,7 @@ export default function FichaTecnicaForm() {
               <label className="form-label">Largo</label>
               <select name="largo" className="form-select" value={formData.largo} onChange={handleInput}>
                 <option value="">Selecciona...</option>
-                {LARGO_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                {LARGO_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 
@@ -500,18 +515,21 @@ export default function FichaTecnicaForm() {
             {/* Línea */}
             <div className="form-group">
               <label className="form-label">Línea</label>
-              <select name="linea" className="form-select" value={formData.linea} onChange={handleInput}>
+              <select name="linea_id" className="form-select" value={formData.linea_id || ''} onChange={(e) => {
+                set('linea_id', e.target.value ? parseInt(e.target.value) : null);
+                set('sublinea_id', null);
+              }}>
                 <option value="">Selecciona...</option>
-                {LINEA_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                {lineas.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
 
             {/* Sublínea */}
             <div className="form-group">
               <label className="form-label">Sublínea</label>
-              <select name="sublinea" className="form-select" value={formData.sublinea} onChange={handleInput}>
+              <select name="sublinea_id" className="form-select" value={formData.sublinea_id || ''} onChange={(e) => set('sublinea_id', e.target.value ? parseInt(e.target.value) : null)}>
                 <option value="">Selecciona...</option>
-                {SUBLINEA_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                {sublineas.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
 
@@ -526,18 +544,18 @@ export default function FichaTecnicaForm() {
             {/* Tallaje */}
             <div className="form-group">
               <label className="form-label">Tallaje</label>
-              <select name="tallaje" className="form-select" value={formData.tallaje} onChange={handleInput}>
+              <select name="tallaje_id" className="form-select" value={formData.tallaje_id || ''} onChange={(e) => set('tallaje_id', e.target.value ? parseInt(e.target.value) : null)}>
                 <option value="">Selecciona...</option>
-                {TALLAJE_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                {tallajes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
 
             {/* Closure */}
             <div className="form-group">
               <label className="form-label">Closure / Cierre</label>
-              <select name="closure" className="form-select" value={formData.closure} onChange={handleInput}>
+              <select name="closure_id" className="form-select" value={formData.closure_id || ''} onChange={(e) => set('closure_id', e.target.value ? parseInt(e.target.value) : null)}>
                 <option value="">Selecciona...</option>
-                {CLOSURE_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                {closures.map(c => <option key={c.id} value={c.id}>{c.type}</option>)}
               </select>
             </div>
           </div>
@@ -579,9 +597,9 @@ export default function FichaTecnicaForm() {
             <div className="form-group">
               <label className="form-label">Complejidad de Corte</label>
               <div className={styles.chipGroup}>
-                {COMPLEJIDAD_OPTIONS.map(o => (
-                  <ChipToggle key={o} active={formData.complejidadCorte === o}
-                    onChange={() => set('complejidadCorte', o)}>{o}</ChipToggle>
+                {complejidad.map(c => (
+                  <ChipToggle key={c.id} active={formData.complejidad_corte_id === c.id}
+                    onChange={() => set('complejidad_corte_id', c.id)}>{c.level}</ChipToggle>
                 ))}
               </div>
             </div>
@@ -589,9 +607,9 @@ export default function FichaTecnicaForm() {
             <div className="form-group">
               <label className="form-label">Complejidad de Confección</label>
               <div className={styles.chipGroup}>
-                {COMPLEJIDAD_OPTIONS.map(o => (
-                  <ChipToggle key={o} active={formData.complejidadConfeccion === o}
-                    onChange={() => set('complejidadConfeccion', o)}>{o}</ChipToggle>
+                {complejidad.map(c => (
+                  <ChipToggle key={c.id} active={formData.complejidad_confeccion_id === c.id}
+                    onChange={() => set('complejidad_confeccion_id', c.id)}>{c.level}</ChipToggle>
                 ))}
               </div>
             </div>
@@ -599,21 +617,37 @@ export default function FichaTecnicaForm() {
             <div className="form-group">
               <label className="form-label">Tipo de Empaque</label>
               <div className={styles.chipGroup}>
-                {EMPAQUE_OPTIONS.map(o => (
-                  <ChipToggle key={o} active={formData.tipoEmpaque === o}
-                    onChange={() => set('tipoEmpaque', o)}>{o}</ChipToggle>
+                {empaques.map(e => (
+                  <ChipToggle key={e.id} active={formData.empaque_id === e.id}
+                    onChange={() => set('empaque_id', e.id)}>{e.name}</ChipToggle>
                 ))}
               </div>
             </div>
           </div>
         </FormSeccion>
 
-        {/* ── SECCIÓN 3: Bordado ── */}
-        <FormSeccion titulo="⚙️  Bordado" accentColor="var(--temp-cold-border)">
+        {/* ── SECCIÓN 3: Procesos Especiales ── */}
+        <FormSeccion titulo="⚙️  Procesos Especiales" accentColor="var(--temp-cold-border)">
           <p className="form-help" style={{ marginBottom: 16 }}>
             Indica si aplica cada proceso. Los ítems marcados como "Aplica" generarán una subfase de seguimiento.
           </p>
           <div className={styles.grid3}>
+
+            <div className="form-group">
+              <label className="form-label">¿Tiene Forro? (Linned)</label>
+              <div className={styles.chipGroup}>
+                <ChipToggle active={!formData.linned} onChange={() => set('linned', false)}>No</ChipToggle>
+                <ChipToggle active={formData.linned} onChange={() => set('linned', true)}>Sí</ChipToggle>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">¿Requiere Muestra?</label>
+              <div className={styles.chipGroup}>
+                <ChipToggle active={!formData.requiereMuestra} onChange={() => set('requiereMuestra', false)}>No</ChipToggle>
+                <ChipToggle active={formData.requiereMuestra} onChange={() => set('requiereMuestra', true)}>Sí</ChipToggle>
+              </div>
+            </div>
 
             <div className="form-group">
               <label className="form-label">Bordado en Prenda</label>
@@ -645,12 +679,16 @@ export default function FichaTecnicaForm() {
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">Tiras Continuas</label>
-              <div className={styles.chipGroup}>
-                <ChipToggle active={!formData.tirasContinuas} onChange={() => set('tirasContinuas', false)}>No aplica</ChipToggle>
-                <ChipToggle active={formData.tirasContinuas} onChange={() => set('tirasContinuas', true)}>Aplica</ChipToggle>
-              </div>
+              <textarea 
+                name="tirasContinuas" 
+                className="form-input"
+                value={formData.tirasContinuas} 
+                onChange={handleInput}
+                placeholder="Describe las características de las tiras continuas (vacío = No aplica)"
+                rows={2}
+              />
             </div>
 
             <div className="form-group">
@@ -658,6 +696,18 @@ export default function FichaTecnicaForm() {
               <input type="text" name="includes" className="form-input"
                 value={formData.includes} onChange={handleInput}
                 placeholder="Ej. Cinturón, Broche, Bolso... (vacío = No aplica)" />
+            </div>
+
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label">Especificación de Confección</label>
+              <textarea 
+                name="especificacionConfeccion" 
+                className="form-input"
+                value={formData.especificacionConfeccion} 
+                onChange={handleInput}
+                placeholder="Indicaciones especiales para el taller de confección"
+                rows={2}
+              />
             </div>
 
             <div className="form-group">
@@ -680,7 +730,7 @@ export default function FichaTecnicaForm() {
           </p>
           <div className={styles.grid2}>
             {ROLES_EQUIPO.map(rol => {
-                const personasArea = (personas[rol.area] || []).filter(p => p.activo !== false);
+                const personasArea = personasMap[rol.area] || [];
                 return (
               <div key={rol.key} className={`${styles.equipoRolCard} ${rol.requerido ? styles.rolRequerido : ''}`}>
                 <label className={`form-label ${rol.requerido ? 'form-label-required' : ''}`}>

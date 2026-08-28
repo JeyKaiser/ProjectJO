@@ -1,6 +1,16 @@
 import React from 'react';
-import { subfaseToProgress } from '../data/colecciones';
-// import { subfaseToProgress } from '../lib/api';
+
+const subfaseToProgress = {
+  1.1: 4,  1.2: 8,  1.3: 12,
+  2.1: 16, 2.2: 19, 2.3: 22, 2.4: 26,
+  2.5: 30, 2.6: 33, 2.7: 36, 2.8: 38,
+  3.1: 42, 3.2: 48, 3.3: 52,
+  3.4: 56, 3.5: 59, 3.6: 62,
+  4.1: 65, 4.2: 68, 4.3: 72, 4.4: 75,
+  4.5: 78, 4.6: 81, 4.7: 84, 4.8: 85,
+  5.1: 89, 5.2: 93, 5.3: 96,
+  6.1: 98, 6.2: 100,
+};
 
 export default React.memo(function TemperatureBar({ subfase, showLabel = true }) {
   const progress = subfaseToProgress[subfase] || 0;

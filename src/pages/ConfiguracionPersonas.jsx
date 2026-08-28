@@ -1,8 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Settings, Users, Plus, Pencil, Trash2, X, Check, Search, AlertTriangle, User, Mail, Phone, Calendar, Hash, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getPersonas, savePersonas, AREAS, ID_PREFIXES, resetPersonas } from '../data/personas';
+import supabase from '../lib/supabase';
+
+const AREAS = [
+  { key: 'creativos', label: 'Creativos', singular: 'Creativo' },
+  { key: 'tecnicos', label: 'Técnicos', singular: 'Técnico' },
+  { key: 'cortadores', label: 'Cortadores', singular: 'Cortador' },
+  { key: 'modistas', label: 'Modistas', singular: 'Modista' },
+  { key: 'especificadoras', label: 'Especificadoras', singular: 'Especificadora' },
+  { key: 'trazadores', label: 'Trazadores', singular: 'Trazador' },
+  { key: 'bordadoras', label: 'Bordadoras', singular: 'Bordadora' },
+  { key: 'bodega', label: 'Bodega', singular: 'Bodega' },
+];
 
 const AREA_ICONS = {
   creativos: '🎨',
@@ -17,7 +28,8 @@ const AREA_ICONS = {
 
 export default function ConfiguracionPersonas() {
   const { isAdmin } = useAuth();
-  const [personasData, setPersonasData] = useState(() => getPersonas());
+  const [personasData, setPersonasData] = useState({});
+  const [loading, setLoading] = useState(true);
   const [tabActivo, setTabActivo] = useState('creativos');
   const [busqueda, setBusqueda] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -31,6 +43,35 @@ export default function ConfiguracionPersonas() {
     correo: '',
     telefono: '',
   });
+
+  const fetchPersonas = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('persons')
+      .select('id, first_name, last_name, area, active, hire_date, cedula, email, phone')
+      .order('first_name');
+    
+    const grouped = {};
+    for (const area of AREAS) grouped[area.key] = [];
+    for (const p of (data || [])) {
+      const area = p.area || 'creativos';
+      if (!grouped[area]) grouped[area] = [];
+      grouped[area].push({
+        id: String(p.id),
+        nombre: `${p.first_name} ${p.last_name}`.trim(),
+        rol: AREAS.find(a => a.key === area)?.singular || area,
+        activo: p.active,
+        fechaIngreso: p.hire_date || '',
+        cedula: p.cedula || '',
+        correo: p.email || '',
+        telefono: p.phone || '',
+      });
+    }
+    setPersonasData(grouped);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchPersonas(); }, [fetchPersonas]);
 
   const areaInfo = AREAS.find(a => a.key === tabActivo);
   const personas = personasData[tabActivo] || [];
@@ -88,74 +129,61 @@ export default function ConfiguracionPersonas() {
     }));
   };
 
-  const guardarPersona = () => {
+  const guardarPersona = async () => {
     if (!formState.nombre.trim()) return;
 
-    const nuevaData = JSON.parse(JSON.stringify(personasData));
-    const areaKey = tabActivo;
-    const prefix = ID_PREFIXES[areaKey];
+    const parts = formState.nombre.trim().toUpperCase().split(' ');
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
 
     if (modalEdicion) {
-      const index = nuevaData[areaKey].findIndex(p => p.id === modalEdicion.id);
-      if (index >= 0) {
-        nuevaData[areaKey][index] = {
-          ...nuevaData[areaKey][index],
-          nombre: formState.nombre.trim().toUpperCase(),
-          activo: formState.activo,
-          fechaIngreso: formState.fechaIngreso,
-          cedula: formState.cedula,
-          correo: formState.correo,
-          telefono: formState.telefono,
-        };
-      }
+      await supabase.from('persons').update({
+        first_name: firstName,
+        last_name: lastName,
+        area: tabActivo,
+        active: formState.activo,
+        hire_date: formState.fechaIngreso || null,
+        cedula: formState.cedula || null,
+        email: formState.correo || null,
+        phone: formState.telefono || null,
+      }).eq('id', modalEdicion.id);
     } else {
-      let nextNum = 1;
-      nuevaData[areaKey].forEach(p => {
-        const num = parseInt(p.id.split('-')[1], 10);
-        if (!isNaN(num) && num >= nextNum) nextNum = num + 1;
-      });
-      const newId = `${prefix}-${String(nextNum).padStart(3, '0')}`;
+      const roleMap = { creativos: 'CREATIVO', tecnicos: 'TECNICO', cortadores: 'CORTADOR', modistas: 'MODISTA', especificadoras: 'ESPECIFICADORA', trazadores: 'TRAZADOR', bordadoras: 'BORDADORA', bodega: 'BODEGA' };
+      const { data: newPerson } = await supabase.from('persons').insert({
+        first_name: firstName,
+        last_name: lastName,
+        area: tabActivo,
+        active: formState.activo,
+        hire_date: formState.fechaIngreso || null,
+        cedula: formState.cedula || null,
+        email: formState.correo || null,
+        phone: formState.telefono || null,
+      }).select('id').single();
 
-      nuevaData[areaKey].push({
-        id: newId,
-        nombre: formState.nombre.trim().toUpperCase(),
-        rol: areaInfo.singular,
-        activo: formState.activo,
-        fechaIngreso: formState.fechaIngreso,
-        cedula: formState.cedula,
-        correo: formState.correo,
-        telefono: formState.telefono,
-      });
+      if (newPerson && roleMap[tabActivo]) {
+        const { data: role } = await supabase.from('person_roles').select('id').eq('name', roleMap[tabActivo]).single();
+        if (role) await supabase.from('person_role_assignments').insert({ person_id: newPerson.id, role_id: role.id });
+      }
     }
 
-    savePersonas(nuevaData);
-    setPersonasData(nuevaData);
+    await fetchPersonas();
     cerrarModal();
   };
 
-  const toggleActivo = (persona) => {
-    const nuevaData = JSON.parse(JSON.stringify(personasData));
-    const index = nuevaData[tabActivo].findIndex(p => p.id === persona.id);
-    if (index >= 0) {
-      nuevaData[tabActivo][index].activo = !nuevaData[tabActivo][index].activo;
-      savePersonas(nuevaData);
-      setPersonasData(nuevaData);
-    }
+  const toggleActivo = async (persona) => {
+    await supabase.from('persons').update({ active: !persona.activo }).eq('id', persona.id);
+    await fetchPersonas();
   };
 
-  const eliminarPersona = (persona) => {
-    const nuevaData = JSON.parse(JSON.stringify(personasData));
-    nuevaData[tabActivo] = nuevaData[tabActivo].filter(p => p.id !== persona.id);
-    savePersonas(nuevaData);
-    setPersonasData(nuevaData);
+  const eliminarPersona = async (persona) => {
+    await supabase.from('person_role_assignments').delete().eq('person_id', persona.id);
+    await supabase.from('persons').delete().eq('id', persona.id);
+    await fetchPersonas();
     setConfirmDelete(null);
   };
 
   const handleReset = () => {
-    if (window.confirm('¿Restaurar todas las personas a los valores por defecto?\nSe perderán los cambios realizados.')) {
-      const defaultData = resetPersonas();
-      setPersonasData(defaultData);
-    }
+    window.info('Los datos ahora se gestionan desde la base de datos.');
   };
 
   const totalActivos = AREAS.reduce((sum, a) => sum + contarActivos(a.key), 0);

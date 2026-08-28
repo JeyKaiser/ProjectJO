@@ -4,6 +4,7 @@ import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Upload, CheckCircle }
 import { useAuth } from '../context/AuthContext';
 import supabase, { STORAGE_BUCKET, getImageUrl } from '../lib/supabase';
 import { useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos, toggleReferenceFabricUsada } from '../lib/api';
+import { useUsosTela, useSentidos } from '../hooks/useCatalogos';
 
 const ROLE_TO_DB_ENUM = {
   'Diseñador Creativo': 'CREATIVO',
@@ -45,6 +46,10 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const [codeSearching, setCodeSearching] = useState(false);
   const fileInputRef = useRef(null);
   const debounceRef = useRef(null);
+
+  // Hooks de catálogos desde BD
+  const { data: usosTela } = useUsosTela();
+  const { data: sentidos } = useSentidos();
 
   const isSesgo = usoPrenda.toUpperCase().startsWith('SESGO');
   const [consumoLineal, setConsumoLineal] = useState('');
@@ -469,23 +474,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
               <select className="form-select" value={usoPrenda}
                 onChange={(e) => setUsoPrenda(e.target.value)}>
                 <option value="">Selecciona...</option>
-                <option value="TELA LUCIR">TELA LUCIR</option>
-                <option value="TELA LUCIR 2">TELA LUCIR 2</option>
-                <option value="TELA LUCIR 3">TELA LUCIR 3</option>
-                <option value="TELA LUCIR 4">TELA LUCIR 4</option>
-                <option value="TELA FORRO">TELA FORRO</option>
-                <option value="TELA FORRO 2">TELA FORRO 2</option>
-                <option value="TELA FORRO 3">TELA FORRO 3</option>
-                <option value="FUSIONABLE">FUSIONABLE</option>
-                <option value="FUSIONABLE 2">FUSIONABLE 2</option>
-                <option value="SESGO LUCIR">SESGO LUCIR</option>
-                <option value="SESGO LUCIR 2">SESGO LUCIR 2</option>
-                <option value="SESGO LUCIR 3">SESGO LUCIR 3</option>
-                <option value="SESGO FORRO">SESGO FORRO</option>
-                <option value="SESGO FORRO 2">SESGO FORRO 2</option>
-                <option value="SESGO FORRO 3">SESGO FORRO 3</option>
-                <option value="SESGO FUSIONABLE">SESGO FUSIONABLE</option>
-                <option value="SESGO FUSIONABLE 2">SESGO FUSIONABLE 2</option>
+                {usosTela.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
               </select>
             </div>
           </div>
@@ -577,9 +566,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
                   <select className="form-select" value={sentidoSesgo}
                     onChange={(e) => setSentidoSesgo(e.target.value)}>
                     <option value="">Selecciona...</option>
-                    <option value="AL HILO">AL HILO</option>
-                    <option value="A TRAVEZ">A TRAVEZ</option>
-                    <option value="AL SESGO">AL SESGO</option>
+                    {sentidos.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                   </select>
                 </div>
               </div>

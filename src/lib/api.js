@@ -674,6 +674,8 @@ export async function createReference(data) {
     priority_first_buy, drop_entrega,
     envio_corte_maquila, envio_confeccion_maquila,
     main_image_url, status_id,
+    linned, requiere_muestra, tiras_continuas,
+    especificacion_confeccion,
   } = data;
 
   return supabase
@@ -695,6 +697,10 @@ export async function createReference(data) {
       main_image_url,
       status_id: status_id || 1,
       is_hidden: false,
+      linned: linned || false,
+      requiere_muestra: requiere_muestra || false,
+      tiras_continuas: tiras_continuas || null,
+      especificacion_confeccion: especificacion_confeccion || null,
     })
     .select('*')
     .single();
@@ -1078,8 +1084,11 @@ export function useGruposVariante(tipoPrenda) {
             if (!seen.has(key)) {
               seen.add(key);
               unique.push(r);
+              console.log('R:', r);
             }
           }
+          // console.log('useGruposVariante:', unique);
+          // console.log('data:', data);
           setGrupos(unique);
         }
         if (!cancelled) setLoading(false);
