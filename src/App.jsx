@@ -17,7 +17,6 @@ const TrazadorView = lazy(() => import('./pages/TrazadorView'));
 const ComparativoTrazos = lazy(() => import('./pages/ComparativoTrazos'));
 const FichaFinalView = lazy(() => import('./pages/FichaFinalView'));
 const ReferentesView = lazy(() => import('./pages/ReferentesView'));
-const ImportarCSV = lazy(() => import('./pages/ImportarCSV'));
 const ConfiguracionPersonas = lazy(() => import('./pages/ConfiguracionPersonas'));
 const GestionColecciones = lazy(() => import('./pages/GestionColecciones'));
 const CorteKanban = lazy(() => import('./pages/CorteKanban'));
@@ -26,6 +25,11 @@ const InformesCorte = lazy(() => import('./pages/InformesCorte'));
 const AdminCodigos = lazy(() => import('./pages/AdminCodigos'));
 const AdminInsumos = lazy(() => import('./pages/AdminInsumos'));
 const PanelCreativo = lazy(() => import('./pages/PanelCreativo'));
+
+const ALL_ROLES = Object.values(ROLES);
+const REFERENTES_ROLES = [ROLES.ADMIN, ROLES.CREADOR_FICHA];
+const COLECCIONES_ROLES = [ROLES.ADMIN, ROLES.LIDER_MODISTAS];
+const STATE_MACHINE_ROLES = [ROLES.ADMIN, ROLES.CREADOR_FICHA];
 
 function App() {
   return (
@@ -36,18 +40,42 @@ function App() {
         <div className="content">
           <Suspense fallback={<div className="p-4 text-center">Cargando...</div>}>
           <Routes>
-            {/* Públicas */}
-            <Route path="/" element={<Dashboard />} />
-            {/* Colecciones - 3 niveles con temporadas */}
-            <Route path="/colecciones" element={<ColeccionesExplorer />} />
-            <Route path="/colecciones/:seasonCode" element={<ColeccionesExplorer />} />
-            <Route path="/colecciones/:seasonCode/:coleccionId/:anio" element={<ColeccionesExplorer />} />
-            <Route path="/colecciones/:seasonCode/:coleccionId/:anio/:refId" element={<ReferenciaDetalle />} />
-            <Route path="/referentes" element={<ReferentesView />} />
-            {/* <Route path="/importar" element={<ImportarCSV />} /> */}
-            <Route path="/v2/sm/*" element={<StateMachineShell />} />
-
             {/* Protegidas */}
+            <Route path="/" element={
+              <ProtectedRoute allowedRoles={ALL_ROLES}>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/referentes" element={
+              <ProtectedRoute allowedRoles={REFERENTES_ROLES}>
+                <ReferentesView />
+              </ProtectedRoute>
+            } />
+            <Route path="/colecciones/*" element={
+              <ProtectedRoute allowedRoles={COLECCIONES_ROLES}>
+                <ColeccionesExplorer />
+              </ProtectedRoute>
+            } />
+            <Route path="/colecciones/:seasonCode" element={
+              <ProtectedRoute allowedRoles={COLECCIONES_ROLES}>
+                <ColeccionesExplorer />
+              </ProtectedRoute>
+            } />
+            <Route path="/colecciones/:seasonCode/:coleccionId/:anio" element={
+              <ProtectedRoute allowedRoles={COLECCIONES_ROLES}>
+                <ColeccionesExplorer />
+              </ProtectedRoute>
+            } />
+            <Route path="/colecciones/:seasonCode/:coleccionId/:anio/:refId" element={
+              <ProtectedRoute allowedRoles={COLECCIONES_ROLES}>
+                <ReferenciaDetalle />
+              </ProtectedRoute>
+            } />
+            <Route path="/v2/sm/*" element={
+              <ProtectedRoute allowedRoles={STATE_MACHINE_ROLES}>
+                <StateMachineShell />
+              </ProtectedRoute>
+            } />
             <Route path="/ficha-nueva" element={
               <ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.CREADOR_FICHA]}>
                 <FichaTecnicaForm />

@@ -3,10 +3,17 @@
 ## Fase 1: Auditoria
 
 - [x] ~~[ALTA] RLS bloquea INSERT/UPDATE en navegador~~ — Corregido: politicas anon agregadas a 30 tablas
-- [ ] [MEDIA] Agregar autenticacion Supabase Auth (login real) para reemplazar mock de roles
-- [ ] [ALTA] Implementar componente PrivateRoute con verificacion de roles (RBAC)
-- [ ] [ALTA] Envolver rutas protegidas en App.jsx con PrivateRoute (ej: /configuracion solo Admin)
-- [ ] [MEDIA] Definir matriz de permisos: que rol accede a que ruta
+- [ ] [ALTA] Agregar autenticacion Supabase Auth (login real) para reemplazar mock de roles
+- [x] [ALTA] Implementar ProtectedRoute para validacion de roles en la interfaz — pendiente reemplazar roles mock por roles reales
+- [x] [ALTA] Envolver rutas protegidas en App.jsx con ProtectedRoute — proteccion de interfaz completada; no sustituye Auth/RBAC/RLS
+- [ ] [ALTA] Definir matriz de permisos: que rol accede a que ruta
+- [ ] [ALTA] Implementar RBAC real en servidor usando identidad Auth y roles de base de datos
+- [ ] [ALTA] Migrar las politicas RLS de anon a authenticated y aplicar permisos por usuario y rol
+- [ ] [ALTA] Relacionar auth.users con user_accounts y persons mediante auth_user_id
+- [ ] [ALTA] Exigir JWT y autorizacion por rol en la Edge Function de Google Sheets
+- [ ] [ALTA] Restringir CORS de la Edge Function a los origenes autorizados
+
+> Nota: las tareas relacionadas con Google Sheets, CSV y Excel quedan pospuestas durante la etapa de desarrollo local. Se conservaran para la etapa de produccion.
 
 ## Fase 2: Segmentacion / Datos
 
@@ -50,6 +57,11 @@
 - [ ] [BAJA] Exportar reporte a PDF/Excel desde la app
 
 ---
+
+## Fase 5: Preparacion para produccion
+
+- [ ] [ALTA] Diseñar el esquema de base de datos real con migraciones reproducibles, integridad referencial y RLS desde el inicio
+- [ ] [ALTA] Definir estrategia de despliegue, variables secretas, dominios autorizados y paso de desarrollo local a produccion
 
 ## UI/UX
 

@@ -84,8 +84,9 @@ INSERT INTO tmp_personas (id_temp, area, rol, first_name, last_name, hire_date) 
 
 -- 3. Insertar personas que no existen todavia
 -- Primero, borramos las personas existentes y volvemos a insertar para asegurar consistencia
-DELETE FROM jo.person_role_assignments;
-DELETE FROM jo.persons;
+
+-- DELETE FROM jo.person_role_assignments;
+-- DELETE FROM jo.persons;
 
 INSERT INTO jo.persons (first_name, last_name, area, hire_date, active)
 SELECT first_name, last_name, area, hire_date, true

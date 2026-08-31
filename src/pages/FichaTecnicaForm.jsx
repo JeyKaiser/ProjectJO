@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Save, Image as ImageIcon, User, Plus, CheckCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { Save, Image as ImageIcon, User, CheckCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardData, createReference, useCollectionYears, useColorLookup, useSearchReferences, assignCode } from '../lib/api';
 import supabase from '../lib/supabase';
-import { useLineas, useSublineas, useTallajes, useClosures, useEmpaques, useComplejidad, useLargos } from '../hooks/useCatalogos';
+import { useLineas, useSublineas, useTallajes, useClosures, useEmpaques, useComplejidad } from '../hooks/useCatalogos';
 import { usePersonsByArea } from '../hooks/usePersons';
 import { useAuth } from '../context/AuthContext';
 import styles from './FichaTecnicaForm.module.css';
@@ -144,7 +144,6 @@ export default function FichaTecnicaForm() {
   const { data: closures } = useClosures();
   const { data: empaques } = useEmpaques();
   const { data: complejidad } = useComplejidad();
-  const { data: largos } = useLargos();
 
   // ── Hooks de personas desde BD ─────────────────────────────
   const { data: personasCreativos } = usePersonsByArea('creativos');
@@ -161,14 +160,14 @@ export default function FichaTecnicaForm() {
     especificadoras: personasEspecificadoras,
   };
 
+  const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInput = (e) => set(e.target.name, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+
   useEffect(() => {
     if (matchedColor && matchedColor.name) {
       set('color', matchedColor.name);
     }
   }, [matchedColor]);
-
-  const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
-  const handleInput = (e) => set(e.target.name, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
 
   const validate = () => {
     const err = {};

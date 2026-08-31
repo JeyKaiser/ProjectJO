@@ -30,7 +30,6 @@ Let me read more of the file to find the hardcoded options.
 <content>
 465: 
 466:           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-3)', marginBottom: 12 }}>
-467:             <div className="form-group">
 468:               <label className="form-label" style={{ fontSize: 12, fontWeight: 600 }}>Uso en Prenda</label>
 469:               <select className="form-select" value={usoPrenda}
 470:                 onChange={(e) => setUsoPrenda(e.target.value)}>
@@ -730,7 +729,8 @@ Ahora verifico que todo compila correctamente:
 > vite build
 
 [36mvite v8.1.0 [32mbuilding client environment for production...[36m[39m
-[2Ktransforming...✓ 1734 modules transformed.
+[2K
+transforming...✓ 1734 modules transformed.
 rendering chunks...
 computing gzip size...
 dist/index.html                                         1.28 kB │ gzip:   0.54 kB
@@ -1855,7 +1855,8 @@ Let me now verify the build passes.
 > vite build
 
 [36mvite v8.1.0 [32mbuilding client environment for production...[36m[39m
-[2Ktransforming...✓ 1734 modules transformed.
+[2K
+transforming...✓ 1734 modules transformed.
 rendering chunks...
 computing gzip size...
 dist/index.html                                         1.28 kB │ gzip:   0.54 kB
@@ -5773,7 +5774,8 @@ Now let me run the build to verify everything compiles.
 > vite build
 
 [36mvite v8.1.0 [32mbuilding client environment for production...[36m[39m
-[2Ktransforming...✓ 1732 modules transformed.
+[2K
+transforming...✓ 1732 modules transformed.
 rendering chunks...
 computing gzip size...
 dist/index.html                                         1.28 kB │ gzip:   0.54 kB

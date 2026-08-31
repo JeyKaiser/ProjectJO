@@ -573,7 +573,7 @@ export default function CorteKanban() {
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label form-label-required">Solicitante</label>
-                  <select className="form-select" value={solicitanteManual ? '__otro__' : newForm.solicitante}
+                  {/* <select className="form-select" value={solicitanteManual ? '__otro__' : newForm.solicitante}
                     onChange={e => {
                       const v = e.target.value;
                       if (v === '__otro__') { setSolicitanteManual(true); setForm('solicitante', ''); }
@@ -591,7 +591,7 @@ export default function CorteKanban() {
                       ))}
                     </optgroup>
                     <option value="__otro__">Otro (digitar)...</option>
-                  </select>
+                  </select> */}
                   {solicitanteManual && (
                     <input type="text" className="form-input" style={{ marginTop: 6 }}
                       value={newForm.solicitante}

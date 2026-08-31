@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import supabase from '../lib/supabase';
 
 function useSupabaseQuery(queryFn, deps = []) {
-  const [data, setData] = useState(null);
+  // Los catálogos se consumen como listas desde el primer render.
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
