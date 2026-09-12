@@ -1,480 +1,617 @@
-﻿import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Save, Tag, AlertTriangle, CheckCircle, Droplets, FileText,
-  Info, Plus, X, ShieldCheck, Clock,
-  Package
+  AlertTriangle, CheckCircle, Clock, Droplets, FileText, Info, Package,
+  Plus, Save, ShieldCheck, Tag, X,
 } from 'lucide-react';
+import supabase from '../lib/supabase';
+import {
+  buildFinalSheetPayload,
+  FINAL_SHEET_SCOPES,
+  loadFinalSheet,
+  saveFinalSheet,
+} from '../lib/api';
 import SeccionColapsable from '../components/SeccionColapsable';
 import styles from './FichaFinalView.module.css';
 
-
-
 const CONTRAMUESTRA_STATUS = {
-  pendiente: { label: 'Pendiente', class: 'fichafinal-contramuestra-status--pendiente', icon: Clock },
-  activa: { label: 'Activa', class: 'fichafinal-contramuestra-status--activa', icon: CheckCircle },
-  utilizada: { label: 'Utilizada', class: 'fichafinal-contramuestra-status--utilizada', icon: Package },
-  anulada: { label: 'Anulada', class: 'fichafinal-contramuestra-status--anulada', icon: X },
+  pendiente: { label: 'Pendiente', color: 'var(--warning-dark)', background: 'var(--warning-light)', icon: Clock },
+  activa: { label: 'Activa', color: 'var(--success-dark)', background: 'var(--success-light)', icon: CheckCircle },
+  utilizada: { label: 'Utilizada', color: 'var(--info-dark)', background: 'var(--info-light)', icon: Package },
+  anulada: { label: 'Anulada', color: 'var(--error-dark)', background: 'var(--error-light)', icon: X },
 };
 
-const CUIDADOS_OPTIONS = {
-  lavado: ['Lavar a mano', 'Lavar a máquina max 30°', 'Lavar a máquina max 40°', 'Lavado en seco (Dry Clean)', 'No lavar'],
-  secado: ['Secar a la sombra', 'Secar extendido', 'Secado en máquina (Tumble Dry)', 'No usar secadora'],
-  planchado: ['Planchar a baja temperatura', 'Planchar a temperatura media', 'No planchar'],
-  blanqueado: ['No usar blanqueador', 'Se permite blanqueador sin cloro'],
-};
+function emptyComposition(scope) {
+  return {
+    id: null,
+    reference_id: null,
+    scope,
+    sap_registered: false,
+    description_usauk: '',
+    fiber_composition: '',
+    woven_knitted: '',
+    inside_composition: '',
+    include_description: '',
+    notes: '',
+    materials: [],
+  };
+}
 
-const NOVEDAD_TIPOS = [
-  'Tela Defectuosa (Encogimiento extremo)',
-  'Error de Confección',
-  'Insumos Incompletos',
-  'Retraso en Proveedor Externo',
-  'Moldería Incorrecta',
-  'Otra Novedad',
-];
+function emptyContra(reference) {
+  return {
+    id: null,
+    nombre: '',
+    codigo_ot: '',
+    talla: '',
+    descripcion_color: reference?.color || '',
+    unidades_cortadas: '',
+    nota_fabricacion_id: null,
+    prioridad: '',
+    fecha_meta_entrega: '',
+    drop_entrega: '',
+    status: 'pendiente',
+    observaciones_confeccion: '',
+    codigo_nota: '',
+    fecha_traslado_sap: '',
+    fecha_despacho_zf: '',
+    observaciones_nota: '',
+  };
+}
+
+function normalizeContraRows(rows) {
+  let activeFound = false;
+  return (rows || []).map(row => {
+    const status = String(row.status || '').toLowerCase();
+    if (status === 'activa') {
+      if (activeFound) return { ...row, status: 'utilizada' };
+      activeFound = true;
+    }
+    return { ...row, status: status || 'pendiente' };
+  });
+}
+
+function careLabel(type) {
+  const value = String(type || '').trim();
+  if (value === 'BLANQUEADO') return 'Blanqueado';
+  if (value === 'DESMANCHE') return 'Desmanche / Blanqueado';
+  return value || 'Cuidado';
+}
+
+function updateArrayItem(items, index, field, value) {
+  return items.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item);
+}
 
 export default function FichaFinalView() {
-  const fichaData = {
-    codigoMD: 'MD-002',
-    codigoPT: 'PT03402',
-    nombre: 'ECRU/SAND FEMINITY DRAMATIC PANT',
-    tipoPrenda: 'Pantalón',
-    color: 'Ecru/Sand',
-    temporada: 'WS26',
-    clasificacion: 'Sólida',
-    faseActual: 4.3,
-    subfaseNombre: 'Industrializacion',
-  };
+  const [collections, setCollections] = useState([]);
+  const [years, setYears] = useState([]);
+  const [references, setReferences] = useState([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedRefId, setSelectedRefId] = useState('');
+  const [selectorError, setSelectorError] = useState(null);
 
-  const [composicion, setComposicion] = useState([
-    { id: 1, material: 'Algodón', porcentaje: 68 },
-    { id: 2, material: 'Lino', porcentaje: 30 },
-    { id: 3, material: 'Elastano', porcentaje: 2 },
-  ]);
-
-  const [marquilla, setMarquilla] = useState({
-    descUSA: '',
-    descUK: '',
-    fiberComposition: '68% Cotton, 30% Linen, 2% Spandex',
-    wovenKnitted: 'Woven',
-    inside: '100% Cotton',
-    include: 'Remove before wearing belt',
+  const [reference, setReference] = useState(null);
+  const [compositions, setCompositions] = useState({
+    MUESTRA: emptyComposition('MUESTRA'),
+    PRODUCCION: emptyComposition('PRODUCCION'),
   });
-
-  const [cuidados, setCuidados] = useState({
-    lavado: 'Lavar a mano',
-    secado: 'Secar a la sombra',
-    planchado: 'Planchar a baja temperatura',
-    blanqueado: 'No usar blanqueador',
-  });
-
-  const [contramuestra, setContramuestra] = useState({
-    ot: 'OT-2026-002',
-    notaSAP: '',
-    talla: '8',
-    colorContramuestra: 'Ecru/Sand',
-    fechaTrasladoSAP: '',
-    fechaDespachoZF: '',
-    estado: 'pendiente',
-  });
-
+  const [activeScope, setActiveScope] = useState('MUESTRA');
+  const [careInstructions, setCareInstructions] = useState([]);
+  const [contramuestras, setContramuestras] = useState([]);
   const [novedades, setNovedades] = useState([]);
-  const [novedadTipo, setNovedadTipo] = useState('');
-  const [novedadDesc, setNovedadDesc] = useState('');
+  const [materialsError, setMaterialsError] = useState(null);
+  const [loadingSheet, setLoadingSheet] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [novedadDraft, setNovedadDraft] = useState({ classification: '', description: '' });
 
-  const composicionTotal = useMemo(() => {
-    return composicion.reduce((sum, c) => sum + (parseFloat(c.porcentaje) || 0), 0);
-  }, [composicion]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCollections() {
+      const { data, error } = await supabase
+        .from('collections')
+        .select('id,code,name,season,year')
+        .eq('active', true)
+        .order('name');
+      if (cancelled) return;
+      if (error) setSelectorError(error);
+      else setCollections(data || []);
+    }
+    loadCollections();
+    return () => { cancelled = true; };
+  }, []);
 
-  const composicionStatus = useMemo(() => {
-    if (Math.abs(composicionTotal - 100) < 0.1) return 'ok';
-    if (composicionTotal === 0) return 'incomplete';
-    return 'error';
-  }, [composicionTotal]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedCollectionId) return undefined;
 
-  const kpis = useMemo(() => {
-    const compOk = composicionStatus === 'ok';
-    const cuidadosOk = Object.values(cuidados).every(v => v && v.trim() !== '');
-    const contraOk = contramuestra.estado === 'utilizada' || contramuestra.estado === 'activa';
-    const noNovidades = novedades.length === 0;
-    return {
-      composicion: compOk,
-      cuidados: cuidadosOk,
-      contramuestra: contraOk,
-      noNovedades: noNovidades,
-      totalOk: compOk && cuidadosOk && contraOk && noNovidades ? '4/4' : `${[compOk, cuidadosOk, contraOk, noNovidades].filter(Boolean).length}/4`,
-    };
-  }, [composicionStatus, cuidados, contramuestra.estado, novedades]);
+    async function loadYears() {
+      const { data, error } = await supabase
+        .from('collection_years')
+        .select('id,collection_id,year,is_hidden')
+        .eq('collection_id', Number(selectedCollectionId))
+        .eq('is_hidden', false)
+        .order('year', { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        setSelectorError(error);
+        return;
+      }
+      const visibleYears = data || [];
+      if (visibleYears.length === 0) {
+        const collection = collections.find(item => String(item.id) === String(selectedCollectionId));
+        if (collection?.year) visibleYears.push({ id: null, collection_id: collection.id, year: collection.year, is_hidden: false });
+      }
+      setYears(visibleYears);
+    }
+    loadYears();
+    return () => { cancelled = true; };
+  }, [selectedCollectionId, collections]);
 
-  const handleComposicionChange = (id, field, value) => {
-    setComposicion(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedCollectionId || !selectedYear) return undefined;
+
+    async function loadReferences() {
+      const { data, error } = await supabase
+        .from('references')
+        .select('id,reference_number,name,reference_type,color,color_code,is_hidden')
+        .eq('collection_id', Number(selectedCollectionId))
+        .eq('year', Number(selectedYear))
+        .eq('is_hidden', false)
+        .order('reference_number');
+      if (cancelled) return;
+      if (error) setSelectorError(error);
+      else setReferences(data || []);
+    }
+    loadReferences();
+    return () => { cancelled = true; };
+  }, [selectedCollectionId, selectedYear]);
+
+  useEffect(() => {
+    if (!selectedRefId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    loadFinalSheet(Number(selectedRefId))
+      .then(sheet => {
+        if (cancelled) return;
+        setReference(sheet.reference);
+        setCompositions(sheet.compositions);
+        setCareInstructions(buildCareEntries(sheet.careTypes, sheet.careInstructions));
+        setContramuestras(normalizeContraRows(sheet.contramuestras));
+        setNovedades(sheet.qualityIssues);
+        setMaterialsError(sheet.materialsError);
+      })
+      .catch(error => { if (!cancelled) setMessage({ type: 'error', text: `Error cargando la ficha: ${error.message}` }); })
+      .finally(() => { if (!cancelled) setLoadingSheet(false); });
+
+    return () => { cancelled = true; };
+  }, [selectedRefId]);
+
+  const currentComposition = compositions[activeScope] || emptyComposition(activeScope);
+  const compositionTotal = useMemo(
+    () => currentComposition.materials.reduce((sum, item) => sum + (Number(item.percentage) || 0), 0),
+    [currentComposition.materials],
+  );
+  const compositionStatus = compositionTotal === 0 ? 'incomplete' : Math.abs(compositionTotal - 100) < 0.1 ? 'ok' : 'error';
+  const activeContramuestra = contramuestras.find(item => item.status === 'activa');
+  const activeNovedades = novedades.filter(item => !item.resolved);
+  const careCompleted = careInstructions.filter(item => String(item.instruction || '').trim()).length;
+  const kpis = {
+    composition: compositionStatus === 'ok',
+    care: careInstructions.length > 0 && careCompleted === careInstructions.length,
+    contramuestra: activeContramuestra || contramuestras.some(item => item.status === 'utilizada'),
+    quality: activeNovedades.length === 0,
   };
 
-  const handleAddMaterial = () => {
-    const newId = Math.max(...composicion.map(c => c.id), 0) + 1;
-    setComposicion(prev => [...prev, { id: newId, material: '', porcentaje: '' }]);
-  };
+  const selectedReference = reference || references.find(item => String(item.id) === String(selectedRefId));
+  const selectedCollection = collections.find(item => String(item.id) === String(selectedCollectionId));
 
-  const handleRemoveMaterial = (id) => {
-    if (composicion.length <= 1) return;
-    setComposicion(prev => prev.filter(c => c.id !== id));
-  };
+  function handleCollectionChange(value) {
+    setSelectorError(null);
+    setYears([]);
+    setSelectedYear('');
+    setReferences([]);
+    setSelectedRefId('');
+    resetSheetState();
+    setSelectedCollectionId(value);
+  }
 
-  const handleRegistrarNovedad = () => {
-    if (!novedadTipo || !novedadDesc.trim()) return;
-    setNovedades(prev => [...prev, {
-      id: Date.now(),
-      tipo: novedadTipo,
-      descripcion: novedadDesc,
-      fecha: new Date().toLocaleDateString('es-CO'),
+  function handleYearChange(value) {
+    setSelectorError(null);
+    setReferences([]);
+    setSelectedRefId('');
+    resetSheetState();
+    setSelectedYear(value);
+  }
+
+  function handleReferenceChange(value) {
+    setSelectorError(null);
+    resetSheetState();
+    setLoadingSheet(Boolean(value));
+    setMessage(null);
+    setSelectedRefId(value);
+  }
+
+  function resetSheetState() {
+    setReference(null);
+    setCompositions({ MUESTRA: emptyComposition('MUESTRA'), PRODUCCION: emptyComposition('PRODUCCION') });
+    setCareInstructions([]);
+    setContramuestras([]);
+    setNovedades([]);
+    setMaterialsError(null);
+    setLoadingSheet(false);
+  }
+
+  function updateComposition(field, value) {
+    setCompositions(previous => ({
+      ...previous,
+      [activeScope]: { ...previous[activeScope], [field]: value },
+    }));
+  }
+
+  function updateMaterial(index, field, value) {
+    setCompositions(previous => ({
+      ...previous,
+      [activeScope]: {
+        ...previous[activeScope],
+        materials: updateArrayItem(previous[activeScope].materials, index, field, value),
+      },
+    }));
+  }
+
+  function addMaterial() {
+    setCompositions(previous => ({
+      ...previous,
+      [activeScope]: {
+        ...previous[activeScope],
+        materials: [...previous[activeScope].materials, { id: null, composition_id: previous[activeScope].id, material: '', percentage: '' }],
+      },
+    }));
+  }
+
+  function removeMaterial(index) {
+    setCompositions(previous => ({
+      ...previous,
+      [activeScope]: {
+        ...previous[activeScope],
+        materials: previous[activeScope].materials.filter((_, itemIndex) => itemIndex !== index),
+      },
+    }));
+  }
+
+  function updateContra(index, field, value) {
+    setContramuestras(previous => {
+      if (field !== 'status' || value !== 'activa') return updateArrayItem(previous, index, field, value);
+      return previous.map((item, itemIndex) => {
+        if (itemIndex === index) return { ...item, status: 'activa' };
+        return item.status === 'activa' ? { ...item, status: 'utilizada' } : item;
+      });
+    });
+  }
+
+  function addContramuestra() {
+    setContramuestras(previous => [...previous, emptyContra(reference)]);
+  }
+
+  function addNovedad() {
+    if (!novedadDraft.classification.trim() || !novedadDraft.description.trim()) return;
+    setNovedades(previous => [...previous, {
+      id: null,
+      detected_at: new Date().toISOString(),
+      area: '',
+      classification: novedadDraft.classification.trim(),
+      material: '',
+      material_classification: '',
+      execution_type: '',
+      description: novedadDraft.description.trim(),
+      corrective_action: '',
+      resolved: false,
     }]);
-    setNovedadTipo('');
-    setNovedadDesc('');
-  };
+    setNovedadDraft({ classification: '', description: '' });
+  }
 
-  const totalClass = `fichafinal-composicion-total fichafinal-composicion-total--${composicionStatus}`;
+  async function handleSave() {
+    if (!selectedRefId || !reference) return;
+    const invalidContra = contramuestras.find(item => !String(item.codigo_ot || '').trim() && item.status !== 'anulada');
+    if (invalidContra) {
+      setMessage({ type: 'error', text: 'Cada contramuestra pendiente, activa o utilizada requiere una Orden de Trabajo (OT).' });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const payload = buildFinalSheetPayload({
+        referenceId: reference.id,
+        compositions,
+        careInstructions,
+        contramuestras,
+        qualityIssues: novedades,
+      });
+      await saveFinalSheet(payload);
+      const freshSheet = await loadFinalSheet(Number(selectedRefId));
+      setReference(freshSheet.reference);
+      setCompositions(freshSheet.compositions);
+      setCareInstructions(buildCareEntries(freshSheet.careTypes, freshSheet.careInstructions));
+      setContramuestras(normalizeContraRows(freshSheet.contramuestras));
+      setNovedades(freshSheet.qualityIssues);
+      setMaterialsError(freshSheet.materialsError);
+      setMessage({ type: 'success', text: 'Ficha Final guardada correctamente.' });
+    } catch (error) {
+      setMessage({ type: 'error', text: `No se pudo guardar la Ficha Final: ${error.message}` });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!selectedRefId) {
+    return (
+      <div className="fade-in">
+        <div className={styles.header}>
+          <div className={styles.headerInfo}>
+            <h2>Ficha Final y Marquillas</h2>
+            <p>Selecciona una colección, año y referencia para cargar la información real.</p>
+          </div>
+        </div>
+        <SelectorPanel
+          collections={collections}
+          years={years}
+          references={references}
+          selectedCollectionId={selectedCollectionId}
+          selectedYear={selectedYear}
+          selectedRefId={selectedRefId}
+          onCollectionChange={handleCollectionChange}
+          onYearChange={handleYearChange}
+          onReferenceChange={handleReferenceChange}
+          error={selectorError}
+        />
+      </div>
+    );
+  }
+
+  if (loadingSheet) return <div className="fade-in p-8 text-center text-gray-400">Cargando Ficha Final...</div>;
 
   return (
     <div className="fade-in">
-      {/* ── Header ── */}
+      <SelectorPanel
+        collections={collections}
+        years={years}
+        references={references}
+        selectedCollectionId={selectedCollectionId}
+        selectedYear={selectedYear}
+        selectedRefId={selectedRefId}
+        onCollectionChange={handleCollectionChange}
+        onYearChange={handleYearChange}
+        onReferenceChange={handleReferenceChange}
+        error={selectorError}
+      />
+
       <div className={styles.header}>
         <div className={styles.headerInfo}>
           <h2>Ficha Final y Marquillas</h2>
           <p>
-            Referencia: <strong style={{ color: 'var(--primary-600)' }}>{fichaData.codigoMD}</strong>
-            {' / '}
-            <strong>{fichaData.codigoPT}</strong>
-            {' — '}
-            {fichaData.nombre}
+            Referencia: <strong style={{ color: 'var(--primary-600)' }}>{selectedReference?.codigoMD || `MD-${selectedReference?.reference_number || ''}`}</strong>
+            {' / '}<strong>{selectedReference?.codigoPT || `PT03${selectedReference?.reference_number || ''}`}</strong>
+            {' — '}{selectedReference?.name || 'Sin nombre'}
           </p>
           <div className={styles.headerBadges}>
-            <span className="badge badge-primary">{fichaData.tipoPrenda}</span>
-            <span className="badge badge-warning">{fichaData.clasificacion}</span>
-            {fichaData.temporada && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--primary-700)', background: 'var(--primary-50)', padding: '2px 8px', borderRadius: 'var(--radius-full)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                {fichaData.temporada}
-              </span>
-            )}
+            <span className="badge badge-primary">{selectedReference?.reference_type || 'Sin tipo'}</span>
+            {selectedCollection?.name && <span className="badge badge-warning">{selectedCollection.name}</span>}
+            {selectedYear && <span className={styles.yearBadge}>{selectedYear}</span>}
           </div>
         </div>
         <div className={styles.headerActions}>
-          <button className="btn btn-primary">
-            <Save size={16} /> Guardar Ficha Final
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            <Save size={16} /> {saving ? 'Guardando...' : 'Guardar Ficha Final'}
           </button>
         </div>
       </div>
 
-      {/* ── KPIs ── */}
+      {message && <div className={message.type === 'error' ? styles.errorMessage : styles.successMessage}>{message.text}</div>}
+      {materialsError && (
+        <div className={styles.warningMessage}>
+          <Info size={16} /> Composición cargada, pero materiales no disponibles: {materialsError.message}. Se habilitarán cuando exista `jo.composition_materials`.
+        </div>
+      )}
+
       <div className="kpi-stat-grid">
-        <div className="kpi-stat-card" style={{ borderTopColor: kpis.composicion ? 'var(--success)' : 'var(--warning)' }}>
-          <div className="kpi-stat-left">
-            <span className="kpi-stat-label">Composición</span>
-            <span className="kpi-stat-value" style={{ color: kpis.composicion ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>
-              {kpis.composicion ? 'Completa' : 'Pendiente'}
-            </span>
-            <span className="kpi-stat-sub">{composicionTotal}% registrado</span>
-          </div>
-          <div className="kpi-stat-icon" style={{ background: kpis.composicion ? 'var(--success-light)' : 'var(--warning-light)', color: kpis.composicion ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
-            <Tag size={20} />
-          </div>
-        </div>
-
-        <div className="kpi-stat-card" style={{ borderTopColor: kpis.cuidados ? 'var(--success)' : 'var(--warning)' }}>
-          <div className="kpi-stat-left">
-            <span className="kpi-stat-label">Cuidados</span>
-            <span className="kpi-stat-value" style={{ color: kpis.cuidados ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>
-              {kpis.cuidados ? 'Completo' : 'Pendiente'}
-            </span>
-            <span className="kpi-stat-sub">{Object.values(cuidados).filter(v => v).length}/4 campos</span>
-          </div>
-          <div className="kpi-stat-icon" style={{ background: kpis.cuidados ? 'var(--success-light)' : 'var(--warning-light)', color: kpis.cuidados ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
-            <Droplets size={20} />
-          </div>
-        </div>
-
-        <div className="kpi-stat-card" style={{ borderTopColor: kpis.contramuestra ? 'var(--success)' : 'var(--primary-600)' }}>
-          <div className="kpi-stat-left">
-            <span className="kpi-stat-label">Contramuestra</span>
-            <span className="kpi-stat-value" style={{ color: kpis.contramuestra ? 'var(--success-dark)' : 'var(--primary-600)', fontSize: 'var(--text-xl)' }}>
-              {contramuestra.estado === 'pendiente' ? 'Pendiente' : contramuestra.estado === 'activa' ? 'Activa' : contramuestra.estado === 'utilizada' ? 'Utilizada' : 'Anulada'}
-            </span>
-            <span className="kpi-stat-sub">{contramuestra.ot}</span>
-          </div>
-          <div className="kpi-stat-icon" style={{ background: kpis.contramuestra ? 'var(--success-light)' : 'var(--primary-100)', color: kpis.contramuestra ? 'var(--success-dark)' : 'var(--primary-600)' }}>
-            <FileText size={20} />
-          </div>
-        </div>
-
-        <div className="kpi-stat-card" style={{ borderTopColor: kpis.noNovedades ? 'var(--success)' : 'var(--error)' }}>
-          <div className="kpi-stat-left">
-            <span className="kpi-stat-label">Novedades</span>
-            <span className="kpi-stat-value" style={{ color: kpis.noNovedades ? 'var(--success-dark)' : 'var(--error-dark)', fontSize: 'var(--text-xl)' }}>
-              {novedades.length === 0 ? 'Sin Alertas' : `${novedades.length} Alerta${novedades.length > 1 ? 's' : ''}`}
-            </span>
-            <span className="kpi-stat-sub">{kpis.noNovedades ? 'Sin novedades' : 'Requieren atención'}</span>
-          </div>
-          <div className="kpi-stat-icon" style={{ background: kpis.noNovedades ? 'var(--success-light)' : 'var(--error-light)', color: kpis.noNovedades ? 'var(--success-dark)' : 'var(--error-dark)' }}>
-            <ShieldCheck size={20} />
-          </div>
-        </div>
+        <Kpi label="Composición" value={kpis.composition ? 'Completa' : 'Pendiente'} sub={`${compositionTotal}% en ${activeScope}`} ok={kpis.composition} icon={<Tag size={20} />} />
+        <Kpi label="Cuidados" value={kpis.care ? 'Completo' : 'Pendiente'} sub={`${careCompleted}/${careInstructions.length || 0} campos`} ok={kpis.care} icon={<Droplets size={20} />} />
+        <Kpi label="Contramuestras" value={activeContramuestra ? 'Activa' : contramuestras.length ? 'Historial' : 'Pendiente'} sub={`${contramuestras.length} registradas`} ok={Boolean(activeContramuestra)} icon={<FileText size={20} />} />
+        <Kpi label="Novedades" value={activeNovedades.length ? `${activeNovedades.length} Activa${activeNovedades.length > 1 ? 's' : ''}` : 'Sin Alertas'} sub={`${novedades.length} registradas`} ok={activeNovedades.length === 0} icon={<ShieldCheck size={20} />} />
       </div>
 
-      {/* ── Secciones ── */}
       <div className="detalle-secciones">
-
-        {/* COMPOSICIÓN TEXTIL */}
-        <SeccionColapsable
-          titulo="Composición Textil (Marquilla)"
-          icono={<Tag size={18} />}
-          accentColor="var(--temp-cold-border)"
-          defaultOpen={true}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div className={styles.marquillaGrid} style={{ marginBottom: 'var(--space-2)' }}>
-              <div className="form-group fichafinal-marquilla-full">
-                <label className="form-label form-label-required">Composición para Marquilla (USA)</label>
-                <input
-                  className="form-input"
-                  value={marquilla.descUSA}
-                  onChange={e => setMarquilla(prev => ({ ...prev, descUSA: e.target.value }))}
-                  placeholder="Ej: ECRU/SAND, 68% Cotton, 30% Linen, 2% Spandex"
-                />
-              </div>
-              <div className="form-group fichafinal-marquilla-full">
-                <label className="form-label">Composición para Marquilla (UK)</label>
-                <input
-                  className="form-input"
-                  value={marquilla.descUK}
-                  onChange={e => setMarquilla(prev => ({ ...prev, descUK: e.target.value }))}
-                  placeholder="Ej: ECRU/SAND, 68% Cotton, 30% Linen, 2% Spandex"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-2)' }}>
-              <h4 style={{ margin: 0, fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--gray-700)' }}>Materiales</h4>
-              <span className={styles.positionBadge}>
-                Total: {composicionTotal}%
-              </span>
-            </div>
-
-            {composicion.map((item) => (
-              <div key={item.id} className={styles.composicionRow}>
-                <div style={{ flex: 1 }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={item.material}
-                    onChange={(e) => handleComposicionChange(item.id, 'material', e.target.value)}
-                    placeholder="Ej. Algodón, Poliéster"
-                  />
-                </div>
-                <div className={styles.composicionPct}>
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={item.porcentaje}
-                    onChange={(e) => handleComposicionChange(item.id, 'porcentaje', e.target.value)}
-                    placeholder="0"
-                  />
-                  <span className={styles.composicionPctSymbol}>%</span>
-                </div>
-                {composicion.length > 1 && (
-                  <button
-                    onClick={() => handleRemoveMaterial(item.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', padding: 4, display: 'flex', transition: 'color var(--transition-fast)' }}
-                    title="Eliminar material"
-                  >
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
+        <SeccionColapsable titulo="Composición Textil (Marquilla)" icono={<Tag size={18} />} accentColor="var(--temp-cold-border)" defaultOpen>
+          <div className={styles.scopeTabs} role="tablist" aria-label="Scope de composición">
+            {FINAL_SHEET_SCOPES.map(scope => (
+              <button key={scope} type="button" className={activeScope === scope ? styles.scopeTabActive : styles.scopeTab} onClick={() => setActiveScope(scope)}>
+                {scope === 'MUESTRA' ? 'Muestra' : 'Producción'}
+              </button>
             ))}
-
-            <div className={totalClass}>
-              <span>Total Composición: {composicionTotal}%</span>
-              <span>
-                {composicionStatus === 'ok' && '✓ Completo'}
-                {composicionStatus === 'error' && `Falta ${100 - composicionTotal}%`}
-                {composicionStatus === 'incomplete' && 'Sin datos'}
-              </span>
-            </div>
-
-            <button className="btn btn-outline btn-sm" style={{ width: 'fit-content' }} onClick={handleAddMaterial}>
-              <Plus size={14} /> Añadir Material
-            </button>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-4)', marginTop: 'var(--space-3)' }}>
-              <div className="form-group">
-                <label className="form-label">Tipo de Tejido</label>
-                <select className="form-select" value={marquilla.wovenKnitted} onChange={e => setMarquilla(prev => ({ ...prev, wovenKnitted: e.target.value }))}>
-                  <option>Woven</option>
-                  <option>Knitted</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Composición Interior</label>
-                <input className="form-input" value={marquilla.inside} onChange={e => setMarquilla(prev => ({ ...prev, inside: e.target.value }))} placeholder="Ej. 100% Cotton" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Include</label>
-                <input className="form-input" value={marquilla.include} onChange={e => setMarquilla(prev => ({ ...prev, include: e.target.value }))} placeholder="Ej. Remove before wearing belt" />
-              </div>
-            </div>
           </div>
-        </SeccionColapsable>
-
-        {/* CUIDADOS DE PRENDA */}
-        <SeccionColapsable
-          titulo="Cuidados de la Prenda"
-          icono={<Droplets size={18} />}
-          accentColor="var(--temp-warm-border)"
-          defaultOpen={true}
-        >
           <div className={styles.marquillaGrid}>
-            {Object.entries(CUIDADOS_OPTIONS).map(([key, options]) => {
-              const labels = { lavado: 'Lavado', secado: 'Secado', planchado: 'Planchado', blanqueado: 'Blanqueado' };
-              return (
-                <div key={key} className="form-group">
-                  <label className="form-label">{labels[key]}</label>
-                  <select className="form-select" value={cuidados[key]} onChange={e => setCuidados(prev => ({ ...prev, [key]: e.target.value }))}>
-                    {options.map(opt => <option key={opt}>{opt}</option>)}
-                  </select>
-                </div>
-              );
-            })}
+            <Field label="Composición USA / UK" value={currentComposition.description_usauk} onChange={value => updateComposition('description_usauk', value)} wide />
+            <Field label="Composición de fibras" value={currentComposition.fiber_composition} onChange={value => updateComposition('fiber_composition', value)} wide />
+            <Field label="Tipo de tejido" value={currentComposition.woven_knitted} onChange={value => updateComposition('woven_knitted', value)} />
+            <Field label="Composición interior" value={currentComposition.inside_composition} onChange={value => updateComposition('inside_composition', value)} />
+            <Field label="Include" value={currentComposition.include_description} onChange={value => updateComposition('include_description', value)} />
+            <label className={styles.checkboxField}><input type="checkbox" checked={currentComposition.sap_registered === true} onChange={event => updateComposition('sap_registered', event.target.checked)} /> Registrada en SAP</label>
           </div>
-        </SeccionColapsable>
 
-        {/* INDUSTRIALIZACION / CONTRAMUESTRA */}
-        <SeccionColapsable
-          titulo="Industrializacion · Contramuestra y SAP"
-          icono={<FileText size={18} />}
-          accentColor="var(--temp-hot-border)"
-          defaultOpen={false}
-        >
-          {(() => {
-            const statusConfig = CONTRAMUESTRA_STATUS[contramuestra.estado] || CONTRAMUESTRA_STATUS.pendiente;
-            const StatusIcon = statusConfig.icon;
-            return (
-              <>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-                  <span className={`fichafinal-contramuestra-status ${statusConfig.class}`}>
-                    <StatusIcon size={12} />
-                    {statusConfig.label}
-                  </span>
-                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--gray-500)' }}>
-                    Orden de Trabajo: <strong>{contramuestra.ot}</strong>
-                  </span>
-                </div>
-
-                <div className={styles.contramuestraGrid}>
-                  <div className="form-group">
-                    <label className="form-label">Orden de Trabajo (OT)</label>
-                    <input className="form-input" value={contramuestra.ot} onChange={e => setContramuestra(prev => ({ ...prev, ot: e.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Nota de Fabricación SAP</label>
-                    <input className="form-input" value={contramuestra.notaSAP} onChange={e => setContramuestra(prev => ({ ...prev, notaSAP: e.target.value }))} placeholder="Pendiente" />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Estado</label>
-                    <select className="form-select" value={contramuestra.estado} onChange={e => setContramuestra(prev => ({ ...prev, estado: e.target.value }))}>
-                      <option value="pendiente">Pendiente</option>
-                      <option value="activa">Activa</option>
-                      <option value="utilizada">Utilizada</option>
-                      <option value="anulada">Anulada</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Talla de Contramuestra</label>
-                    <input className="form-input" value={contramuestra.talla} onChange={e => setContramuestra(prev => ({ ...prev, talla: e.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Color Contramuestra</label>
-                    <input className="form-input" value={contramuestra.colorContramuestra} onChange={e => setContramuestra(prev => ({ ...prev, colorContramuestra: e.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Fecha Traslado SAP</label>
-                    <input className="form-input" type="date" value={contramuestra.fechaTrasladoSAP} onChange={e => setContramuestra(prev => ({ ...prev, fechaTrasladoSAP: e.target.value }))} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Fecha Despacho ZF</label>
-                    <input className="form-input" type="date" value={contramuestra.fechaDespachoZF} onChange={e => setContramuestra(prev => ({ ...prev, fechaDespachoZF: e.target.value }))} />
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-        </SeccionColapsable>
-
-        {/* NOVEDADES DE CALIDAD */}
-        <SeccionColapsable
-          titulo="Novedades de Calidad (Feedback)"
-          icono={<AlertTriangle size={18} />}
-          accentColor="var(--temp-fire-border)"
-          defaultOpen={novedades.length > 0}
-        >
-          {novedades.length === 0 ? (
-            <div className={styles.emptystate}>
-              <CheckCircle size={16} />
-              Sin novedades activas — la referencia fluye normalmente
+          <div className={styles.subsectionHeader}>
+            <h4>Materiales</h4><span className={styles.positionBadge}>Total: {compositionTotal}%</span>
+          </div>
+          {currentComposition.materials.map((item, index) => (
+            <div key={item.id || `${activeScope}-${index}`} className={styles.composicionRow}>
+              <input type="text" className="form-input" value={item.material} onChange={event => updateMaterial(index, 'material', event.target.value)} placeholder="Material" />
+              <div className={styles.composicionPct}><input type="number" min="0" max="100" step="0.01" className="form-input" value={item.percentage} onChange={event => updateMaterial(index, 'percentage', event.target.value)} placeholder="0" /><span>%</span></div>
+              <button type="button" className={styles.iconButton} onClick={() => removeMaterial(index)} title="Quitar material"><X size={16} /></button>
             </div>
-          ) : (
-            <div className={styles.novedadList}>
-              {novedades.map(n => (
-                <div key={n.id} className={styles.novedadItem}>
-                  <span className={styles.novedadItemTipo}>{n.tipo}</span>
-                  <span className={styles.novedadItemDesc}>{n.descripcion}</span>
-                  <span className={styles.novedadItemDate}>{n.fecha}</span>
+          ))}
+          <div className={`${styles.composicionTotal} ${styles[`composicionTotal${compositionStatus === 'ok' ? 'Ok' : compositionStatus === 'error' ? 'Error' : 'Incomplete'}`]}`}>
+            <span>Total composición: {compositionTotal}%</span><span>{compositionStatus === 'ok' ? 'Completo' : compositionStatus === 'incomplete' ? 'Sin datos' : 'Debe sumar 100%'}</span>
+          </div>
+          <button type="button" className="btn btn-outline btn-sm" onClick={addMaterial} style={{ marginTop: 'var(--space-3)' }}><Plus size={14} /> Añadir material</button>
+          <label className={styles.notesField}><span className="form-label">Notas</span><textarea className="form-input" rows={2} value={currentComposition.notes} onChange={event => updateComposition('notes', event.target.value)} /></label>
+        </SeccionColapsable>
+
+        <SeccionColapsable titulo="Cuidados de la Prenda" icono={<Droplets size={18} />} accentColor="var(--temp-warm-border)" defaultOpen>
+          {careInstructions.length === 0 ? <p className={styles.vacio}>No hay tipos de cuidado cargados desde `jo.care_types`.</p> : (
+            <div className={styles.careGrid}>
+              {careInstructions.map((care, index) => (
+                <div className={styles.careCard} key={care.id || `${care.care_type_id}-${index}`}>
+                  <label className="form-label">{careLabel(care.care_type?.type || care.type || `ID ${care.care_type_id}`)}</label>
+                  <span className={styles.catalogDescription}>{care.care_type?.description || 'Instrucción de cuidado'}</span>
+                  <textarea className="form-input" rows={2} value={care.instruction || ''} onChange={event => setCareInstructions(previous => updateArrayItem(previous, index, 'instruction', event.target.value))} placeholder="Instrucción real para la etiqueta" />
                 </div>
               ))}
             </div>
           )}
+        </SeccionColapsable>
 
-          <div style={{ background: 'var(--warning-light)', padding: 'var(--space-3) var(--space-4)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--warning)', margin: 'var(--space-4) 0', display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)', fontSize: 'var(--text-sm)', color: 'var(--warning-dark)' }}>
-            <Info size={16} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span>Si registras una novedad crítica, el flujo de esta referencia se pausará en el Kanban hasta que Compras o Calidad lo resuelvan.</span>
-          </div>
+        <SeccionColapsable titulo="Industrialización · Contramuestras y SAP" icono={<FileText size={18} />} accentColor="var(--temp-hot-border)" defaultOpen>
+          <div className={styles.sectionToolbar}><span>Historial conservado: {contramuestras.length}</span><button type="button" className="btn btn-outline btn-sm" onClick={addContramuestra}><Plus size={14} /> Nueva pendiente</button></div>
+          {contramuestras.length === 0 ? <p className={styles.vacio}>No hay contramuestras registradas.</p> : (
+            <div className={styles.contramuestraList}>
+              {contramuestras.map((item, index) => {
+                const config = CONTRAMUESTRA_STATUS[item.status] || CONTRAMUESTRA_STATUS.pendiente;
+                const StatusIcon = config.icon;
+                return (
+                  <div className={styles.contramuestraCard} key={item.id || `new-contra-${index}`}>
+                    <div className={styles.contramuestraCardHeader}>
+                      <span className={styles.statusBadge} style={{ color: config.color, background: config.background }}><StatusIcon size={12} /> {config.label}</span>
+                      <strong>{item.codigo_ot || 'Nueva contramuestra'}</strong>
+                      {item.id && <span className={styles.recordId}>ID {item.id}</span>}
+                    </div>
+                    <div className={styles.contramuestraGrid}>
+                      <Field label="Orden de Trabajo (OT)" value={item.codigo_ot} onChange={value => updateContra(index, 'codigo_ot', value)} required />
+                      <Field label="Nombre" value={item.nombre} onChange={value => updateContra(index, 'nombre', value)} />
+                      <Field label="Estado" value={item.status} onChange={value => updateContra(index, 'status', value)} select options={Object.keys(CONTRAMUESTRA_STATUS).map(status => ({ value: status, label: CONTRAMUESTRA_STATUS[status].label }))} />
+                      <Field label="Talla" value={item.talla} onChange={value => updateContra(index, 'talla', value)} />
+                      <Field label="Color" value={item.descripcion_color} onChange={value => updateContra(index, 'descripcion_color', value)} />
+                      <Field label="Unidades cortadas" type="number" value={item.unidades_cortadas} onChange={value => updateContra(index, 'unidades_cortadas', value)} />
+                      <Field label="Nota de fabricación SAP" value={item.codigo_nota} onChange={value => updateContra(index, 'codigo_nota', value)} />
+                      <Field label="Fecha traslado SAP" type="date" value={item.fecha_traslado_sap} onChange={value => updateContra(index, 'fecha_traslado_sap', value)} />
+                      <Field label="Fecha despacho ZF" type="date" value={item.fecha_despacho_zf} onChange={value => updateContra(index, 'fecha_despacho_zf', value)} />
+                      <Field label="Fecha meta entrega" type="date" value={item.fecha_meta_entrega} onChange={value => updateContra(index, 'fecha_meta_entrega', value)} />
+                      <Field label="Prioridad" type="number" min="1" max="10" value={item.prioridad} onChange={value => updateContra(index, 'prioridad', value)} />
+                      <Field label="Observaciones SAP" value={item.observaciones_nota} onChange={value => updateContra(index, 'observaciones_nota', value)} />
+                    </div>
+                    <label className={styles.notesField}><span className="form-label">Observaciones de confección</span><textarea className="form-input" rows={2} value={item.observaciones_confeccion || ''} onChange={event => updateContra(index, 'observaciones_confeccion', event.target.value)} /></label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </SeccionColapsable>
 
+        <SeccionColapsable titulo="Novedades de Calidad (Feedback)" icono={<AlertTriangle size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={activeNovedades.length > 0}>
+          {novedades.length === 0 ? <div className={styles.emptystate}><CheckCircle size={16} /> Sin novedades registradas.</div> : (
+            <div className={styles.novedadList}>
+              {novedades.map((issue, index) => (
+                <div key={issue.id || `new-issue-${index}`} className={`${styles.novedadItem} ${issue.resolved ? styles.novedadResolved : ''}`}>
+                  <div className={styles.novedadHeader}>
+                    <strong>{issue.classification || 'Sin clasificación'}</strong>
+                    {issue.id && <span className={styles.recordId}>ID {issue.id}</span>}
+                    <label className={styles.resolvedToggle}><input type="checkbox" checked={issue.resolved === true} onChange={event => setNovedades(previous => updateArrayItem(previous, index, 'resolved', event.target.checked))} /> Resuelta</label>
+                  </div>
+                  <div className={styles.novedadFields}>
+                    <Field label="Área" value={issue.area} onChange={value => setNovedades(previous => updateArrayItem(previous, index, 'area', value))} />
+                    <Field label="Clasificación" value={issue.classification} onChange={value => setNovedades(previous => updateArrayItem(previous, index, 'classification', value))} />
+                    <Field label="Material" value={issue.material} onChange={value => setNovedades(previous => updateArrayItem(previous, index, 'material', value))} />
+                    <Field label="Tipo de ejecución" value={issue.execution_type} onChange={value => setNovedades(previous => updateArrayItem(previous, index, 'execution_type', value))} />
+                  </div>
+                  <textarea className="form-input" rows={2} value={issue.description || ''} onChange={event => setNovedades(previous => updateArrayItem(previous, index, 'description', event.target.value))} placeholder="Descripción del hallazgo" />
+                  <textarea className="form-input" rows={2} value={issue.corrective_action || ''} onChange={event => setNovedades(previous => updateArrayItem(previous, index, 'corrective_action', event.target.value))} placeholder="Acción correctiva" />
+                </div>
+              ))}
+            </div>
+          )}
           <div className={styles.novedadForm}>
-            <div className="form-group">
-              <label className="form-label form-label-required">Tipo de Novedad</label>
-              <select className="form-select" value={novedadTipo} onChange={e => setNovedadTipo(e.target.value)}>
-                <option value="">Seleccionar...</option>
-                {NOVEDAD_TIPOS.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label form-label-required">Descripción</label>
-              <input
-                type="text"
-                className="form-input"
-                value={novedadDesc}
-                onChange={e => setNovedadDesc(e.target.value)}
-                placeholder="Describe brevemente el hallazgo..."
-                onKeyDown={e => { if (e.key === 'Enter') handleRegistrarNovedad(); }}
-              />
-            </div>
+            <Field label="Clasificación" value={novedadDraft.classification} onChange={value => setNovedadDraft(previous => ({ ...previous, classification: value }))} required />
+            <Field label="Descripción" value={novedadDraft.description} onChange={value => setNovedadDraft(previous => ({ ...previous, description: value }))} required />
           </div>
-
-          <button
-            className="btn btn-sm btn-outline"
-            style={{ borderColor: 'var(--error)', color: 'var(--error-dark)', marginTop: 'var(--space-3)' }}
-            onClick={handleRegistrarNovedad}
-            disabled={!novedadTipo || !novedadDesc.trim()}
-          >
-            <AlertTriangle size={14} /> Registrar Novedad
-          </button>
+          <button type="button" className="btn btn-sm btn-outline" style={{ borderColor: 'var(--error)', color: 'var(--error-dark)', marginTop: 'var(--space-3)' }} onClick={addNovedad} disabled={!novedadDraft.classification.trim() || !novedadDraft.description.trim()}><AlertTriangle size={14} /> Registrar novedad</button>
+          <div className={styles.infoNotice}><Info size={16} /> Las novedades existentes no se eliminan al guardar. Marcar una como resuelta conserva su historial.</div>
         </SeccionColapsable>
       </div>
 
-      {/* ── Sticky Footer ── */}
       <div className={styles.stickyFooter}>
-        <button className="btn btn-secondary">Cancelar</button>
-        <button className="btn btn-primary">
-          <Save size={16} /> Guardar Ficha Final
-        </button>
+        <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}><Save size={16} /> {saving ? 'Guardando...' : 'Guardar Ficha Final'}</button>
       </div>
+    </div>
+  );
+}
+
+function buildCareEntries(types, instructions) {
+  const loadedByType = new Map((instructions || []).map(item => [Number(item.care_type_id), item]));
+  const knownIds = new Set((types || []).map(type => Number(type.id)));
+  const entries = (types || []).map(type => ({
+    ...(loadedByType.get(Number(type.id)) || {}),
+    care_type_id: Number(type.id),
+    care_type: type,
+    instruction: loadedByType.get(Number(type.id))?.instruction || '',
+  }));
+  (instructions || []).forEach(instruction => {
+    if (!knownIds.has(Number(instruction.care_type_id))) entries.push(instruction);
+  });
+  return entries;
+}
+
+function SelectorPanel({ collections, years, references, selectedCollectionId, selectedYear, selectedRefId, onCollectionChange, onYearChange, onReferenceChange, error }) {
+  return (
+    <div className={styles.selectorPanel}>
+      <div className="form-group">
+        <label className="form-label form-label-required">Colección</label>
+        <select className="form-select" value={selectedCollectionId} onChange={event => onCollectionChange(event.target.value)}>
+          <option value="">Seleccionar colección...</option>
+          {collections.map(collection => <option key={collection.id} value={collection.id}>{collection.name} {collection.code ? `(${collection.code})` : ''}</option>)}
+        </select>
+      </div>
+      <div className="form-group">
+        <label className="form-label form-label-required">Año</label>
+        <select className="form-select" value={selectedYear} onChange={event => onYearChange(event.target.value)} disabled={!selectedCollectionId}>
+          <option value="">Seleccionar año...</option>
+          {years.map(year => <option key={`${year.id || 'collection'}-${year.year}`} value={year.year}>{year.year}</option>)}
+        </select>
+      </div>
+      <div className="form-group">
+        <label className="form-label form-label-required">Referencia</label>
+        <select className="form-select" value={selectedRefId} onChange={event => onReferenceChange(event.target.value)} disabled={!selectedYear}>
+          <option value="">Seleccionar referencia...</option>
+          {references.map(reference => <option key={reference.id} value={reference.id}>{reference.reference_number} · {reference.name}</option>)}
+        </select>
+      </div>
+      {error && <div className={styles.selectorError}>{error.message}</div>}
+    </div>
+  );
+}
+
+function Kpi({ label, value, sub, ok, icon }) {
+  return (
+    <div className="kpi-stat-card" style={{ borderTopColor: ok ? 'var(--success)' : 'var(--warning)' }}>
+      <div className="kpi-stat-left"><span className="kpi-stat-label">{label}</span><span className="kpi-stat-value" style={{ color: ok ? 'var(--success-dark)' : 'var(--warning-dark)', fontSize: 'var(--text-xl)' }}>{value}</span><span className="kpi-stat-sub">{sub}</span></div>
+      <div className="kpi-stat-icon" style={{ background: ok ? 'var(--success-light)' : 'var(--warning-light)', color: ok ? 'var(--success-dark)' : 'var(--warning-dark)' }}>{icon}</div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, type = 'text', select = false, options = [], required = false, wide = false, min, max }) {
+  return (
+    <div className={`form-group ${wide ? styles.fieldWide : ''}`}>
+      <label className={`form-label ${required ? 'form-label-required' : ''}`}>{label}</label>
+      {select ? (
+        <select className="form-select" value={value || ''} onChange={event => onChange(event.target.value)}>
+          {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      ) : type === 'textarea' ? (
+        <textarea className="form-input" rows={2} value={value || ''} onChange={event => onChange(event.target.value)} />
+      ) : (
+        <input className="form-input" type={type} min={min} max={max} value={value ?? ''} onChange={event => onChange(event.target.value)} />
+      )}
     </div>
   );
 }

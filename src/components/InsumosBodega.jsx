@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Package, Plus, Truck, CheckCircle, X, ClipboardList, PackageCheck, Ruler } from 'lucide-react';
+import { useState, useEffect, useRef, startTransition } from 'react';
+import { Plus, Truck, CheckCircle, X, ClipboardList, PackageCheck, Ruler } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePersonsByArea } from '../hooks/usePersons';
 import { useUnidades } from '../hooks/useCatalogos';
@@ -13,6 +13,7 @@ import {
   confirmSupplyAsUsed,
   useReferenceSupplies,
 } from '../lib/api';
+import AsyncState from './AsyncState';
 
 const STATUS_BADGE = {
   SOLICITADO: { bg: '#fef9c3', color: '#854d0e', label: 'Solicitado' },
@@ -38,13 +39,13 @@ export default function InsumosBodega({ dbRefId, referenceLabel = '' }) {
 
   const [tab, setTab] = useState('solicitar');
 
-  const { supplies, loading: loadingSupplies } = useSupplies();
-  const { requests, loading: loadingRequests, refresh: refreshRequests } = useSupplyRequests(dbRefId);
-  const { supplies: usedSupplies, loading: loadingUsed, refresh: refreshUsed } = useReferenceSupplies(dbRefId);
+  const { supplies, loading: loadingSupplies, error: suppliesError, refresh: refreshSupplies } = useSupplies();
+  const { requests, loading: loadingRequests, error: requestsError, refresh: refreshRequests } = useSupplyRequests(dbRefId);
+  const { supplies: usedSupplies, loading: loadingUsed, error: usedError, refresh: refreshUsed } = useReferenceSupplies(dbRefId);
 
-  const { data: creativos } = usePersonsByArea('creativos');
-  const { data: bodega } = usePersonsByArea('bodega');
-  const { data: unidades } = useUnidades();
+  const { data: creativos, error: creativosError, refetch: refreshCreativos } = usePersonsByArea('creativos');
+  const { data: bodega, error: bodegaError, refetch: refreshBodega } = usePersonsByArea('bodega');
+  const { data: unidades, error: unidadesError, refetch: refreshUnidades } = useUnidades();
 
   // ── Form de solicitud ──
   const [form, setForm] = useState({ modo: 'catalogo', supplyId: '', description: '', quantity: '', unit: 'metros', notes: '' });
@@ -59,9 +60,11 @@ export default function InsumosBodega({ dbRefId, referenceLabel = '' }) {
   const toastTimer = useRef(null);
 
   useEffect(() => {
-    if (bodega.length > 0) {
-      setDeliverForm(prev => prev.delivered_by ? prev : { ...prev, delivered_by: bodega[0].nombre });
-    }
+    startTransition(() => {
+      if (bodega.length > 0) {
+        setDeliverForm(prev => prev.delivered_by ? prev : { ...prev, delivered_by: bodega[0].nombre });
+      }
+    });
   }, [bodega]);
 
   const showToast = (msg) => {
@@ -150,7 +153,24 @@ export default function InsumosBodega({ dbRefId, referenceLabel = '' }) {
     else { await refreshAll(); showToast('Insumo confirmado como usado'); }
   };
 
-  if (!dbRefId) return <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Cargando insumos...</p>;
+  if (!dbRefId) return <AsyncState loading loadingMessage="Cargando insumos..." />;
+
+  const dataError = suppliesError || requestsError || usedError || creativosError || bodegaError || unidadesError;
+  if (dataError) {
+    return (
+      <AsyncState
+        error={dataError}
+        onRetry={() => {
+          refreshSupplies();
+          refreshRequests();
+          refreshUsed();
+          refreshCreativos();
+          refreshBodega();
+          refreshUnidades();
+        }}
+      />
+    );
+  }
 
   const solicitudesPendientes = requests.filter(r => r.status === 'SOLICITADO');
   const entregados = requests.filter(r => r.status === 'ENTREGADO' && !r.used_confirmed);

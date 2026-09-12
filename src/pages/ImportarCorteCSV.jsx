@@ -76,8 +76,6 @@ function mapRowRaw(row) {
   const fechaRecepcion = parseDate(fechaRec);
   const fechaEntrega = parseDate(fechaEnt);
 
-  const hash = [refNum, colRaw, tipoRaw, fechaRec, solicitante].map(v => v.trim()).join('|');
-
   return {
     reference_number_csv: refNum || null,
     collection_raw: colRaw || null,
@@ -456,4 +454,3 @@ export default function ImportarCorteCSV() {
     </div>
   );
 }
-

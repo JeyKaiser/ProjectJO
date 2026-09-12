@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 import { Eye, EyeOff, Plus, Save, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import supabase from '../lib/supabase';
 import {
@@ -10,17 +10,9 @@ import {
   addColorToCollection,
   removeColorFromCollection,
 } from '../lib/api';
+import { REFERENCE_STATUS_OPTIONS, getReferenceStatusLabel, getReferenceStatusStyle } from '../lib/referenceStatuses';
 
 const SEASONS = ['WS', 'SS', 'RS', 'PF', 'FW'];
-
-const STATUS_COLORS = {
-  'APROBADO': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
-  'CANCELADO': { bg: '#f1f5f9', border: '#94a3b8', text: '#475569' },
-  'EN_PROCESO': { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
-  'PAQUETE_COMPLETO': { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
-  'RECHAZADO': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
-  'PENDIENTE': { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
-};
 
 export default function GestionColecciones() {
   const [collections, setCollections] = useState([]);
@@ -43,8 +35,9 @@ export default function GestionColecciones() {
     const { data } = await supabase
       .from('reference_statuses')
       .select('*')
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('id');
-    if (data) setStatuses(data);
+    if (data) startTransition(() => setStatuses(data));
   }, []);
 
   useEffect(() => { loadStatuses(); }, [loadStatuses]);
@@ -84,7 +77,7 @@ export default function GestionColecciones() {
   });
 
   const loadCollections = useCallback(async () => {
-    setLoading(true);
+    startTransition(() => setLoading(true));
     try {
       const query = supabase
         .from('collections')
@@ -93,11 +86,11 @@ export default function GestionColecciones() {
       if (!showHidden) query.eq('active', true);
       const { data, error: err } = await query;
       if (err) throw err;
-      setCollections(data || []);
+      startTransition(() => setCollections(data || []));
     } catch (e) {
-      setError(e.message);
+      startTransition(() => setError(e.message));
     } finally {
-      setLoading(false);
+      startTransition(() => setLoading(false));
     }
   }, [showHidden]);
 
@@ -502,9 +495,9 @@ export default function GestionColecciones() {
                 <select className="form-select" value={newStatus.status}
                   onChange={e => setNewStatus(prev => ({ ...prev, status: e.target.value }))}>
                   <option value="">Selecciona...</option>
-                  {['EN_PROCESO','APROBADO','CANCELADO','PAQUETE_COMPLETO','RECHAZADO','PENDIENTE'].map(s => (
-                    <option key={s} value={s} disabled={statuses.some(st => st.status === s && st.active !== false)}>
-                      {s.replace('_', ' ')}
+                  {REFERENCE_STATUS_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value} disabled={statuses.some(st => st.status === value && st.active !== false)}>
+                      {label}
                     </option>
                   ))}
                 </select>
@@ -528,7 +521,7 @@ export default function GestionColecciones() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {statuses.map(st => {
             const isInactive = st.active === false;
-            const cols = STATUS_COLORS[st.status] || {};
+            const cols = getReferenceStatusStyle(st.status);
             return (
               <div key={st.id} className="card" style={{
                 opacity: isInactive ? 0.5 : 1, padding: 'var(--space-3) var(--space-4)',
@@ -541,7 +534,7 @@ export default function GestionColecciones() {
                     background: cols.bg || 'var(--gray-100)', color: cols.text || 'var(--gray-600)',
                     border: `1px solid ${cols.border || 'var(--gray-300)'}`,
                   }}>
-                    {st.status.replace('_', ' ')}
+                    {st.label || getReferenceStatusLabel(st.status)}
                   </span>
                   <span style={{ fontSize: 13, color: 'var(--gray-600)' }}>{st.description || ''}</span>
                   {isInactive && (

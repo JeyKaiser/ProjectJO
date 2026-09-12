@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 import { Link } from 'react-router-dom';
 import { Settings, Users, Plus, Pencil, Trash2, X, Check, Search, AlertTriangle, User, Mail, Phone, Calendar, Hash, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
+import AsyncState from '../components/AsyncState';
 
 const AREAS = [
   { key: 'creativos', label: 'Creativos', singular: 'Creativo' },
@@ -29,12 +30,14 @@ const AREA_ICONS = {
 export default function ConfiguracionPersonas() {
   const { isAdmin } = useAuth();
   const [personasData, setPersonasData] = useState({});
-  const [loading, setLoading] = useState(true);
   const [tabActivo, setTabActivo] = useState('creativos');
   const [busqueda, setBusqueda] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalEdicion, setModalEdicion] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const [formState, setFormState] = useState({
     nombre: '',
     activo: true,
@@ -45,30 +48,37 @@ export default function ConfiguracionPersonas() {
   });
 
   const fetchPersonas = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('persons')
-      .select('id, first_name, last_name, area, active, hire_date, cedula, email, phone')
-      .order('first_name');
-    
-    const grouped = {};
-    for (const area of AREAS) grouped[area.key] = [];
-    for (const p of (data || [])) {
-      const area = p.area || 'creativos';
-      if (!grouped[area]) grouped[area] = [];
-      grouped[area].push({
-        id: String(p.id),
-        nombre: `${p.first_name} ${p.last_name}`.trim(),
-        rol: AREAS.find(a => a.key === area)?.singular || area,
-        activo: p.active,
-        fechaIngreso: p.hire_date || '',
-        cedula: p.cedula || '',
-        correo: p.email || '',
-        telefono: p.phone || '',
-      });
+    startTransition(() => { setLoading(true); setError(null); });
+    try {
+      const { data, error: queryError } = await supabase
+        .from('persons')
+        .select('id, first_name, last_name, area, active, hire_date, cedula, email, phone')
+        .order('first_name');
+
+      if (queryError) throw queryError;
+
+      const grouped = {};
+      for (const area of AREAS) grouped[area.key] = [];
+      for (const p of (data || [])) {
+        const area = p.area || 'creativos';
+        if (!grouped[area]) grouped[area] = [];
+        grouped[area].push({
+          id: String(p.id),
+          nombre: `${p.first_name} ${p.last_name}`.trim(),
+          rol: AREAS.find(a => a.key === area)?.singular || area,
+          activo: p.active,
+          fechaIngreso: p.hire_date || '',
+          cedula: p.cedula || '',
+          correo: p.email || '',
+          telefono: p.phone || '',
+        });
+      }
+      startTransition(() => setPersonasData(grouped));
+    } catch (queryError) {
+      startTransition(() => setError(queryError));
+    } finally {
+      startTransition(() => setLoading(false));
     }
-    setPersonasData(grouped);
-    setLoading(false);
   }, []);
 
   useEffect(() => { fetchPersonas(); }, [fetchPersonas]);
@@ -130,56 +140,84 @@ export default function ConfiguracionPersonas() {
   };
 
   const guardarPersona = async () => {
-    if (!formState.nombre.trim()) return;
+    if (!formState.nombre.trim()) {
+      setError('El nombre completo es obligatorio.');
+      return;
+    }
 
     const parts = formState.nombre.trim().toUpperCase().split(' ');
     const firstName = parts[0] || '';
     const lastName = parts.slice(1).join(' ') || '';
 
-    if (modalEdicion) {
-      await supabase.from('persons').update({
-        first_name: firstName,
-        last_name: lastName,
-        area: tabActivo,
-        active: formState.activo,
-        hire_date: formState.fechaIngreso || null,
-        cedula: formState.cedula || null,
-        email: formState.correo || null,
-        phone: formState.telefono || null,
-      }).eq('id', modalEdicion.id);
-    } else {
-      const roleMap = { creativos: 'CREATIVO', tecnicos: 'TECNICO', cortadores: 'CORTADOR', modistas: 'MODISTA', especificadoras: 'ESPECIFICADORA', trazadores: 'TRAZADOR', bordadoras: 'BORDADORA', bodega: 'BODEGA' };
-      const { data: newPerson } = await supabase.from('persons').insert({
-        first_name: firstName,
-        last_name: lastName,
-        area: tabActivo,
-        active: formState.activo,
-        hire_date: formState.fechaIngreso || null,
-        cedula: formState.cedula || null,
-        email: formState.correo || null,
-        phone: formState.telefono || null,
-      }).select('id').single();
+    setSaving(true);
+    setError(null);
+    try {
+      if (modalEdicion) {
+        const { error: updateError } = await supabase.from('persons').update({
+          first_name: firstName,
+          last_name: lastName,
+          area: tabActivo,
+          active: formState.activo,
+          hire_date: formState.fechaIngreso || null,
+          cedula: formState.cedula || null,
+          email: formState.correo || null,
+          phone: formState.telefono || null,
+        }).eq('id', modalEdicion.id);
+        if (updateError) throw updateError;
+      } else {
+        const roleMap = { creativos: 'CREATIVO', tecnicos: 'TECNICO', cortadores: 'CORTADOR', modistas: 'MODISTA', especificadoras: 'ESPECIFICADORA', trazadores: 'TRAZADOR', bordadoras: 'BORDADORA', bodega: 'BODEGA' };
+        const { data: newPerson, error: insertError } = await supabase.from('persons').insert({
+          first_name: firstName,
+          last_name: lastName,
+          area: tabActivo,
+          active: formState.activo,
+          hire_date: formState.fechaIngreso || null,
+          cedula: formState.cedula || null,
+          email: formState.correo || null,
+          phone: formState.telefono || null,
+        }).select('id').single();
+        if (insertError) throw insertError;
 
-      if (newPerson && roleMap[tabActivo]) {
-        const { data: role } = await supabase.from('person_roles').select('id').eq('name', roleMap[tabActivo]).single();
-        if (role) await supabase.from('person_role_assignments').insert({ person_id: newPerson.id, role_id: role.id });
+        if (newPerson && roleMap[tabActivo]) {
+          const { data: role, error: roleError } = await supabase.from('person_roles').select('id').eq('name', roleMap[tabActivo]).single();
+          if (roleError) throw roleError;
+          const { error: assignmentError } = await supabase.from('person_role_assignments').insert({ person_id: newPerson.id, role_id: role.id });
+          if (assignmentError) throw assignmentError;
+        }
       }
-    }
 
-    await fetchPersonas();
-    cerrarModal();
+      await fetchPersonas();
+      cerrarModal();
+    } catch (saveError) {
+      setError(saveError);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleActivo = async (persona) => {
-    await supabase.from('persons').update({ active: !persona.activo }).eq('id', persona.id);
-    await fetchPersonas();
+    setError(null);
+    try {
+      const { error: updateError } = await supabase.from('persons').update({ active: !persona.activo }).eq('id', persona.id);
+      if (updateError) throw updateError;
+      await fetchPersonas();
+    } catch (updateError) {
+      setError(updateError);
+    }
   };
 
   const eliminarPersona = async (persona) => {
-    await supabase.from('person_role_assignments').delete().eq('person_id', persona.id);
-    await supabase.from('persons').delete().eq('id', persona.id);
-    await fetchPersonas();
-    setConfirmDelete(null);
+    setError(null);
+    try {
+      const { error: assignmentError } = await supabase.from('person_role_assignments').delete().eq('person_id', persona.id);
+      if (assignmentError) throw assignmentError;
+      const { error: deleteError } = await supabase.from('persons').delete().eq('id', persona.id);
+      if (deleteError) throw deleteError;
+      await fetchPersonas();
+      setConfirmDelete(null);
+    } catch (deleteError) {
+      setError(deleteError);
+    }
   };
 
   const handleReset = () => {
@@ -288,8 +326,12 @@ export default function ConfiguracionPersonas() {
               </div>
             </div>
 
+            {error && <AsyncState error={error} onRetry={fetchPersonas} />}
+
             <div className="p-4">
-              {personasFiltradas.length === 0 ? (
+              {loading ? (
+                <AsyncState loading loadingMessage="Cargando personas..." />
+              ) : (!error || totalTodos > 0) && personasFiltradas.length === 0 ? (
                 <div className="text-center py-16 text-gray-400">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
                     <Users size={28} className="opacity-40" />
@@ -306,7 +348,7 @@ export default function ConfiguracionPersonas() {
                     </button>
                   )}
                 </div>
-              ) : (
+              ) : (!error || totalTodos > 0) ? (
                 <div className="grid gap-3">
                   {personasFiltradas.map(persona => {
                     const inactivo = persona.activo === false;
@@ -399,7 +441,7 @@ export default function ConfiguracionPersonas() {
                     );
                   })}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -522,8 +564,8 @@ export default function ConfiguracionPersonas() {
             </div>
             <div className="modal-footer">
               <button onClick={cerrarModal} className="btn btn-secondary">Cancelar</button>
-              <button onClick={guardarPersona} className="btn btn-primary" disabled={!formState.nombre.trim()}>
-                <Check size={16} /> {modalEdicion ? 'Guardar Cambios' : 'Agregar Persona'}
+              <button onClick={guardarPersona} className="btn btn-primary" disabled={!formState.nombre.trim() || saving}>
+                <Check size={16} /> {saving ? 'Guardando...' : modalEdicion ? 'Guardar Cambios' : 'Agregar Persona'}
               </button>
             </div>
           </div>

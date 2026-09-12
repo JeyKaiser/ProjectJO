@@ -2,6 +2,93 @@ import { create, getNumericDate } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 
 const SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
+const ALLOWED_ROLES = new Set([
+  "Administrador",
+  "Cortador",
+  "Líder de Cortadores",
+]);
+
+class RequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function allowedOrigins() {
+  return new Set(
+    (Deno.env.get("ALLOWED_ORIGINS") || "")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+}
+
+function corsHeaders(req) {
+  const origin = req.headers.get("Origin");
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
+
+  if (origin && allowedOrigins().has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers.Vary = "Origin";
+  }
+
+  return headers;
+}
+
+function isAllowedOrigin(req) {
+  const origin = req.headers.get("Origin");
+  return !origin || allowedOrigins().has(origin);
+}
+
+async function authenticateRequest(req) {
+  const authorization = req.headers.get("Authorization") || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) throw new RequestError("Se requiere una sesión autenticada.", 401);
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new RequestError("La función no tiene configurada la conexión de Supabase.", 500);
+  }
+
+  const token = match[1];
+  const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!userResponse.ok) throw new RequestError("La sesión de Supabase no es válida.", 401);
+
+  const user = await userResponse.json();
+  if (!user?.id) throw new RequestError("La sesión de Supabase no es válida.", 401);
+  const accountResponse = await fetch(
+    `${supabaseUrl}/rest/v1/user_accounts?select=role,active&auth_user_id=eq.${encodeURIComponent(user.id)}`,
+    {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${token}`,
+        "Accept-Profile": "jo",
+      },
+    },
+  );
+  if (!accountResponse.ok) throw new RequestError("No se pudo validar el rol de la cuenta.", 500);
+
+  const accounts = await accountResponse.json();
+  const account = accounts[0];
+  if (!account?.active || !ALLOWED_ROLES.has(account.role)) {
+    throw new RequestError("Tu rol no está autorizado para leer Google Sheets.", 403);
+  }
+
+  return user;
+}
 
 function base64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
@@ -65,21 +152,33 @@ async function getAccessToken(sa) {
 }
 
 Deno.serve(async (req) => {
+  const headers = corsHeaders(req);
+
+  if (!isAllowedOrigin(req)) {
+    return new Response(JSON.stringify({ error: "Origen no autorizado" }), {
+      status: 403,
+      headers,
+    });
+  }
+
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
+    return new Response(null, { headers });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Método no permitido" }), {
+      status: 405,
+      headers,
     });
   }
 
   try {
+    await authenticateRequest(req);
     const { spreadsheetId, sheetName } = await req.json();
     if (!spreadsheetId || !sheetName) {
       return new Response(JSON.stringify({ error: "spreadsheetId y sheetName requeridos" }), {
         status: 400,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers,
       });
     }
 
@@ -87,7 +186,7 @@ Deno.serve(async (req) => {
     if (!saRaw) {
       return new Response(JSON.stringify({ error: "GOOGLE_SERVICE_ACCOUNT_JSON no configurado" }), {
         status: 500,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers,
       });
     }
 
@@ -105,7 +204,7 @@ Deno.serve(async (req) => {
     const values = sheetData.values || [];
     if (values.length < 2) {
       return new Response(JSON.stringify({ rows: [] }), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers,
       });
     }
 
@@ -121,12 +220,12 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ rows }), {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers,
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      status: e instanceof RequestError ? e.status : 500,
+      headers,
     });
   }
 });

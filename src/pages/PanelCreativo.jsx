@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Circle, Loader, Search, Palette, Link2 } from 'lucide-react';
-import { useDashboardData, usePanelCreativo } from '../lib/api';
+import { useDashboardData, slugFromName, usePanelCreativo } from '../lib/api';
+import AsyncState from '../components/AsyncState';
 
 const PHASES = [
   { key: 'laboratorio', label: 'Laboratorio / Molderia' },
@@ -99,14 +100,14 @@ function derivePhases(agg) {
 
 export default function PanelCreativo() {
   const navigate = useNavigate();
-  const { data: dash, loading: dashLoading } = useDashboardData();
+  const { data: dash, loading: dashLoading, error: dashError, refetch: refetchDash } = useDashboardData();
   const colecciones = dash?.colecciones || [];
 
   const [colId, setColId] = useState('');
   const [anioSel, setAnioSel] = useState('');
   const [search, setSearch] = useState('');
 
-  const coleccion = colecciones.find(c => c.id === colId) || colecciones[0] || null;
+  const coleccion = colecciones.find(c => String(c.dbId) === String(colId)) || colecciones[0] || null;
   const anios = coleccion?.anios || [];
   const anioObj = anios.find(a => a.anio === parseInt(anioSel)) || anios[0] || null;
 
@@ -120,7 +121,7 @@ export default function PanelCreativo() {
   }, [anioObj, search]);
 
   const refIds = useMemo(() => refs.map(r => r.dbId), [refs]);
-  const { data: panel, loading: panelLoading } = usePanelCreativo(refIds);
+  const { data: panel, loading: panelLoading, error: panelError, refresh: refreshPanel } = usePanelCreativo(refIds);
 
   const rows = useMemo(() => refs.map(r => ({
     ref: r,
@@ -138,11 +139,11 @@ export default function PanelCreativo() {
     return base;
   }, [rows, refs.length]);
 
-  if (dashLoading) return <p style={{ color: 'var(--gray-400)' }}>Cargando portafolio...</p>;
+  if (dashLoading) return <AsyncState loading loadingMessage="Cargando portafolio..." />;
+  if (dashError) return <AsyncState error={dashError} onRetry={refetchDash} />;
 
   const goRef = (col, a, ref) => {
-    const season = (col.season || col.code || '').toLowerCase();
-    navigate(`/colecciones/${season}/${col.id}/${a.anio}/${ref.id}`);
+    navigate(`/colecciones/${slugFromName(col.nombre)}/${a.anio}/${ref.referenceNumber}`);
   };
 
   const selectStyle = { padding: '6px 10px', border: '1px solid var(--gray-300)', borderRadius: 8, fontSize: 13, background: 'var(--white)', color: 'var(--gray-800)' };
@@ -158,12 +159,12 @@ export default function PanelCreativo() {
       </p>
 
       {colecciones.length === 0 ? (
-        <p style={{ color: 'var(--gray-400)' }}>No hay colecciones activas.</p>
+        <AsyncState empty emptyTitle="Sin colecciones activas" emptyMessage="No hay colecciones disponibles para consultar." />
       ) : (
         <>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-            <select className="form-select" style={selectStyle} value={coleccion?.id || ''} onChange={(e) => { setColId(e.target.value); setAnioSel(''); }}>
-              {colecciones.map(c => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+            <select className="form-select" style={selectStyle} value={coleccion?.dbId || ''} onChange={(e) => { setColId(e.target.value); setAnioSel(''); }}>
+              {colecciones.map(c => <option key={c.dbId} value={c.dbId}>{c.code} — {c.nombre}</option>)}
             </select>
             <select className="form-select" style={selectStyle} value={anioObj?.anio || ''} onChange={(e) => setAnioSel(e.target.value)}>
               {anios.map(a => <option key={a.anio} value={a.anio}>Año {a.anio}</option>)}
@@ -195,11 +196,15 @@ export default function PanelCreativo() {
             ))}
           </div>
 
-          {panelLoading ? (
-            <p style={{ color: 'var(--gray-400)' }}>Calculando avance de fases...</p>
-          ) : refs.length === 0 ? (
-            <p style={{ color: 'var(--gray-400)' }}>No hay referencias que coincidan.</p>
-          ) : (
+          <AsyncState
+            loading={panelLoading}
+            loadingMessage="Calculando avance de fases..."
+            error={panelError}
+            onRetry={refreshPanel}
+            empty={refs.length === 0}
+            emptyTitle="Sin referencias"
+            emptyMessage="No hay referencias que coincidan con la busqueda."
+          >
             <div className="table-container">
               <table className="table">
                 <thead>
@@ -230,7 +235,7 @@ export default function PanelCreativo() {
                 </tbody>
               </table>
             </div>
-          )}
+          </AsyncState>
         </>
       )}
     </div>

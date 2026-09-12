@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Check, X, Edit3, RotateCcw, Download, Filter, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, X, Edit3, RotateCcw, Filter, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useReferencesWithCodeStatus,
@@ -340,7 +340,6 @@ function PoolTab() {
     limit: 500,
   });
 
-  const typeStats = { md: codes.filter(c => c.code_type === 'MD').length, pt: codes.filter(c => c.code_type === 'PT').length };
 
   return (
     <div>

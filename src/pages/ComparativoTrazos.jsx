@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Scissors, Ruler, AlertTriangle, CheckCircle2, Hash, ListChecks, Info } from 'lucide-react';
 import supabase from '../lib/supabase';
@@ -60,6 +60,8 @@ export default function ComparativoTrazos() {
   const [diffs, setDiffs] = useState({});
   const [justificaciones, setJustificaciones] = useState({});
 
+  // loadData intentionally follows the route id, not transient comparison data.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData(); }, [refId]);
 
   useEffect(() => {
@@ -70,19 +72,21 @@ export default function ComparativoTrazos() {
         d[dim.key] = existingComparativo[`difiere_${dim.key}`] || false;
         j[dim.key] = existingComparativo[`justificacion_${dim.key}`] || '';
       });
-      setDiffs(d);
-      setJustificaciones(j);
+      startTransition(() => {
+        setDiffs(d);
+        setJustificaciones(j);
 
-      const costeoTrazo = trazos.find(t => t.id === existingComparativo.trazo_costeo_id);
-      const contraTrazo = trazos.find(t => t.id === existingComparativo.trazo_contramuestra_id);
-      if (costeoTrazo) setTrazoCosteo(costeoTrazo);
-      if (contraTrazo) setTrazoContramuestra(contraTrazo);
+        const costeoTrazo = trazos.find(t => t.id === existingComparativo.trazo_costeo_id);
+        const contraTrazo = trazos.find(t => t.id === existingComparativo.trazo_contramuestra_id);
+        if (costeoTrazo) setTrazoCosteo(costeoTrazo);
+        if (contraTrazo) setTrazoContramuestra(contraTrazo);
 
-      try {
-        setJustTelas(JSON.parse(existingComparativo.justificaciones_telas || '{}') || {});
-      } catch (_) {
-        setJustTelas({});
-      }
+        try {
+          setJustTelas(JSON.parse(existingComparativo.justificaciones_telas || '{}') || {});
+        } catch {
+          setJustTelas({});
+        }
+      });
     }
   }, [existingComparativo, trazos]);
 

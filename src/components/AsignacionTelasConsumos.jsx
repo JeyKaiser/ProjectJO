@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 import { useRef } from 'react';
 import { Plus, Trash2, Edit2, Save, X, Image as ImageIcon, Upload, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase, { STORAGE_BUCKET, getImageUrl } from '../lib/supabase';
 import { useReferenceFabrics, saveReferenceFabric, deleteReferenceFabric, saveConsumos, toggleReferenceFabricUsada } from '../lib/api';
 import { useUsosTela, useSentidos } from '../hooks/useCatalogos';
+import AsyncState from './AsyncState';
 
 const ROLE_TO_DB_ENUM = {
   'Diseñador Creativo': 'CREATIVO',
@@ -23,12 +24,10 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const { role } = useAuth();
 
   const canConfirmarTela = role === 'Administrador' || role === 'Diseñador Creativo';
-  const dbRole = mapRoleToDB(role);
   
   const [dbRefId, setDbRefId] = useState(null);
-  const { refFabrics, loading: loadingFabrics } = useReferenceFabrics(dbRefId);
+  const { refFabrics, loading: fabricsLoading, error: fabricsError, refresh: refreshFabrics } = useReferenceFabrics(dbRefId);
   const [tallas, setTallas] = useState([]);
-  const [loadingData, setLoadingData] = useState(true);
   const [localFabrics, setLocalFabrics] = useState([]);
 
   const [editingId, setEditingId] = useState(null);
@@ -48,8 +47,8 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const debounceRef = useRef(null);
 
   // Hooks de catálogos desde BD
-  const { data: usosTela } = useUsosTela();
-  const { data: sentidos } = useSentidos();
+  const { data: usosTela, error: usosTelaError, refetch: refetchUsosTela } = useUsosTela();
+  const { data: sentidos, error: sentidosError, refetch: refetchSentidos } = useSentidos();
 
   const isSesgo = usoPrenda.toUpperCase().startsWith('SESGO');
   const [consumoLineal, setConsumoLineal] = useState('');
@@ -57,37 +56,42 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const [sentidoSesgo, setSentidoSesgo] = useState('');
 
   useEffect(() => {
-    setLocalFabrics(refFabrics || []);
+    startTransition(() => setLocalFabrics(refFabrics || []));
   }, [refFabrics]);
 
   useEffect(() => {
     if (!refId) return;
     let cancelled = false;
     async function load() {
-      const refNum = refId.replace('REF-', '');
-      const { data: ref } = await supabase
-        .from('references')
-        .select('id, tallaje_group_id')
-        .eq('reference_number', refNum)
-        .single();
+      try {
+        const refNum = refId.replace('REF-', '');
+        const { data: ref, error: refError } = await supabase
+          .from('references')
+          .select('id, tallaje_group_id')
+          .eq('reference_number', refNum)
+          .maybeSingle();
+        if (refError) throw refError;
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (ref) {
-        setDbRefId(ref.id);
-        const tgId = tallajeGroupId || ref.tallaje_group_id;
-        if (tgId) {
-          const { data: tg } = await supabase
-            .from('tallaje_groups')
-            .select('*')
-            .eq('id', tgId)
-            .single();
-          if (tg && !cancelled) {
-            setTallas(tg.name.split('-'));
+        if (ref) {
+          setDbRefId(ref.id);
+          const tgId = tallajeGroupId || ref.tallaje_group_id;
+          if (tgId) {
+            const { data: tg, error: tallajeError } = await supabase
+              .from('tallaje_groups')
+              .select('*')
+              .eq('id', tgId)
+              .maybeSingle();
+            if (tallajeError) throw tallajeError;
+            if (tg && !cancelled) {
+              setTallas(tg.name.split('-'));
+            }
           }
         }
+      } catch (loadError) {
+        if (!cancelled) setError('Error al cargar la referencia: ' + loadError.message);
       }
-      if (!cancelled) setLoadingData(false);
     }
     load();
     return () => { cancelled = true; };
@@ -114,16 +118,20 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setCodeSearching(true);
-      const { data: fabric, error: _ } = await supabase
-        .from('fabrics')
-        .select('id, code, description, width_cm, image_url')
-        .eq('code', code.trim())
-        .maybeSingle();
+      try {
+        const { data: fabric, error: lookupError } = await supabase
+          .from('fabrics')
+          .select('id, code, description, width_cm, image_url')
+          .eq('code', code.trim())
+          .maybeSingle();
 
-      if (fabric) {
-        setSelectedFabric(fabric);
+        if (lookupError) throw lookupError;
+        if (fabric) setSelectedFabric(fabric);
+      } catch (lookupError) {
+        setError('Error al buscar tela: ' + lookupError.message);
+      } finally {
+        setCodeSearching(false);
       }
-      setCodeSearching(false);
     }, 350);
   };
 
@@ -175,7 +183,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     const usage = (rf.usage || '').toUpperCase();
     const dbRole = mapRoleToDB(role);
     if (usage.startsWith('SESGO')) {
-      const { data: cons } = await supabase
+      const { data: cons, error: consError } = await supabase
         .from('consumos')
         .select('*')
         .eq('reference_fabric_id', rf.id)
@@ -183,6 +191,10 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
         .order('version', { ascending: false })
         .limit(1);
 
+      if (consError) {
+        setError(consError.message);
+        return;
+      }
       if (cons?.length) {
         const c = cons[0];
         setConsumoLineal(c.consumo_valor ? String(c.consumo_valor) : '');
@@ -215,7 +227,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
       const dbRole = mapRoleToDB(role);
 
       if (isSesgo && consumoLineal) {
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('consumos')
           .select('version')
           .eq('reference_fabric_id', refFabricId)
@@ -223,12 +235,13 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
           .order('version', { ascending: false })
           .limit(1);
 
+        if (existingError) throw existingError;
         const nextVer = (existing?.length > 0) ? existing[0].version + 1 : 1;
 
         const obsParts = [];
         if (anchoSesgo) obsParts.push(`Ancho sesgo: ${anchoSesgo} cms`);
         if (sentidoSesgo) obsParts.push(`Sentido: ${sentidoSesgo}`);
-        await saveConsumos([{
+        const { error: consumoError } = await saveConsumos([{
           reference_id: dbRefId,
           reference_fabric_id: refFabricId,
           role: dbRole,
@@ -240,8 +253,9 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
           observaciones: obsParts.join(', ') || null,
           es_final: true,
         }]);
+        if (consumoError) throw consumoError;
       } else if (Object.keys(consumosValues).length > 0) {
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from('consumos')
           .select('version')
           .eq('reference_fabric_id', refFabricId)
@@ -249,6 +263,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
           .order('version', { ascending: false })
           .limit(1);
 
+        if (existingError) throw existingError;
         const nextVer = (existing?.length > 0) ? existing[0].version + 1 : 1;
 
         const consumosToSave = Object.entries(consumosValues)
@@ -267,18 +282,21 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
           }));
 
         if (consumosToSave.length > 0) {
-          await saveConsumos(consumosToSave);
+          const { error: consumoError } = await saveConsumos(consumosToSave);
+          if (consumoError) throw consumoError;
         }
       }
 
-      const { data: freshData } = await supabase
+      const { data: freshData, error: freshError } = await supabase
         .from('reference_fabrics')
         .select('id, reference_id, fabric_id, usage, width_cm, consumo_base, notes, active, fabrics(id, code, description, width_cm, image_url)')
         .eq('reference_id', dbRefId)
         .eq('active', true)
         .order('id');
 
+      if (freshError) throw freshError;
       if (freshData) setLocalFabrics(freshData);
+      refreshFabrics();
 
       setToast(editingId ? 'Consumo actualizado correctamente' : 'Consumo ingresado correctamente');
       setTimeout(() => setToast(null), 3500);
@@ -294,8 +312,12 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   const handleDelete = async (id) => {
     if (!confirm('Eliminar esta tela?')) return;
     const { error: delErr } = await deleteReferenceFabric(id);
-    if (delErr) return;
+    if (delErr) {
+      setError(delErr.message);
+      return;
+    }
     setLocalFabrics(prev => prev.filter(f => f.id !== id));
+    refreshFabrics();
   };
 
   const handleConfirmarTela = async (rf) => {
@@ -316,6 +338,23 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
 
   return (
     <div>
+      {error && <AsyncState error={error} />}
+      {(usosTelaError || sentidosError) && (
+        <div style={{ background: 'var(--error-light)', color: 'var(--error-dark)', padding: '8px 12px', borderRadius: 4, marginBottom: 12, fontSize: 13 }} role="alert">
+          <div>{(usosTelaError || sentidosError).message}</div>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => { refetchUsosTela(); refetchSentidos(); }} style={{ marginTop: 8 }}>Reintentar catalogos</button>
+        </div>
+      )}
+
+      <AsyncState
+        loading={fabricsLoading}
+        loadingMessage="Cargando telas asignadas..."
+        error={fabricsError}
+        onRetry={refreshFabrics}
+        empty={localFabrics.length === 0}
+        emptyTitle="Sin telas asignadas"
+        emptyMessage="Agrega una tela para comenzar a registrar consumos."
+      >
       {localFabrics.length > 0 && (
         <div className="table-container" style={{ marginBottom: 'var(--space-4)' }}>
           <table className="table">
@@ -398,6 +437,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
           </table>
         </div>
       )}
+      </AsyncState>
 
       {!isAdding && (
         <button className="btn btn-primary" onClick={startAdd} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -421,12 +461,6 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
               <X size={20} />
             </button>
           </div>
-
-          {error && (
-            <div style={{ background: 'var(--error-light)', color: 'var(--error-dark)', padding: '8px 12px', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
-              {error}
-            </div>
-          )}
 
           {selectedFabric && (
             <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>

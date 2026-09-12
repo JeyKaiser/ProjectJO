@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Scissors, Plus, Clock, CheckCircle2, FileSpreadsheet, Ruler, Play, ChevronDown, ChevronRight, Layers } from 'lucide-react';
 import supabase from '../lib/supabase';
 import TrazoForm from '../components/TrazoForm';
+import AsyncState from '../components/AsyncState';
 
 const TIPOS_TELA_LABEL = {
   SOLIDO: 'Sólido', MOD_ARTE: 'Mod. Arte', UBI_TRAZO: 'Ubic. Trazo',
@@ -24,11 +25,13 @@ export default function TrazadorView() {
   const [selectedRefForTrazo, setSelectedRefForTrazo] = useState(null);
   const [selectedFabricForTrazo, setSelectedFabricForTrazo] = useState(null);
   const [trazoToEdit, setTrazoToEdit] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
+    setError(null);
     try {
       const { data: refs, error: refsErr } = await supabase
         .from('references')
@@ -37,14 +40,14 @@ export default function TrazadorView() {
         .order('reference_number')
         .limit(200);
 
-      if (refsErr) { console.error('Error loading references:', refsErr); setReferencias([]); setLoading(false); return; }
+      if (refsErr) throw refsErr;
 
       const { data: cols, error: colsErr } = await supabase
         .from('collections')
         .select('id, code, name, year')
         .eq('active', true)
         .order('code');
-      if (colsErr) { console.error('Error loading collections:', colsErr); }
+      if (colsErr) throw colsErr;
       setCollections(cols || []);
 
       const refIds = (refs || []).map(r => r.id);
@@ -55,7 +58,7 @@ export default function TrazadorView() {
         .in('reference_id', refIds.length > 0 ? refIds : [-1])
         .order('created_at', { ascending: false });
 
-      if (trazosErr) { console.error('Error loading trazos:', trazosErr); }
+      if (trazosErr) throw trazosErr;
 
       const { data: allRefFabrics, error: fabErr } = await supabase
         .from('reference_fabrics')
@@ -63,7 +66,7 @@ export default function TrazadorView() {
         .in('reference_id', refIds.length > 0 ? refIds : [-1])
         .eq('active', true);
 
-      if (fabErr) { console.error('Error loading fabrics:', fabErr); }
+      if (fabErr) throw fabErr;
 
       const fbr = {};
       for (const rf of (allRefFabrics || [])) {
@@ -81,7 +84,7 @@ export default function TrazadorView() {
       setTrazos(allTrazos || []);
       setFabricsByRef(fbr);
     } catch (e) {
-      console.error('TrazadorView loadData error:', e);
+      setError(e);
     } finally {
       setLoading(false);
     }
@@ -162,10 +165,6 @@ export default function TrazadorView() {
     navigate(`/trazador/comparativo/${ref.id}`);
   }
 
-  function getTrazosForFabric(refTrazos, fabricId) {
-    return refTrazos.filter(t => t.reference_fabric_id === fabricId);
-  }
-
   const kpiCard = (label, value, color, Icon) => (
     <div className="kpi-stat-card" style={{ borderTopColor: color }}>
       <div className="kpi-stat-left">
@@ -177,8 +176,9 @@ export default function TrazadorView() {
   );
 
   if (loading) {
-    return <div className="fade-in" style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--gray-500)' }}>Cargando...</div>;
+    return <AsyncState loading loadingMessage="Cargando trazos..." />;
   }
+  if (error) return <AsyncState error={error} onRetry={loadData} />;
 
   return (
     <div className="fade-in">

@@ -1,10 +1,6 @@
 import pkg from 'pg';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const { Client } = pkg;
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PASSWORD = encodeURIComponent('Resort2026.#$');
 const CONN = `postgresql://postgres:${PASSWORD}@db.tstxmyowfesgaczlgjxp.supabase.co:5432/postgres`;

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, CheckCircle2, Clock, Hash, Tag } from 'lucide-react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
+import { X, Plus, CheckCircle2, Hash } from 'lucide-react';
 import supabase from '../lib/supabase';
 
-export default function ConsumoVersionesModal({ referenceFabricId, referenceId, role, tipoTela, onClose, onSaved }) {
+export default function ConsumoVersionesModal({ referenceFabricId, referenceId, role, tipoTela, onClose }) {
   const [versiones, setVersiones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newValue, setNewValue] = useState('');
@@ -10,11 +10,9 @@ export default function ConsumoVersionesModal({ referenceFabricId, referenceId, 
   const [saving, setSaving] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
 
-  useEffect(() => { load(); }, [referenceFabricId, role, tipoTela]);
-
-  async function load() {
+  const load = useCallback(async () => {
     if (!referenceFabricId || !referenceId || !role) return;
-    setLoading(true);
+    startTransition(() => setLoading(true));
     try {
       const { data } = await supabase
         .from('consumos')
@@ -24,10 +22,12 @@ export default function ConsumoVersionesModal({ referenceFabricId, referenceId, 
         .eq('role', role)
         .eq('tipo_tela', tipoTela || 'SOLIDO')
         .order('version', { ascending: false });
-      setVersiones(data || []);
-    } catch (_) { /* silent */ }
-    finally { setLoading(false); }
-  }
+      startTransition(() => setVersiones(data || []));
+    } catch { /* silent */ }
+    finally { startTransition(() => setLoading(false)); }
+  }, [referenceFabricId, referenceId, role, tipoTela]);
+
+  useEffect(() => { load(); }, [load]);
 
   async function handleNewVersion() {
     if (!newValue) return;
@@ -48,7 +48,7 @@ export default function ConsumoVersionesModal({ referenceFabricId, referenceId, 
       setNewTalla('');
       setShowNewForm(false);
       await load();
-    } catch (_) { /* silent */ }
+    } catch { /* silent */ }
     finally { setSaving(false); }
   }
 
@@ -56,7 +56,7 @@ export default function ConsumoVersionesModal({ referenceFabricId, referenceId, 
     try {
       await supabase.from('consumos').update({ es_final: true }).eq('id', id);
       await load();
-    } catch (_) { /* silent */ }
+    } catch { /* silent */ }
   }
 
   const telaLabel = { SOLIDO: 'Sólido', MOD_ARTE: 'Mod. Arte', UBI_TRAZO: 'Ubic. Trazo', CUERO: 'Cuero', ALL_OVER: 'All Over' };

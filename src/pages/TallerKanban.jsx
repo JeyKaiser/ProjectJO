@@ -1,10 +1,13 @@
-﻿import { useState, useMemo } from 'react';
-import data from '../data/casos_uso_referencias.json';
+﻿import { useState, useMemo, useEffect } from 'react';
 import {
   Scissors, Shirt, Sparkles, Ruler, Clock, Play, Pause,
   CheckCircle2, AlertCircle, Activity, X,
   Plus, Zap
 } from 'lucide-react';
+import { createWorkshopOrder, updateWorkshopOrder, useWorkshopOrders } from '../lib/api';
+import supabase from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import AsyncState from '../components/AsyncState';
 import styles from './TallerKanban.module.css';
 
 const COLUMN_CONFIG = {
@@ -45,41 +48,99 @@ const AVATAR_COLOR_MAP = {
 const INITIAL_FORM = {
   tipoPrenda: '',
   coleccion: '',
+  referencia: '',
   referente: '',
   prioridad: 'media',
   observaciones: '',
   columna: 'corte',
 };
 
+const STATUS_LABELS = {
+  active: 'En Proceso',
+  paused: 'Pausada',
+  waiting: 'En Espera',
+  completed: 'Completada',
+};
+
+const NEXT_STAGE = {
+  corte: 'confeccion',
+  confeccion: 'procesoExterno',
+  procesoExterno: 'medicion',
+  medicion: null,
+};
+
+function timeSince(dateStr) {
+  if (!dateStr) return '—';
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
+function orderToCard(order) {
+  const reference = order.references || {};
+  const collection = order.collections || {};
+  const collectionLabel = order.collection_raw || [collection.code, collection.year].filter(Boolean).join(' - ');
+  const operators = (order.assigned_operator_names || []).map(nombre => ({
+    nombre,
+    rol: 'Operador de taller',
+    iniciales: nombre.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(),
+    color: 'primary',
+  }));
+
+  return {
+    ...order,
+    id: order.id,
+    id_caso: `OT-${String(order.id).padStart(4, '0')}`,
+    nombre_simulacion: reference.name || order.reference_number || order.garment_type,
+    columna: order.stage,
+    status: order.status,
+    statusLabel: STATUS_LABELS[order.status] || order.status,
+    prioridad: order.priority,
+    coleccion: collectionLabel,
+    temporada: collectionLabel,
+    fechaUltimaActividad: order.updated_at,
+    estimacionFin: null,
+    timeInStage: timeSince(order.updated_at || order.created_at),
+    operadores: operators,
+    tieneProcesoExterno: order.stage === 'procesoExterno',
+    tieneBordado: reference.has_embroidery || false,
+    tieneSemielaborado: reference.has_semielaborated || false,
+    tipoPrenda: order.garment_type,
+    referente: order.referent || reference.reference_number || null,
+    esNuevo: !order.reference_id,
+  };
+}
+
 export default function TallerKanban() {
+  const { role } = useAuth();
+  const { items: orders, loading, error, refresh } = useWorkshopOrders();
   const [filter, setFilter] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM);
+  const [collections, setCollections] = useState([]);
+  const [collectionsError, setCollectionsError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   const items = useMemo(() => {
-    return data.simulaciones_referencias.map(r => {
-      const td = r.tallerData || {};
-      return {
-        ...r,
-        id: r.id_caso,
-        columna: td.columna || 'corte',
-        status: td.status || 'active',
-        statusLabel: td.statusLabel || 'En Proceso',
-        prioridad: td.prioridad || 'media',
-        coleccion: td.coleccion || '',
-        temporada: td.temporada || '',
-        fechaUltimaActividad: td.fechaUltimaActividad || '',
-        estimacionFin: td.estimacionFin || null,
-        timeInStage: td.timeInStage || '0h 0m',
-        operadores: td.operadores || [],
-        tieneProcesoExterno: r.perfil_inicial?.tiene_proceso_externo || false,
-        tieneBordado: r.perfil_inicial?.tiene_bordado || false,
-        tieneSemielaborado: r.perfil_inicial?.tiene_semielaborado || false,
-        tipoPrenda: r.perfil_inicial?.tipo_prenda || 'Prenda',
-        referente: r.perfil_inicial?.referente || null,
-        esNuevo: r.perfil_inicial?.es_nuevo || false,
-      };
-    });
+    return orders.map(orderToCard);
+  }, [orders]);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('collections')
+      .select('id, code, name, year')
+      .eq('active', true)
+      .order('id')
+      .then(({ data: rows, error: err }) => {
+        if (cancelled) return;
+        if (err) setCollectionsError(err);
+        else setCollections(rows || []);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const columns = useMemo(() => {
@@ -119,15 +180,77 @@ export default function TallerKanban() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCreateOT = () => {
-    setShowModal(false);
-    setFormData(INITIAL_FORM);
+  const handleCreateOT = async () => {
+    if (!formData.tipoPrenda || !formData.coleccion || saving) return;
+    setSaving(true);
+    setActionError(null);
+    try {
+      const selectedCollection = collections.find(c => String(c.id) === formData.coleccion);
+      const rawCollection = selectedCollection
+        ? [selectedCollection.code, selectedCollection.year].filter(Boolean).join(' - ')
+        : formData.coleccion;
+      let referenceId = null;
+
+      if (formData.referencia.trim()) {
+        const { data: reference, error: referenceError } = await supabase
+          .from('references')
+          .select('id')
+          .eq('reference_number', formData.referencia.trim())
+          .maybeSingle();
+        if (referenceError) throw referenceError;
+        referenceId = reference?.id || null;
+      }
+
+      const { error: createError } = await createWorkshopOrder({
+        reference_id: referenceId,
+        collection_id: selectedCollection?.id || null,
+        reference_number: formData.referencia.trim() || null,
+        garment_type: formData.tipoPrenda,
+        collection_raw: rawCollection,
+        referent: formData.referente.trim() || null,
+        stage: formData.columna,
+        status: 'waiting',
+        priority: formData.prioridad,
+        requester_name: role,
+        requester_role: role,
+        observations: formData.observaciones.trim() || null,
+      });
+      if (createError) throw createError;
+
+      setShowModal(false);
+      setFormData(INITIAL_FORM);
+      refresh();
+    } catch (e) {
+      setActionError(e);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleOrderAction = async item => {
+    if (item.status === 'completed' || saving) return;
+    const nextStage = NEXT_STAGE[item.columna];
+    const updates = item.status === 'active'
+      ? (nextStage ? { stage: nextStage } : { status: 'completed', completed_at: new Date().toISOString() })
+      : { status: 'active' };
+
+    setActionError(null);
+    try {
+      const { error: updateError } = await updateWorkshopOrder(item.id, updates);
+      if (updateError) throw updateError;
+      refresh();
+    } catch (e) {
+      setActionError(e);
+    }
+  };
+
+  if (loading) return <AsyncState loading loadingMessage="Cargando órdenes de taller..." />;
+  if (error) return <AsyncState error={error} onRetry={refresh} />;
 
   return (
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* ── Header ── */}
-      <div className={styles.header}>
+       <div className={styles.header}>
         <div className={styles.headerInfo}>
           <h2>Control de Taller</h2>
           <p>Supervisión en tiempo real del flujo de producción y cuellos de botella</p>
@@ -140,8 +263,14 @@ export default function TallerKanban() {
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>
             <Plus size={16} /> Nueva OT
           </button>
-        </div>
-      </div>
+         </div>
+       </div>
+
+       {actionError && (
+         <div role="alert" style={{ color: 'var(--error-dark)', background: 'var(--error-light)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-4)' }}>
+           No se pudo guardar la orden: {actionError.message || String(actionError)}
+         </div>
+       )}
 
       {/* ── KPIs ── */}
       <div className="kpi-stat-grid">
@@ -155,7 +284,7 @@ export default function TallerKanban() {
                 <span className="kpi-stat-label">{kpi.label}</span>
                 <span className="kpi-stat-value" style={{ color: kpi.color }}>{value}</span>
                 <span className="kpi-stat-sub">
-                  {kpi.key === 'total' ? 'órdenes activas' : `${pct}% del total`}
+                   {kpi.key === 'total' ? 'órdenes registradas' : `${pct}% del total`}
                 </span>
               </div>
               <div className="kpi-stat-icon" style={{ background: kpi.bgColor, color: kpi.color }}>
@@ -219,8 +348,8 @@ export default function TallerKanban() {
                     <CheckCircle2 size={32} />
                     <p>{config.emptyText}</p>
                   </div>
-                ) : (
-                  colItems.map(item => <TallerCard key={item.id} item={item} />)
+                 ) : (
+                  colItems.map(item => <TallerCard key={item.id} item={item} onAction={handleOrderAction} />)
                 )}
               </div>
             </div>
@@ -266,22 +395,40 @@ export default function TallerKanban() {
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label form-label-required">Colección Destino</label>
+               <div className="form-group">
+                 <label className="form-label form-label-required">Colección Destino</label>
                 <select
                   className="form-select"
                   value={formData.coleccion}
                   onChange={e => handleFormChange('coleccion', e.target.value)}
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="WS26">WINTER SUN 2026</option>
-                  <option value="SS27">SPRING SUMMER 2027</option>
-                  <option value="FW27">FALL WINTER 2027</option>
-                </select>
-              </div>
+                 >
+                   <option value="">Seleccionar...</option>
+                   <option value="WS26">WINTER SUN 2026</option>
+                   <option value="SS27">SPRING SUMMER 2027</option>
+                   <option value="FW27">FALL WINTER 2027</option>
+                   {collections.map(collection => (
+                     <option key={collection.id} value={String(collection.id)}>
+                       {[collection.code, collection.year, collection.name].filter(Boolean).join(' - ')}
+                     </option>
+                   ))}
+                 </select>
+                 {collectionsError && <span className="form-help" style={{ color: 'var(--error-dark)' }}>No se pudieron cargar las colecciones; puedes usar un destino manual.</span>}
+               </div>
 
-              <div className="form-group">
-                <label className="form-label">Referente (si es reprogramación)</label>
+               <div className="form-group">
+                 <label className="form-label">Referencia asociada</label>
+                 <input
+                   className="form-input"
+                   type="text"
+                   placeholder="Numero de referencia (opcional)"
+                   value={formData.referencia}
+                   onChange={e => handleFormChange('referencia', e.target.value)}
+                 />
+                 <span className="form-help">Si existe en la base de datos, la OT quedará vinculada a esa referencia.</span>
+               </div>
+
+               <div className="form-group">
+                 <label className="form-label">Referente (si es reprogramación)</label>
                 <input
                   className="form-input"
                   type="text"
@@ -338,9 +485,9 @@ export default function TallerKanban() {
               <button className="btn btn-secondary" onClick={() => { setShowModal(false); setFormData(INITIAL_FORM); }}>
                 Cancelar
               </button>
-              <button className="btn btn-primary" onClick={handleCreateOT} disabled={!formData.tipoPrenda || !formData.coleccion}>
-                <Plus size={16} /> Crear Orden
-              </button>
+               <button className="btn btn-primary" onClick={handleCreateOT} disabled={!formData.tipoPrenda || !formData.coleccion || saving}>
+                 <Plus size={16} /> {saving ? 'Creando...' : 'Crear Orden'}
+               </button>
             </div>
           </div>
         </div>
@@ -350,7 +497,7 @@ export default function TallerKanban() {
 }
 
 
-function TallerCard({ item }) {
+function TallerCard({ item, onAction }) {
   const statusCardClass = item.status === 'active' ? styles.cardActive : item.status === 'paused' ? styles.cardPaused : styles.cardWaiting;
   const statusBadgeClass = `${styles.cardStatus} ${item.status === 'active' ? styles.cardStatusActive : item.status === 'paused' ? styles.cardStatusPaused : styles.cardStatusWaiting}`;
 
@@ -442,14 +589,16 @@ function TallerCard({ item }) {
 
       {/* Actions (Hover) */}
       <div className={styles.cardActions}>
-        {item.status !== 'active' ? (
-          <button className={`${styles.actionBtn} ${styles.actionBtnStart}`} type="button">
+        {item.status !== 'active' && item.status !== 'completed' ? (
+          <button className={`${styles.actionBtn} ${styles.actionBtnStart}`} type="button" onClick={() => onAction(item)}>
             <Play size={12} /> Iniciar
           </button>
-        ) : (
-          <button className={`${styles.actionBtn} ${styles.actionBtnFinish}`} type="button">
+        ) : item.status === 'active' ? (
+          <button className={`${styles.actionBtn} ${styles.actionBtnFinish}`} type="button" onClick={() => onAction(item)}>
             <CheckCircle2 size={12} /> Terminar
           </button>
+        ) : (
+          <span className={styles.cardStatus}>Completada</span>
         )}
         <button className={`${styles.actionBtn} ${styles.actionBtnAlert}`} type="button" title="Reportar Novedad">
           <AlertCircle size={14} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { X, Save, Scissors, Hash, ListChecks, FileText, Layers } from 'lucide-react';
 import supabase from '../lib/supabase';
 import { createTrazo, updateTrazo } from '../lib/api';
@@ -69,31 +69,31 @@ export default function TrazoForm({ referenceId, trazoToEdit, preselectedFabric,
 
   useEffect(() => {
     if (trazoToEdit) {
-      setForm({
-        reference_id: trazoToEdit.reference_id || referenceId,
-        reference_fabric_id: trazoToEdit.reference_fabric_id || null,
-        tipo_tela: trazoToEdit.tipo_tela || 'SOLIDO',
-        fase: trazoToEdit.fase || 'costeo',
-        opcion_num: trazoToEdit.opcion_num || 1,
-        veces_trazadas: trazoToEdit.veces_trazadas || 1,
-        cantidad_piezas: trazoToEdit.cantidad_piezas != null ? String(trazoToEdit.cantidad_piezas) : '',
-        consumo_valor: trazoToEdit.consumo_valor != null ? String(trazoToEdit.consumo_valor) : '',
-        talla: trazoToEdit.talla || '',
-        ancho_tela: trazoToEdit.ancho_tela || '',
-        ancho_sesgo: trazoToEdit.ancho_sesgo || '',
-        consumo_lineal: trazoToEdit.consumo_lineal != null ? String(trazoToEdit.consumo_lineal) : '',
-        archivo_audaces: trazoToEdit.archivo_audaces || '',
-        fecha_inicio: trazoToEdit.fecha_inicio || '',
-        fecha_fin: trazoToEdit.fecha_fin || '',
-        observaciones: trazoToEdit.observaciones || '',
-        estado: trazoToEdit.estado || 'activo',
-      });
+      startTransition(() => setForm({
+          reference_id: trazoToEdit.reference_id || referenceId,
+          reference_fabric_id: trazoToEdit.reference_fabric_id || null,
+          tipo_tela: trazoToEdit.tipo_tela || 'SOLIDO',
+          fase: trazoToEdit.fase || 'costeo',
+          opcion_num: trazoToEdit.opcion_num || 1,
+          veces_trazadas: trazoToEdit.veces_trazadas || 1,
+          cantidad_piezas: trazoToEdit.cantidad_piezas != null ? String(trazoToEdit.cantidad_piezas) : '',
+          consumo_valor: trazoToEdit.consumo_valor != null ? String(trazoToEdit.consumo_valor) : '',
+          talla: trazoToEdit.talla || '',
+          ancho_tela: trazoToEdit.ancho_tela || '',
+          ancho_sesgo: trazoToEdit.ancho_sesgo || '',
+          consumo_lineal: trazoToEdit.consumo_lineal != null ? String(trazoToEdit.consumo_lineal) : '',
+          archivo_audaces: trazoToEdit.archivo_audaces || '',
+          fecha_inicio: trazoToEdit.fecha_inicio || '',
+          fecha_fin: trazoToEdit.fecha_fin || '',
+          observaciones: trazoToEdit.observaciones || '',
+          estado: trazoToEdit.estado || 'activo',
+        }));
     } else if (preselectedFabric) {
-      setForm({ ...defaultForm, reference_id: referenceId, reference_fabric_id: preselectedFabric.id });
+      startTransition(() => setForm({ ...defaultForm, reference_id: referenceId, reference_fabric_id: preselectedFabric.id }));
     } else if (fabrics.length === 1) {
-      setForm({ ...defaultForm, reference_id: referenceId, reference_fabric_id: fabrics[0].id });
+      startTransition(() => setForm({ ...defaultForm, reference_id: referenceId, reference_fabric_id: fabrics[0].id }));
     } else {
-      setForm({ ...defaultForm, reference_id: referenceId });
+      startTransition(() => setForm({ ...defaultForm, reference_id: referenceId }));
     }
   }, [trazoToEdit, referenceId, preselectedFabric, fabrics]);
 

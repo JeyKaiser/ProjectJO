@@ -1,37 +1,44 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Trash2, ArrowRight, Database, Table2, Terminal } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2, Trash2, ArrowRight, Database, Download } from 'lucide-react';
 import { parseValidationTelas } from '../lib/csvParser';
 import { parseMatriz, detectFormat } from '../lib/matrizParser';
+import { downloadCsv } from '../lib/csvExport';
 import { useDashboardData } from '../lib/api';
 import supabase from '../lib/supabase';
+import AsyncState from '../components/AsyncState';
+
+async function expectSuccess(query) {
+  const result = await query;
+  if (result.error) throw result.error;
+  return result;
+}
 
 async function getOrCreateFabric(code, desc) {
   if (!code) return null;
-  const { data } = await supabase.from('fabrics').select('id').eq('code', code).single();
+  const { data } = await expectSuccess(supabase.from('fabrics').select('id').eq('code', code).maybeSingle());
   if (data) return data.id;
-  const { data: ins } = await supabase.from('fabrics').upsert({ code, description: (desc || code).substring(0, 200) }, { onConflict: 'code' }).select('id');
+  const { data: ins } = await expectSuccess(supabase.from('fabrics').upsert({ code, description: (desc || code).substring(0, 200) }, { onConflict: 'code' }).select('id'));
   return ins?.[0]?.id || null;
 }
 
 async function getOrCreateLine(name) {
   if (!name) return null;
-  const { data } = await supabase.from('lines').select('id').eq('name', name).single();
+  const { data } = await expectSuccess(supabase.from('lines').select('id').eq('name', name).maybeSingle());
   if (data) return data.id;
-  const { data: ins } = await supabase.from('lines').upsert({ name }, { onConflict: 'name' }).select('id');
+  const { data: ins } = await expectSuccess(supabase.from('lines').upsert({ name }, { onConflict: 'name' }).select('id'));
   return ins?.[0]?.id || null;
 }
 
 async function getId(table, field, value) {
   if (!value) return null;
-  const { data } = await supabase.from(table).select('id').eq(field, value).single();
+  const { data } = await expectSuccess(supabase.from(table).select('id').eq(field, value).maybeSingle());
   return data?.id || null;
 }
 
 export default function ImportarCSV() {
-  const { data: dashData } = useDashboardData();
+  const { data: dashData, loading: dashLoading, error: dashError, refetch: refetchDash } = useDashboardData();
   const colecciones = dashData?.colecciones || [];
 
-  const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState('');
   const [format, setFormat] = useState(null);
   const [parsed, setParsed] = useState(null);
@@ -44,7 +51,7 @@ export default function ImportarCSV() {
   const handleFile = useCallback((f) => {
     setError(''); setResult(null); setParsed(null); setFormat(null);
     if (!f) return;
-    setFileName(f.name); setFile(f);
+    setFileName(f.name);
 
     const sizeMB = f.size / (1024 * 1024);
     if (sizeMB > 50) {
@@ -57,17 +64,21 @@ export default function ImportarCSV() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const arr = new Uint8Array(e.target.result);
-      const fmt = await detectFormat(arr, f.name);
-      setFormat(fmt);
+      try {
+        const arr = new Uint8Array(e.target.result);
+        const fmt = await detectFormat(arr, f.name);
+        setFormat(fmt);
 
-      let data;
-      if (fmt === 'MATRIZ') data = await parseMatriz(arr, f.name);
-      else if (fmt === 'VALIDACION_TELAS') data = await parseValidationTelas(arr, f.name);
-      else data = await parseValidationTelas(arr, f.name); // fallback
+        let data;
+        if (fmt === 'MATRIZ') data = await parseMatriz(arr, f.name);
+        else if (fmt === 'VALIDACION_TELAS') data = await parseValidationTelas(arr, f.name);
+        else data = await parseValidationTelas(arr, f.name); // fallback
 
-      if (data?.error) { setError(data.error); setFile(null); return; }
-      setParsed(data);
+        if (data?.error) { setError(data.error); return; }
+        setParsed(data);
+      } catch (parseError) {
+        setError('Error al procesar el archivo: ' + (parseError.message || String(parseError)));
+      }
     };
     reader.onerror = () => setError('Error al leer el archivo');
     reader.readAsArrayBuffer(f);
@@ -87,9 +98,18 @@ export default function ImportarCSV() {
 
     try {
       setProgress({ step: 'Buscando coleccion...', current: 0, total: 1 });
-      const { data: cd } = await supabase.from('collections').select('id').eq('code', colCode).single();
+      const { data: cd } = await expectSuccess(supabase.from('collections').select('id').eq('code', colCode).maybeSingle());
       const colId = cd?.id;
       if (!colId) { setError(`Coleccion "${colCode}" no encontrada en la BD`); setUploading(false); return; }
+
+      const { data: statusRows } = await expectSuccess(
+        supabase.from('reference_statuses').select('id, status, active')
+      );
+      const statusIds = Object.fromEntries(
+        (statusRows || []).filter(status => status.active !== false).map(status => [status.status, status.id])
+      );
+      const defaultStatusId = statusIds.EN_PROCESO;
+      if (!defaultStatusId) throw new Error('El estado EN_PROCESO no existe en reference_statuses');
 
       if (format === 'MATRIZ') {
         // ═══════════════ UPLOAD MATRIZ ═══════════════
@@ -124,11 +144,11 @@ export default function ImportarCSV() {
         for (const r of refs) {
           try {
             const lineId = lineMap[r.line_name] || null;
-            await supabase.from('references').upsert({
+             await expectSuccess(supabase.from('references').upsert({
               collection_id: colId, reference_number: r.reference_number, name: r.name,
               main_image_url: r.main_image_url || null,
               color: r.color || null, color_code: r.color_code || null,
-              status_id: r.status_id || 1, line_id: lineId,
+               status_id: statusIds[r.status] || defaultStatusId, line_id: lineId,
               length_description: r.length_description || null,
               has_art_modification: r.has_art_modification || false,
               has_trace_location: r.has_trace_location || false,
@@ -146,14 +166,14 @@ export default function ImportarCSV() {
               costing_notes: r.costing_notes || null,
               envio_corte_maquila: r.envio_corte_maquila || false,
               envio_confeccion_maquila: r.envio_confeccion_maquila || false,
-            }, { onConflict: 'collection_id,reference_number', ignoreDuplicates: true });
+             }, { onConflict: 'collection_id,reference_number', ignoreDuplicates: true }));
             ins.refs++;
           } catch { errors++; }
           setProgress(p => ({ ...p, current: ++fi }));
         }
 
         // Fetch ref IDs
-        const { data: allRefs } = await supabase.from('references').select('id,reference_number').eq('collection_id', colId);
+        const { data: allRefs } = await expectSuccess(supabase.from('references').select('id,reference_number').eq('collection_id', colId));
         (allRefs || []).forEach(r => { refMap[r.reference_number] = r.id; });
 
         // 4. Reference codes (MD/PT)
@@ -165,8 +185,8 @@ export default function ImportarCSV() {
           if (r.codigo_pt) codesToInsert.push({ reference_id: rid, code_type: 'PT', code: r.codigo_pt });
         }
         if (codesToInsert.length) {
-          const { error: ce } = await supabase.from('reference_codes').upsert(codesToInsert, { onConflict: 'reference_id,code_type', ignoreDuplicates: true });
-          if (!ce) ins.otros += codesToInsert.length;
+          await expectSuccess(supabase.from('reference_codes').upsert(codesToInsert, { onConflict: 'reference_id,code_type', ignoreDuplicates: true }));
+          ins.otros += codesToInsert.length;
         }
 
         // 5. Reference fabrics (telas lucir + forro)
@@ -180,8 +200,8 @@ export default function ImportarCSV() {
           }
         }
         if (rfToInsert.length) {
-          const { error: rfe } = await supabase.from('reference_fabrics').upsert(rfToInsert, { onConflict: 'reference_id,fabric_id,usage', ignoreDuplicates: true });
-          if (!rfe) ins.rf += rfToInsert.length;
+          await expectSuccess(supabase.from('reference_fabrics').upsert(rfToInsert, { onConflict: 'reference_id,fabric_id,usage', ignoreDuplicates: true }));
+          ins.rf += rfToInsert.length;
         }
         setProgress(p => ({ ...p, current: fi + rfToInsert.length }));
 
@@ -197,7 +217,7 @@ export default function ImportarCSV() {
               });
             }
           }
-          if (bords.length) { await supabase.from('reference_embroidery').upsert(bords, { onConflict: 'reference_id', ignoreDuplicates: true }); ins.bordados += bords.length; }
+          if (bords.length) { await expectSuccess(supabase.from('reference_embroidery').upsert(bords, { onConflict: 'reference_id', ignoreDuplicates: true })); ins.bordados += bords.length; }
         }
 
         // 7. Entregables
@@ -207,7 +227,7 @@ export default function ImportarCSV() {
             const rid = refMap[e.ref_num];
             if (rid) ents.push({ reference_id: rid, tipo: e.tipo, completado: e.completado, observaciones: e.valor });
           }
-          if (ents.length) { await supabase.from('entregables').upsert(ents, { onConflict: 'reference_id,tipo', ignoreDuplicates: true }); ins.otros += ents.length; }
+          if (ents.length) { await expectSuccess(supabase.from('entregables').upsert(ents, { onConflict: 'reference_id,tipo', ignoreDuplicates: true })); ins.otros += ents.length; }
         }
 
         // 8. Composiciones
@@ -217,7 +237,7 @@ export default function ImportarCSV() {
             const rid = refMap[c.ref_num];
             if (rid) comps.push({ reference_id: rid, scope: c.scope, sap_registered: c.sap, description_usauk: c.desc_usa, fiber_composition: c.fiber, woven_knitted: c.woven, inside_composition: c.inside, include_description: c.include, notes: c.obs });
           }
-          if (comps.length) { await supabase.from('compositions').upsert(comps, { onConflict: 'reference_id,scope', ignoreDuplicates: true }); ins.composiciones += comps.length; }
+          if (comps.length) { await expectSuccess(supabase.from('compositions').upsert(comps, { onConflict: 'reference_id,scope', ignoreDuplicates: true })); ins.composiciones += comps.length; }
         }
 
         // 9. Care instructions
@@ -227,7 +247,7 @@ export default function ImportarCSV() {
             const rid = refMap[cu.ref_num];
             if (rid) cares.push({ reference_id: rid, care_type_id: cu.tipo === 'LAVADO' ? 1 : cu.tipo === 'SECADO' ? 2 : cu.tipo === 'PLANCHADO' ? 3 : cu.tipo === 'DESMANCHE' ? 4 : 5, instruction: cu.instruccion });
           }
-          if (cares.length) { await supabase.from('care_instructions').upsert(cares, { onConflict: 'reference_id,care_type_id', ignoreDuplicates: true }); ins.otros += cares.length; }
+          if (cares.length) { await expectSuccess(supabase.from('care_instructions').upsert(cares, { onConflict: 'reference_id,care_type_id', ignoreDuplicates: true })); ins.otros += cares.length; }
         }
 
         // 10. Production units
@@ -237,7 +257,7 @@ export default function ImportarCSV() {
             const rid = refMap[u.ref_num];
             if (rid) units.push({ reference_id: rid, size: u.talla, quantity: u.cantidad });
           }
-          if (units.length) { await supabase.from('production_units').upsert(units, { onConflict: 'reference_id,size', ignoreDuplicates: true }); ins.otros += units.length; }
+          if (units.length) { await expectSuccess(supabase.from('production_units').upsert(units, { onConflict: 'reference_id,size', ignoreDuplicates: true })); ins.otros += units.length; }
         }
 
         // 11. Molderia
@@ -247,7 +267,7 @@ export default function ImportarCSV() {
             const rid = refMap[m.ref_num];
             if (rid) molds.push({ reference_id: rid, fecha_inicio: m.inicio, fecha_fin: m.fin, comentarios: m.comentarios });
           }
-          if (molds.length) { await supabase.from('molderia').upsert(molds, { onConflict: 'reference_id', ignoreDuplicates: true }); ins.otros += molds.length; }
+          if (molds.length) { await expectSuccess(supabase.from('molderia').upsert(molds, { onConflict: 'reference_id', ignoreDuplicates: true })); ins.otros += molds.length; }
         }
 
         // 12. Cortes
@@ -257,7 +277,7 @@ export default function ImportarCSV() {
             const rid = refMap[ct.ref_num];
             if (rid) cuts.push({ reference_id: rid, cut_number: ct.numero, cut_date: ct.fecha, cut_type: ct.tipo, observations: ct.obs, units_piece: ct.piezas, units_sample: ct.muestras });
           }
-          if (cuts.length) { await supabase.from('cuts').upsert(cuts, { onConflict: 'reference_id,cut_number', ignoreDuplicates: true }); ins.cortes += cuts.length; }
+          if (cuts.length) { await expectSuccess(supabase.from('cuts').upsert(cuts, { onConflict: 'reference_id,cut_number', ignoreDuplicates: true })); ins.cortes += cuts.length; }
         }
 
         // 13. Sewings
@@ -267,7 +287,7 @@ export default function ImportarCSV() {
             const rid = refMap[s.ref_num];
             if (rid) sews.push({ reference_id: rid, start_date: s.inicio, end_date: s.entrega, status: s.estado, notes: s.obs, engineering_time_minutes: s.tiempo, plant_status: s.estado_planta, plant_rejection_type: s.rechazo, plant_feedback: s.feedback });
           }
-          if (sews.length) { await supabase.from('sewings').upsert(sews, { onConflict: 'reference_id', ignoreDuplicates: true }); ins.confecciones += sews.length; }
+          if (sews.length) { await expectSuccess(supabase.from('sewings').upsert(sews, { onConflict: 'reference_id', ignoreDuplicates: true })); ins.confecciones += sews.length; }
         }
 
         // 14. Measures
@@ -277,7 +297,7 @@ export default function ImportarCSV() {
             const rid = refMap[m.ref_num];
             if (rid) meds.push({ reference_id: rid, phase: m.fase, measure_date: m.fecha, comments: m.comentario });
           }
-          if (meds.length) { await supabase.from('measures').upsert(meds, { onConflict: 'reference_id,phase', ignoreDuplicates: true }); ins.medidas += meds.length; }
+          if (meds.length) { await expectSuccess(supabase.from('measures').upsert(meds, { onConflict: 'reference_id,phase', ignoreDuplicates: true })); ins.medidas += meds.length; }
         }
 
         // 15. Contramuestras
@@ -285,7 +305,7 @@ export default function ImportarCSV() {
           for (const cm of sec.contramuestras) {
             const rid = refMap[cm.ref_num];
             if (!rid) continue;
-            await supabase.from('contramuestras').upsert({ reference_id: rid, codigo_ot: cm.codigo_ot, nombre: cm.nombre, talla: cm.talla, descripcion_color: cm.color, unidades_cortadas: cm.unidades, prioridad: cm.prioridad, fecha_meta_entrega: cm.fecha_meta, drop_entrega: cm.drops, status: cm.status }, { onConflict: 'codigo_ot', ignoreDuplicates: true });
+            await expectSuccess(supabase.from('contramuestras').upsert({ reference_id: rid, codigo_ot: cm.codigo_ot, nombre: cm.nombre, talla: cm.talla, descripcion_color: cm.color, unidades_cortadas: cm.unidades, prioridad: cm.prioridad, fecha_meta_entrega: cm.fecha_meta, drop_entrega: cm.drops, status: cm.status }, { onConflict: 'codigo_ot', ignoreDuplicates: true }));
             ins.contramuestras++;
           }
         }
@@ -297,7 +317,7 @@ export default function ImportarCSV() {
             const rid = refMap[q.ref_num];
             if (rid) quals.push({ reference_id: rid, detected_at: q.fecha, area: q.area, classification: q.clasificacion, material: q.material, material_classification: q.clasif_mp, execution_type: q.ejecucion });
           }
-          if (quals.length) { await supabase.from('quality_issues').upsert(quals, { onConflict: 'reference_id', ignoreDuplicates: true }); ins.calidad += quals.length; }
+          if (quals.length) { await expectSuccess(supabase.from('quality_issues').upsert(quals, { onConflict: 'reference_id', ignoreDuplicates: true })); ins.calidad += quals.length; }
         }
 
         // 17. Montaje
@@ -307,7 +327,7 @@ export default function ImportarCSV() {
             const rid = refMap[m.ref_num];
             if (rid) monts.push({ reference_id: rid, montage_type: m.tipo, related_reference: m.proyecto });
           }
-          if (monts.length) { await supabase.from('montage_mannequin').upsert(monts, { onConflict: 'reference_id', ignoreDuplicates: true }); ins.otros += monts.length; }
+          if (monts.length) { await expectSuccess(supabase.from('montage_mannequin').upsert(monts, { onConflict: 'reference_id', ignoreDuplicates: true })); ins.otros += monts.length; }
         }
 
         // 18. External processes
@@ -317,7 +337,7 @@ export default function ImportarCSV() {
             const rid = refMap[p.ref_num];
             if (rid) procs.push({ reference_id: rid, provider: p.proveedor, description: p.descripcion || p.tipo, cost: p.costo });
           }
-          if (procs.length) { await supabase.from('external_processes').upsert(procs, { onConflict: 'reference_id,provider', ignoreDuplicates: true }); ins.otros += procs.length; }
+          if (procs.length) { await expectSuccess(supabase.from('external_processes').upsert(procs, { onConflict: 'reference_id,provider', ignoreDuplicates: true })); ins.otros += procs.length; }
         }
 
         // 19. Semielaborados
@@ -327,7 +347,7 @@ export default function ImportarCSV() {
             const rid = refMap[s.ref_num];
             if (rid) semis.push({ reference_id: rid, semi_elaborated_type: 'BORDADO', description: s.descripcion });
           }
-          if (semis.length) { await supabase.from('reference_semielaborated').upsert(semis, { onConflict: 'reference_id', ignoreDuplicates: true }); ins.otros += semis.length; }
+          if (semis.length) { await expectSuccess(supabase.from('reference_semielaborated').upsert(semis, { onConflict: 'reference_id', ignoreDuplicates: true })); ins.otros += semis.length; }
         }
 
         // 20. Referentes
@@ -337,7 +357,7 @@ export default function ImportarCSV() {
             const ptn = rf.pt?.replace('PT', '');
             const rrefId = ptn ? await getId('references', 'reference_number', ptn) : null;
             if (rid && rrefId) {
-              await supabase.from('references_referents').upsert({ reference_id: rid, referent_reference_id: rrefId, notes: rf.nombre }, { onConflict: 'reference_id,referent_reference_id', ignoreDuplicates: true });
+              await expectSuccess(supabase.from('references_referents').upsert({ reference_id: rid, referent_reference_id: rrefId, notes: rf.nombre }, { onConflict: 'reference_id,referent_reference_id', ignoreDuplicates: true }));
               ins.otros++;
             }
           }
@@ -358,25 +378,25 @@ export default function ImportarCSV() {
           }
         });
         if (newFabs.length) {
-          await supabase.from('fabrics').upsert(newFabs, { onConflict: 'code', ignoreDuplicates: true });
+          await expectSuccess(supabase.from('fabrics').upsert(newFabs, { onConflict: 'code', ignoreDuplicates: true }));
           ins.fabrics = newFabs.length;
         }
-        const { data: existingFabs } = await supabase.from('fabrics').select('id,code');
+        const { data: existingFabs } = await expectSuccess(supabase.from('fabrics').select('id,code'));
         (existingFabs || []).forEach(f => { fabMap[f.code] = f.id; });
 
         // References
         let fi = 0;
         for (const r of parsed.referencias) {
-          await supabase.from('references').upsert({
+          await expectSuccess(supabase.from('references').upsert({
             collection_id: colId, reference_number: r.reference_number, name: r.name,
-            main_image_url: r.main_image_url || null, status_id: 1,
+             main_image_url: r.main_image_url || null, status_id: defaultStatusId,
             has_art_modification: r.has_art_modification, has_trace_location: r.has_trace_location,
             length_description: r.length_description,
-          }, { onConflict: 'collection_id,reference_number', ignoreDuplicates: true });
+          }, { onConflict: 'collection_id,reference_number', ignoreDuplicates: true }));
           ins.refs++;
           setProgress(p => ({ ...p, current: ++fi }));
         }
-        const { data: allRefs } = await supabase.from('references').select('id,reference_number').eq('collection_id', colId);
+        const { data: allRefs } = await expectSuccess(supabase.from('references').select('id,reference_number').eq('collection_id', colId));
         const refMap = {};
         (allRefs || []).forEach(r => { refMap[r.reference_number] = r.id; });
 
@@ -386,7 +406,7 @@ export default function ImportarCSV() {
           const rid = refMap[t.ref_num]; const fid = fabMap[t.codigo_tela];
           if (rid && fid) rfList.push({ reference_id: rid, fabric_id: fid, usage: t.uso, width_cm: t.ancho, consumo_base: t.consumo_base });
         });
-        if (rfList.length) { await supabase.from('reference_fabrics').upsert(rfList, { onConflict: 'reference_id,fabric_id,usage', ignoreDuplicates: true }); ins.rf = rfList.length; }
+        if (rfList.length) { await expectSuccess(supabase.from('reference_fabrics').upsert(rfList, { onConflict: 'reference_id,fabric_id,usage', ignoreDuplicates: true })); ins.rf = rfList.length; }
         setProgress(p => ({ ...p, current: fi + rfList.length }));
 
         // Consumos
@@ -394,7 +414,7 @@ export default function ImportarCSV() {
           const rid = refMap[c.ref_num]; if (!rid) return null;
           return { reference_id: rid, role: c.role, version: c.version, consumo_valor: c.consumo_valor, tipo_tela: c.tipo_tela || null, talla: c.talla || null, observaciones: c.observaciones || null, cambio_molderia: c.cambio_molderia || null };
         }).filter(Boolean);
-        if (consList.length) { await supabase.from('consumos').upsert(consList, { onConflict: 'reference_id,role,version,tipo_tela', ignoreDuplicates: true }); ins.consumos = consList.length; }
+        if (consList.length) { await expectSuccess(supabase.from('consumos').upsert(consList, { onConflict: 'reference_id,role,version,tipo_tela', ignoreDuplicates: true })); ins.consumos = consList.length; }
       }
 
       setResult({ ...ins, errors, coleccion: colName, format });
@@ -403,9 +423,29 @@ export default function ImportarCSV() {
     } finally { setUploading(false); }
   };
 
-  const reset = () => { setFile(null); setFileName(''); setParsed(null); setFormat(null); setResult(null); setError(''); setColeccionId(''); };
+  const reset = () => { setFileName(''); setParsed(null); setFormat(null); setResult(null); setError(''); setColeccionId(''); };
+
+  const exportParsedSummary = () => {
+    if (!parsed?.referencias?.length) return;
+    const rows = parsed.referencias.map(reference => ({
+      referencia: reference.reference_number,
+      nombre: reference.name,
+      color: reference.color,
+      estado: reference.status || reference.status_id,
+    }));
+    const baseName = fileName.replace(/\.[^.]+$/, '') || 'importacion';
+    downloadCsv(rows, `${baseName}-resumen`, [
+      { key: 'referencia', label: 'Referencia' },
+      { key: 'nombre', label: 'Nombre' },
+      { key: 'color', label: 'Color' },
+      { key: 'estado', label: 'Estado' },
+    ]);
+  };
 
   const fmtName = format === 'MATRIZ' ? 'MATRIZ (completo)' : format === 'VALIDACION_TELAS' ? 'Validacion de Telas' : format || '?';
+
+  if (dashLoading) return <AsyncState loading loadingMessage="Cargando colecciones..." />;
+  if (dashError) return <AsyncState error={dashError} onRetry={refetchDash} />;
 
   return (
     <div className="fade-in" style={{ maxWidth: 900, margin: '0 auto', padding: '1rem 0' }}>
@@ -485,6 +525,9 @@ export default function ImportarCSV() {
             {parsed.errors?.length > 0 && (
               <div style={{ marginTop: 12, fontSize: 12, color: 'var(--warning-dark)' }}>{parsed.errors.map((e, i) => <div key={i}>⚠ {e}</div>)}</div>
             )}
+            <button className="btn btn-secondary" type="button" onClick={exportParsedSummary} style={{ marginTop: 16 }}>
+              <Download size={15} /> Descargar resumen CSV
+            </button>
           </div>
 
           <div className="card" style={{ padding: '20px 24px' }}>

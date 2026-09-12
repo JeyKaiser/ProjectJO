@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { Plus, Save, Trash2, FlaskConical, CheckCircle, XCircle, RotateCcw, FileScan, Scissors, Ruler, PackagePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePersonsByArea } from '../hooks/usePersons';
@@ -22,7 +22,7 @@ function EstadoBadge({ estado }) {
   );
 }
 
-export default function LaboratoriosMolderia({ dbRefId, referenceLabel = '' }) {
+export default function LaboratoriosMolderia({ dbRefId }) {
   const { isAdmin, isCreativo } = useAuth();
   const canEditar = isAdmin || isCreativo;
 
@@ -40,10 +40,12 @@ export default function LaboratoriosMolderia({ dbRefId, referenceLabel = '' }) {
   const [moldForm, setMoldForm] = useState({ fecha_inicio: new Date().toISOString().slice(0, 10), fecha_fin: '', disenador: '', comentarios: '' });
 
   useEffect(() => {
-    if (creativos.length > 0) {
-      setLabForm(prev => prev.realizado_por_nombre ? prev : { ...prev, realizado_por_nombre: creativos[0].nombre });
-      setMoldForm(prev => prev.disenador ? prev : { ...prev, disenador: creativos[0].nombre });
-    }
+    startTransition(() => {
+      if (creativos.length > 0) {
+        setLabForm(prev => prev.realizado_por_nombre ? prev : { ...prev, realizado_por_nombre: creativos[0].nombre });
+        setMoldForm(prev => prev.disenador ? prev : { ...prev, disenador: creativos[0].nombre });
+      }
+    });
   }, [creativos]);
 
   const showToast = (msg) => {

@@ -1,6 +1,8 @@
 -- ===========================================================================
 -- AtelierData v2.0 — Politicas RLS (Row Level Security)
 -- Ejecutar en SQL Editor despues de database_schema.sql
+-- LEGACY: para autenticacion real usar 022_auth_rbac.sql y luego
+-- 023_rbac_policies.sql. No ejecutar este archivo despues de 023.
 -- ===========================================================================
 SET search_path = jo, public;
 

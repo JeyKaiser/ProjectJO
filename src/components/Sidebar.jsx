@@ -1,13 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Inbox, Clock, Upload, Sun, Moon, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen, Package, Palette } from 'lucide-react';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen, Package, Palette } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import { useState, useEffect } from 'react';
 
-export default function Sidebar() {
-  const { isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora, isCortador, isLiderCortadores } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
-
+export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }) {
+  const { isAdmin, isCreadorFicha, isCreativo, isLiderModistas, isTrazador, isEspecificadora, isCortador, isLiderCortadores } = useAuth();
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar_collapsed') === 'true');
 
   useEffect(() => {
@@ -18,18 +15,19 @@ export default function Sidebar() {
   const toggleSidebar = () => setCollapsed(prev => !prev);
 
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
+    <>
+    <aside id="main-navigation" className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''} ${mobileOpen ? 'open' : ''}`} aria-label="Navegación principal">
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">JO</div>
           <div className="sidebar-logo-text">Colecciones</div>
         </div>
-        <button className="sidebar-toggle-btn" onClick={toggleSidebar} title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}>
+        <button type="button" className="sidebar-toggle-btn" onClick={toggleSidebar} title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'} aria-label={collapsed ? 'Expandir navegación' : 'Colapsar navegación'} aria-expanded={!collapsed}>
           {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
       </div>
 
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Secciones de la aplicación" onClick={onMobileClose}>
         {/* DASHBOARD - Visible para todos */}
         <div className="nav-section">
           <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Dashboard' : undefined}>
@@ -179,7 +177,14 @@ export default function Sidebar() {
           )}
 
           {(isAdmin) && (
-            <NavLink to="/configuracion" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Configuracion' : undefined}>
+            <NavLink to="/configuracion/guia-usuario" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Guia para crear usuarios' : undefined}>
+              <span className="nav-item-icon"><BookMarked size={20} /></span>
+              <span>Guía de usuarios</span>
+            </NavLink>
+          )}
+
+          {(isAdmin) && (
+            <NavLink to="/configuracion" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Configuracion' : undefined}>
               <span className="nav-item-icon"><Settings size={20} /></span>
               <span>Configuracion</span>
             </NavLink>
@@ -188,5 +193,7 @@ export default function Sidebar() {
         
       </nav>
     </aside>
+    {mobileOpen && <button type="button" className="sidebar-overlay" onClick={onMobileClose} aria-label="Cerrar navegación" />}
+    </>
   );
 }

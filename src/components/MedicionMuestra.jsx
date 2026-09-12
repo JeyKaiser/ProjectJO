@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { CheckCircle, XCircle, Plus, Save, Trash2, Ruler } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
@@ -76,9 +76,11 @@ export default function MedicionMuestra({ dbRefId, referenceLabel = '' }) {
   }, [dbRefId]);
 
   useEffect(() => {
-    if (creativos.length > 0) {
-      setForm(prev => prev.medido_por ? prev : { ...prev, medido_por: creativos[0].nombre });
-    }
+    startTransition(() => {
+      if (creativos.length > 0) {
+        setForm(prev => prev.medido_por ? prev : { ...prev, medido_por: creativos[0].nombre });
+      }
+    });
   }, [creativos]);
 
   const showToast = (msg) => {
@@ -93,17 +95,19 @@ export default function MedicionMuestra({ dbRefId, referenceLabel = '' }) {
     setSaving(true);
     setError(null);
     try {
-      const { data, error: err } = await createMedicion({
+      const { error: err } = await createMedicion({
         reference_id: dbRefId,
         ...form,
       });
       if (err) throw err;
 
-      if (form.resultado === 'APROBADA') {
+      if (form.resultado === 'APROBADA' && isAdmin) {
         const { error: statusErr } = await updateReferenceStatusByNombre(dbRefId, 'APROBADO');
         if (statusErr) throw statusErr;
         setRefStatus('APROBADO');
-        showToast('Muestra APROBADA — referencia ubicada en el rack de aprobadas');
+        showToast('Muestra APROBADA - referencia ubicada en el rack de aprobadas');
+      } else if (form.resultado === 'APROBADA') {
+        showToast('Muestra APROBADA - el estado debe actualizarlo Administrador o Creador de Ficha');
       } else {
         showToast('Medición registrada — muestra rechazada');
       }
@@ -157,8 +161,8 @@ export default function MedicionMuestra({ dbRefId, referenceLabel = '' }) {
       }}>
         {refStatus === 'APROBADO' ? <CheckCircle size={16} /> : <Ruler size={16} />}
         {refStatus === 'APROBADO'
-          ? `Referencia APROBADA en medición — ubicada en el rack de referencias aprobadas.`
-          : `La muestra de ${referenceLabel || 'esta referencia'} aún no ha sido aprobada en medición.`}
+          ? 'Referencia en estado APROBADO.'
+          : `Estado actual: ${refStatus || 'EN_PROCESO'} para ${referenceLabel || 'esta referencia'}.`}
       </div>
 
       {loading ? (

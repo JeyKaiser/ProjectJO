@@ -42,14 +42,11 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function formatDateFull(dateStr) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
 export default function CorteKanban() {
   const { items, loading, error, refresh } = useCutRequests({ source: 'app' });
   const { data: cortadoresActivos } = usePersonsByArea('cortadores');
+  const { data: creativosActivos } = usePersonsByArea('creativos');
+  const { data: tecnicosActivos } = usePersonsByArea('tecnicos');
   const [selectedFilter, setSelectedFilter] = useState('');
   const [selectedCollection, setSelectedCollection] = useState('');
   const [showEntregados, setShowEntregados] = useState(true);
@@ -573,7 +570,7 @@ export default function CorteKanban() {
                 </div>
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label form-label-required">Solicitante</label>
-                  {/* <select className="form-select" value={solicitanteManual ? '__otro__' : newForm.solicitante}
+                  <select className="form-select" value={solicitanteManual ? '__otro__' : newForm.solicitante}
                     onChange={e => {
                       const v = e.target.value;
                       if (v === '__otro__') { setSolicitanteManual(true); setForm('solicitante', ''); }
@@ -581,17 +578,17 @@ export default function CorteKanban() {
                     }}>
                     <option value="">Selecciona...</option>
                     <optgroup label="Creativos">
-                      {(personas.creativos || []).filter(p => p.activo !== false).map(p => (
+                      {(creativosActivos || []).filter(p => p.activo !== false).map(p => (
                         <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
                       ))}
                     </optgroup>
                     <optgroup label="Tecnicos">
-                      {(personas.tecnicos || []).filter(p => p.activo !== false).map(p => (
+                      {(tecnicosActivos || []).filter(p => p.activo !== false).map(p => (
                         <option key={p.nombre} value={p.nombre}>{p.nombre}</option>
                       ))}
                     </optgroup>
                     <option value="__otro__">Otro (digitar)...</option>
-                  </select> */}
+                  </select>
                   {solicitanteManual && (
                     <input type="text" className="form-input" style={{ marginTop: 6 }}
                       value={newForm.solicitante}

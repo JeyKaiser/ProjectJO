@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { Plus, Save, Trash2, Scissors, Shirt, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePersonsByArea } from '../hooks/usePersons';
@@ -12,6 +12,7 @@ import {
   updateSewing,
   deleteSewing,
 } from '../lib/api';
+import AsyncState from './AsyncState';
 
 const ESTADO_CONFECCION = {
   PENDIENTE: { bg: '#f1f5f9', color: '#475569' },
@@ -28,16 +29,16 @@ function ConfeccionBadge({ estado }) {
   );
 }
 
-export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' }) {
+export default function CorteConfeccionMuestra({ dbRefId }) {
   const { isAdmin, isCreativo } = useAuth();
   const canEditar = isAdmin || isCreativo;
 
-  const { tipos: corteTipos } = useCorteTypes();
-  const { cuts, loading: loadingCuts } = useCutsMuestra(dbRefId);
-  const { sewings, loading: loadingSewings } = useSewingsMuestra(dbRefId);
+  const { tipos: corteTipos, error: corteTiposError, refresh: refreshCorteTipos } = useCorteTypes();
+  const { cuts, loading: loadingCuts, error: cutsError, refresh: refreshCuts } = useCutsMuestra(dbRefId);
+  const { sewings, loading: loadingSewings, error: sewingsError, refresh: refreshSewings } = useSewingsMuestra(dbRefId);
 
-  const { data: creativos } = usePersonsByArea('creativos');
-  const { data: modistas } = usePersonsByArea('modistas');
+  const { data: creativos, error: creativosError, refetch: refreshCreativos } = usePersonsByArea('creativos');
+  const { data: modistas, error: modistasError, refetch: refreshModistas } = usePersonsByArea('modistas');
 
   const [showCorte, setShowCorte] = useState(false);
   const [showSewing, setShowSewing] = useState(false);
@@ -54,12 +55,14 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
   });
 
   useEffect(() => {
-    if (creativos.length > 0 && !corteForm.quien_corto) {
-      setCorteForm(prev => ({ ...prev, quien_corto: creativos[0].nombre }));
-    }
-    if (modistas.length > 0 && !sewForm.modista_nombre) {
-      setSewForm(prev => ({ ...prev, modista_nombre: modistas[0].nombre }));
-    }
+    startTransition(() => {
+      if (creativos.length > 0 && !corteForm.quien_corto) {
+        setCorteForm(prev => ({ ...prev, quien_corto: creativos[0].nombre }));
+      }
+      if (modistas.length > 0 && !sewForm.modista_nombre) {
+        setSewForm(prev => ({ ...prev, modista_nombre: modistas[0].nombre }));
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creativos, modistas]);
 
@@ -91,6 +94,7 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
       if (error) throw error;
       setCorteForm({ cut_date: today(), cut_type_id: '', units_piece: '', units_sample: '', quien_corto: '', observaciones: '' });
       setShowCorte(false);
+      refreshCuts();
       showToast('Corte de muestra registrado');
     } catch (err) {
       showToast(`Error: ${err.message}`);
@@ -111,6 +115,7 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
       if (error) throw error;
       setSewForm({ modista_nombre: '', tipo_muestra: 'MUESTRA', start_date: today(), end_date: '', status: 'PENDIENTE', notes: '' });
       setShowSewing(false);
+      refreshSewings();
       showToast('Confección registrada — enviada a modistas');
     } catch (err) {
       showToast(`Error: ${err.message}`);
@@ -124,24 +129,40 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
     if (status === 'TERMINADO') patch.end_date = today();
     const { error } = await updateSewing(id, patch);
     if (error) showToast(`Error: ${error.message}`);
-    else showToast('Estado de confección actualizado');
+    else { refreshSewings(); showToast('Estado de confección actualizado'); }
   };
 
   const eliminarCorte = async (id) => {
     if (!confirm('Eliminar este corte?')) return;
     const { error } = await deleteCut(id);
     if (error) showToast(`Error: ${error.message}`);
-    else showToast('Corte eliminado');
+    else { refreshCuts(); showToast('Corte eliminado'); }
   };
 
   const eliminarSewing = async (id) => {
     if (!confirm('Eliminar esta confección?')) return;
     const { error } = await deleteSewing(id);
     if (error) showToast(`Error: ${error.message}`);
-    else showToast('Confección eliminada');
+    else { refreshSewings(); showToast('Confección eliminada'); }
   };
 
-  if (!dbRefId) return <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Cargando...</p>;
+  if (!dbRefId) return <AsyncState loading loadingMessage="Cargando referencia..." />;
+
+  const dataError = corteTiposError || cutsError || sewingsError || creativosError || modistasError;
+  if (dataError) {
+    return (
+      <AsyncState
+        error={dataError}
+        onRetry={() => {
+          refreshCorteTipos();
+          refreshCuts();
+          refreshSewings();
+          refreshCreativos();
+          refreshModistas();
+        }}
+      />
+    );
+  }
 
   return (
     <div>
@@ -156,11 +177,13 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
         <Scissors size={14} /> Corte de muestra
       </h4>
 
-      {loadingCuts ? (
-        <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Cargando cortes...</p>
-      ) : cuts.length === 0 ? (
-        <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>No hay cortes registrados.</p>
-      ) : (
+      <AsyncState
+        loading={loadingCuts}
+        loadingMessage="Cargando cortes..."
+        empty={cuts.length === 0}
+        emptyTitle="Sin cortes registrados"
+        emptyMessage="Todavia no hay cortes de muestra para esta referencia."
+      >
         <div className="table-container" style={{ marginBottom: 12 }}>
           <table className="table">
             <thead>
@@ -188,7 +211,7 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
             </tbody>
           </table>
         </div>
-      )}
+      </AsyncState>
 
       {!showCorte && canEditar && (
         <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowCorte(true)}>
@@ -247,11 +270,13 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
           <Shirt size={14} /> Confección de muestra (modistas)
         </h4>
 
-        {loadingSewings ? (
-          <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Cargando confección...</p>
-        ) : sewings.length === 0 ? (
-          <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>La muestra aún no se ha enviado a confección.</p>
-        ) : (
+        <AsyncState
+          loading={loadingSewings}
+          loadingMessage="Cargando confeccion..."
+          empty={sewings.length === 0}
+          emptyTitle="Sin confecciones registradas"
+          emptyMessage="La muestra aun no se ha enviado a confeccion."
+        >
           <div className="table-container" style={{ marginBottom: 12 }}>
             <table className="table">
               <thead>
@@ -293,7 +318,7 @@ export default function CorteConfeccionMuestra({ dbRefId, referenceLabel = '' })
               </tbody>
             </table>
           </div>
-        )}
+        </AsyncState>
 
         {!showSewing && canEditar && (
           <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => setShowSewing(true)}>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import supabase from '../lib/supabase';
 
 function useSupabaseQuery(queryFn, deps = []) {
@@ -9,15 +9,18 @@ function useSupabaseQuery(queryFn, deps = []) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    startTransition(() => { setLoading(true); setError(null); });
     queryFn()
       .then(result => { if (!cancelled) { setData(result); setLoading(false); } })
       .catch(err => { if (!cancelled) { setError(err); setLoading(false); } });
     return () => { cancelled = true; };
+  // Each catalog hook supplies its own dependency key.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   const refetch = () => {
     setLoading(true);
+    setError(null);
     queryFn()
       .then(result => { setData(result); setLoading(false); })
       .catch(err => { setError(err); setLoading(false); });
@@ -26,115 +29,126 @@ function useSupabaseQuery(queryFn, deps = []) {
   return { data, loading, error, refetch };
 }
 
+async function queryRows(query) {
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
 export function useLineas() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('lines').select('id,name,description').eq('active',true).order('name');
-    return data || [];
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('lines').select('id,name,code,description').eq('active', true).order('name')
+  ));
+}
+
+export function mapLinkedSublines(rows) {
+  const sublineas = (rows || []).map(row => {
+    if (!row.sublines?.id || !row.sublines?.name) {
+      throw new Error('La relación línea–sublínea contiene una sublínea inválida.');
+    }
+    return row.sublines;
   });
+  const uniqueIds = new Set(sublineas.map(sublinea => sublinea.id));
+  if (uniqueIds.size !== sublineas.length) {
+    throw new Error('La relación línea–sublínea contiene asociaciones duplicadas.');
+  }
+  return sublineas.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function useSublineas(lineId) {
-  return useSupabaseQuery(async () => {
-    if (!lineId) return [];
-    const { data } = await supabase.from('sublines').select('id,line_id,name,description').eq('line_id',lineId).eq('active',true).order('name');
-    return data || [];
+  return useSupabaseQuery(() => {
+    if (!lineId) return Promise.resolve([]);
+    return queryRows(
+      supabase
+        .from('line_sublines')
+        .select('subline_id,sublines!inner(id,name,description,active)')
+        .eq('line_id', lineId)
+        .eq('active', true)
+        .eq('sublines.active', true)
+    ).then(mapLinkedSublines);
   }, [lineId]);
 }
 
 export function useTallajes() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('tallaje_groups').select('id,name,type,description').order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('tallaje_groups').select('id,name,type,description').order('name')
+  ));
 }
 
 export function useClosures() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('closure_types').select('id,type,description').order('id');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('closure_types').select('id,type,description').order('id')
+  ));
 }
 
 export function useEmpaques() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('empaques').select('id,name,description').order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('empaques').select('id,name,description').order('name')
+  ));
 }
 
 export function useComplejidad() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('difficulty_levels').select('id,level,description').order('id');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('difficulty_levels').select('id,level,description').order('id')
+  ));
 }
 
 export function useTipoPrendas() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('tipo_prendas').select('id,name').eq('active',true).order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('tipo_prendas').select('id,name').eq('active', true).order('name')
+  ));
 }
 
 export function useLargos() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('largos').select('id,name').eq('active',true).order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('largos').select('id,name').eq('active', true).order('name')
+  ));
 }
 
 export function useUsosTela() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('usos_tela').select('id,name').eq('active',true).order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('usos_tela').select('id,name').eq('active', true).order('name')
+  ));
 }
 
 export function useSentidos() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('sentidos_tela').select('id,name').eq('active',true).order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('sentidos_tela').select('id,name').eq('active', true).order('name')
+  ));
 }
 
 export function useProcesosExternos() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('process_types').select('id,type,description').order('type');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('process_types').select('id,type,description').order('type')
+  ));
 }
 
 export function useTemporadas() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('temporadas').select('id,code,name').eq('active',true).order('code');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('temporadas').select('id,code,name').eq('active', true).order('code')
+  ));
 }
 
 export function useUnidades() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('unidades_medida').select('id,name').order('name');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('unidades_medida').select('id,name').order('name')
+  ));
 }
 
 export function useCorteTypes() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('corte_types').select('id,type').order('id');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('corte_types').select('id,type').order('id')
+  ));
 }
 
 export function useCareTypes() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('care_types').select('id,type,description').order('id');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('care_types').select('id,type,description').order('id')
+  ));
 }
 
 export function useReferenceStatuses() {
-  return useSupabaseQuery(async () => {
-    const { data } = await supabase.from('reference_statuses').select('id,status,description').order('id');
-    return data || [];
-  });
+  return useSupabaseQuery(() => queryRows(
+    supabase.from('reference_statuses').select('id,status,description').order('id')
+  ));
 }

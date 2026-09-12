@@ -1,10 +1,11 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, startTransition } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, FileText, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff, Edit2, X, Save, FlaskConical } from 'lucide-react';
-import { useDashboardData, getFaseMacro, toggleReferenceHidden, createCutRequest, updateReference, useReferenciaDB, assignCode } from '../lib/api';
-import { useAuth, ROLES } from '../context/AuthContext';
+import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff, Edit2, Save, FlaskConical } from 'lucide-react';
+import { useDashboardData, getFaseMacro, slugFromName, toggleReferenceHidden, createCutRequest, updateReference, useFinalSheet, assignCode, useReferenceHandoffs, createReferenceHandoff, updateReferenceHandoff, deliverReferenceHandoff, returnReferenceHandoff } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
 import { useComplejidad, useLargos } from '../hooks/useCatalogos';
+import { getReferenceStatusLabel, getReferenceStatusStyle } from '../lib/referenceStatuses';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
 import InsumosBodega from '../components/InsumosBodega';
@@ -12,17 +13,8 @@ import MedicionMuestra from '../components/MedicionMuestra';
 import LaboratoriosMolderia from '../components/LaboratoriosMolderia';
 import CorteConfeccionMuestra from '../components/CorteConfeccionMuestra';
 import SeccionColapsable from '../components/SeccionColapsable';
+import AsyncState from '../components/AsyncState';
 import styles from './ReferenciaDetalle.module.css';
-
-const STATUS_COLORS = {
-  'APROBADO': { bg: '#dcfce7', border: '#22c55e', text: '#166534' },
-  'CANCELADO': { bg: '#f1f5f9', border: '#94a3b8', text: '#475569' },
-  'EN_PROCESO': { bg: '#fef9c3', border: '#eab308', text: '#854d0e' },
-  'PAQUETE_COMPLETO': { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
-  'RECHAZADO': { bg: '#fee2e2', border: '#ef4444', text: '#991b1b' },
-  'PENDIENTE': { bg: '#f3e8ff', border: '#a855f7', text: '#6b21a8' },
-};
-
 
 function EstadoBadge({ estado }) {
   const map = {
@@ -59,35 +51,12 @@ function ChipToggle({ active, onChange, children }) {
 }
 
 export default function ReferenciaDetalle() {
-  const { seasonCode, coleccionId, anio, refId } = useParams();
-  const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isLiderModistas, isTrazador, isEspecificadora } = useAuth();
+  const { seasonSlug, anio, referenceNumber } = useParams();
+  const { role, isAdmin, isCreadorFicha, isCreativo, isTecnico, isTrazador } = useAuth();
 
   // Hooks de catálogos desde BD
   const { data: complejidad } = useComplejidad();
   const { data: largos } = useLargos();
-
-  // Mock estado de flujo de trabajo (Hand-off)
-  const [workflowState, setWorkflowState] = useState({
-    area: 'TECNICO', // Área actual que tiene la responsabilidad
-    status: 'PENDING_RECEIPT', // IN_PROGRESS, PENDING_RECEIPT
-    history: []
-  });
-
-  const handleEntregar = (nextArea) => {
-    setWorkflowState(prev => ({
-      area: nextArea,
-      status: 'PENDING_RECEIPT',
-      history: [...prev.history, { action: 'ENTREGADO', by: role, date: new Date().toISOString() }]
-    }));
-  };
-
-  const handleRecibir = () => {
-    setWorkflowState(prev => ({
-      ...prev,
-      status: 'IN_PROGRESS',
-      history: [...prev.history, { action: 'RECIBIDO', by: role, date: new Date().toISOString() }]
-    }));
-  };
 
   const [showCorteModal, setShowCorteModal] = useState(false);
   const [corteForm, setCorteForm] = useState({ type: 'muestra', fabric_handling: 'solido', observations: '' });
@@ -96,7 +65,7 @@ export default function ReferenciaDetalle() {
   const handleSendToCorte = async () => {
     setSendingCorte(true);
     try {
-      await createCutRequest({
+      const { error: cutError } = await createCutRequest({
         reference_id: ref.dbId,
         collection_id: coleccion?.dbId,
         type: corteForm.type,
@@ -105,6 +74,7 @@ export default function ReferenciaDetalle() {
         requester_role: role,
         observations: corteForm.observations,
       });
+      if (cutError) throw cutError;
       setShowCorteModal(false);
       setCorteForm({ type: 'muestra', fabric_handling: 'solido', observations: '' });
     } catch (e) {
@@ -114,17 +84,18 @@ export default function ReferenciaDetalle() {
     }
   };
 
-  const { data, loading: dashLoading } = useDashboardData();
+  const { data, loading: dashLoading, error: dashError, refetch: refetchDash } = useDashboardData();
   const coleccionesData = data?.colecciones || [];
   const groups = data?.groups || [];
 
-  const coleccion = (() => {
-    if (!coleccionId) return null;
-    return coleccionesData.find(c => c.id === coleccionId);
-  })();
+  const anioNumero = anio ? Number(anio) : null;
+  const coleccion = coleccionesData.find(c =>
+    slugFromName(c.nombre).toLowerCase() === seasonSlug?.toLowerCase() &&
+    c.anios.some(a => a.anio === anioNumero)
+  );
 
   const anioData = coleccion?.anios.find(a => a.anio === parseInt(anio));
-  const ref = anioData?.referencias.find(r => r.id === refId);
+  const ref = anioData?.referencias.find(r => r.referenceNumber === String(referenceNumber));
 
   const [isHidden, setIsHidden] = useState(ref?.isHidden || false);
 
@@ -133,19 +104,96 @@ export default function ReferenciaDetalle() {
   const [editSaving, setEditSaving] = useState(false);
   const [tallajeOptions, setTallajeOptions] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
-  const { refDb, loading: refDbLoading } = useReferenciaDB(ref?.dbId);
+  const { current: currentHandoff, history: handoffHistory, loading: handoffLoading, error: handoffError, refresh: refreshHandoffs } = useReferenceHandoffs(ref?.dbId);
+  const [workflowSaving, setWorkflowSaving] = useState(false);
+  const { data: finalSheet, loading: finalSheetLoading, error: finalSheetError, refresh: refreshFinalSheet } = useFinalSheet(ref?.dbId);
 
   const canEdit = isAdmin || isCreadorFicha;
+
+  const workflowState = {
+    area: currentHandoff?.to_area || 'TECNICO',
+    status: currentHandoff?.status || 'PENDING_RECEIPT',
+    history: handoffHistory,
+  };
+
+  const handleEntregar = async nextArea => {
+    if (!currentHandoff?.id || workflowSaving) return;
+    setWorkflowSaving(true);
+    try {
+      const { error: handoffUpdateError } = await deliverReferenceHandoff(currentHandoff.id, nextArea, role);
+      if (handoffUpdateError) throw handoffUpdateError;
+      await refreshHandoffs();
+    } catch (e) {
+      alert('Error al entregar la referencia: ' + e.message);
+    } finally {
+      setWorkflowSaving(false);
+    }
+  };
+
+  const handleRecibir = async () => {
+    if (!ref?.dbId || workflowSaving) return;
+    setWorkflowSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const result = currentHandoff
+          ? await updateReferenceHandoff(currentHandoff.id, {
+            status: 'IN_PROGRESS',
+            last_action: 'RECIBIDO',
+            last_action_by: role,
+            last_action_at: now,
+            received_by: role,
+            received_at: now,
+          })
+        : await createReferenceHandoff({
+            reference_id: ref.dbId,
+            to_area: 'TECNICO',
+            status: 'IN_PROGRESS',
+            last_action: 'RECIBIDO',
+            last_action_by: role,
+            last_action_at: now,
+            received_by: role,
+            received_at: now,
+          });
+      if (result.error) throw result.error;
+      await refreshHandoffs();
+    } catch (e) {
+      alert('Error al recibir la referencia: ' + e.message);
+    } finally {
+      setWorkflowSaving(false);
+    }
+  };
+
+  const handleDevolver = async () => {
+    if (!currentHandoff?.id || workflowSaving) return;
+    const notes = window.prompt('Escribe las observaciones de la devolución:');
+    if (notes === null) return;
+    if (!notes.trim()) {
+      alert('La devolución requiere observaciones.');
+      return;
+    }
+
+    const nextArea = currentHandoff.from_area || (workflowState.area === 'TECNICO' ? 'CREATIVO' : 'TECNICO');
+    setWorkflowSaving(true);
+    try {
+      const { error: handoffReturnError } = await returnReferenceHandoff(currentHandoff.id, nextArea, role, notes.trim());
+      if (handoffReturnError) throw handoffReturnError;
+      await refreshHandoffs();
+    } catch (e) {
+      alert('Error al devolver la referencia: ' + e.message);
+    } finally {
+      setWorkflowSaving(false);
+    }
+  };
 
   const openEditModal = async () => {
     if (!ref?.dbId) return;
 
     const [tallajesRes, statusesRes] = await Promise.all([
       supabase.from('tallaje_groups').select('id, name').order('id'),
-      supabase.from('reference_statuses').select('id, status').eq('active', true).order('id'),
+      supabase.from('reference_statuses').select('id, status, label, active').order('sort_order', { ascending: true, nullsFirst: false }).order('id'),
     ]);
     setTallajeOptions(tallajesRes.data || []);
-    setStatusOptions(statusesRes.data || []);
+    setStatusOptions((statusesRes.data || []).filter(status => status.active !== false));
 
     const { data: refData } = await supabase
       .from('references')
@@ -225,7 +273,8 @@ export default function ReferenciaDetalle() {
     }
   };
 
-  if (dashLoading) return <div className="fade-in p-8 text-center text-gray-400">Cargando referencia...</div>;
+  if (dashLoading) return <AsyncState loading loadingMessage="Cargando referencia..." />;
+  if (dashError) return <AsyncState error={dashError} onRetry={refetchDash} />;
 
   if (!ref) return (
     <div className="text-center" style={{ marginTop: '4rem' }}>
@@ -242,11 +291,11 @@ export default function ReferenciaDetalle() {
           <nav className="breadcrumb">
             <Link to="/colecciones" className="breadcrumb-link">Colecciones</Link>
             <ChevronRight size={14} className="breadcrumb-separator" />
-            <Link to={`/colecciones/${seasonCode || coleccion?.season?.toLowerCase()}`} className="breadcrumb-link">{groups.find(g => g.code === (seasonCode || coleccion?.season)?.toUpperCase())?.name || seasonCode}</Link>
+            <Link to={`/colecciones/${seasonSlug}`} className="breadcrumb-link">{groups.find(g => slugFromName(g.name).toLowerCase() === seasonSlug?.toLowerCase())?.name || coleccion?.nombre || seasonSlug}</Link>
             <ChevronRight size={14} className="breadcrumb-separator" />
-            <Link to={`/colecciones/${seasonCode || coleccion?.season?.toLowerCase()}/${coleccionId}/${anio}`} className="breadcrumb-link">{anio}</Link>
+            <Link to={`/colecciones/${seasonSlug}/${anio}`} className="breadcrumb-link">{anio}</Link>
             <ChevronRight size={14} className="breadcrumb-separator" />
-            <span className="breadcrumb-current">#{ref.codigoMD.replace('MD-', '')}</span>
+            <span className="breadcrumb-current">#{ref.referenceNumber}</span>
           </nav>
 
       {/* Header Fijo de la Referencia */}
@@ -275,11 +324,11 @@ export default function ReferenciaDetalle() {
               {ref.status && (
                 <span style={{
                   padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700,
-                  background: STATUS_COLORS[ref.status]?.bg || 'var(--gray-100)',
-                  color: STATUS_COLORS[ref.status]?.text || 'var(--gray-600)',
-                  border: `1px solid ${STATUS_COLORS[ref.status]?.border || 'var(--gray-300)'}`,
+                  background: getReferenceStatusStyle(ref.status).bg,
+                  color: getReferenceStatusStyle(ref.status).text,
+                  border: `1px solid ${getReferenceStatusStyle(ref.status).border}`,
                 }}>
-                  {ref.status.replace('_', ' ')}
+                  {ref.statusLabel || getReferenceStatusLabel(ref.status)}
                 </span>
               )}
               {isHidden && (
@@ -343,6 +392,7 @@ export default function ReferenciaDetalle() {
               Control de Flujo de Trabajo
               {workflowState.status === 'PENDING_RECEIPT' && <span className="badge badge-warning">Esperando Recepción</span>}
               {workflowState.status === 'IN_PROGRESS' && <span className="badge badge-success">En Ejecución</span>}
+              {handoffLoading && <span className="badge">Cargando...</span>}
             </h3>
             <p style={{ margin: 0, color: 'var(--gray-600)', fontSize: 'var(--text-sm)' }}>
               La referencia está actualmente asignada a: <strong>{workflowState.area}</strong>
@@ -351,24 +401,24 @@ export default function ReferenciaDetalle() {
 
           <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
             {/* Si está esperando recepción y soy el rol correcto */}
-            {workflowState.status === 'PENDING_RECEIPT' && 
+            {!handoffError && workflowState.status === 'PENDING_RECEIPT' &&
              ((workflowState.area === 'TECNICO' && (isTecnico || isAdmin)) || 
-              (workflowState.area === 'TRAZADOR' && (isTrazador || isAdmin))) && (
-              <button className="btn btn-success" onClick={handleRecibir}>
-                <ArrowDownToLine size={18} /> Recibir y Empezar a Contar Tiempo
+               (workflowState.area === 'TRAZADOR' && (isTrazador || isAdmin))) && (
+              <button className="btn btn-success" onClick={handleRecibir} disabled={workflowSaving}>
+                <ArrowDownToLine size={18} /> {workflowSaving ? 'Guardando...' : 'Recibir y Empezar a Contar Tiempo'}
               </button>
             )}
 
             {/* Si está en progreso y soy el rol correcto, puedo entregar */}
-            {workflowState.status === 'IN_PROGRESS' && 
+            {!handoffError && workflowState.status === 'IN_PROGRESS' &&
              ((workflowState.area === 'CREATIVO' && (isCreativo || isAdmin)) || 
-              (workflowState.area === 'TECNICO' && (isTecnico || isAdmin))) && (
+               (workflowState.area === 'TECNICO' && (isTecnico || isAdmin))) && (
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-outline" style={{ borderColor: 'var(--error)', color: 'var(--error)' }}>
+                <button className="btn btn-outline" style={{ borderColor: 'var(--error)', color: 'var(--error)' }} onClick={handleDevolver} disabled={workflowSaving}>
                   <AlertTriangle size={18} /> Devolver con Observaciones
                 </button>
-                <button className="btn btn-primary" onClick={() => handleEntregar(workflowState.area === 'CREATIVO' ? 'TECNICO' : 'TRAZADOR')}>
-                  <Send size={18} /> Entregar a {workflowState.area === 'CREATIVO' ? 'Diseño Técnico' : 'Trazadores'}
+                <button className="btn btn-primary" onClick={() => handleEntregar(workflowState.area === 'CREATIVO' ? 'TECNICO' : 'TRAZADOR')} disabled={workflowSaving}>
+                  <Send size={18} /> {workflowSaving ? 'Guardando...' : `Entregar a ${workflowState.area === 'CREATIVO' ? 'Diseño Técnico' : 'Trazadores'}`}
                 </button>
               </div>
             )}
@@ -383,11 +433,15 @@ export default function ReferenciaDetalle() {
           </div>
         </div>
         
-        {workflowState.history.length > 0 && (
-          <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--gray-200)', fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
-            Última acción: {workflowState.history[workflowState.history.length - 1].action} por {workflowState.history[workflowState.history.length - 1].by}
-          </div>
+        {handoffError && (
+          <AsyncState error={handoffError} onRetry={refreshHandoffs} />
         )}
+
+        {!handoffError && workflowState.history.length > 0 && (
+           <div style={{ marginTop: 'var(--space-4)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--gray-200)', fontSize: 'var(--text-xs)', color: 'var(--gray-500)' }}>
+             Última acción: {workflowState.history[0].last_action} por {workflowState.history[0].last_action_by || 'sistema'}
+           </div>
+         )}
       </div>
 
       {/* Secciones */}
@@ -451,7 +505,7 @@ export default function ReferenciaDetalle() {
 
         {/* SECCIÓN 2: Telas y Consumos */}
         <SeccionColapsable titulo="Telas y Consumos" icono={<Scissors size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
-          <AsignacionTelasConsumos refId={refId} />
+           <AsignacionTelasConsumos refId={ref.id} />
         </SeccionColapsable>
 
         {/* SECCIÓN 2.5: Estado Trazador */}
@@ -566,67 +620,7 @@ export default function ReferenciaDetalle() {
           </SeccionColapsable>
         )}
 
-        {/* SECCIÓN 7: Marquillas y Cuidados */}
-        <SeccionColapsable titulo="Marquillas y Cuidados" icono={<FileText size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={false}>
-          {ref.marquilla ? (
-            <div>
-              <div className={styles.gridInfo} style={{ marginBottom: 16 }}>
-                {[
-                  ['Descripción USA', ref.marquilla.descUSA],
-                  ['Descripción UK', ref.marquilla.descUK],
-                  ['Composición Fibra', ref.marquilla.fiberComposition],
-                  ['Woven / Knitted', ref.marquilla.wovenKnitted],
-                  ['Inside', ref.marquilla.inside],
-                  ['Include', ref.marquilla.include],
-                ].map(([label, val]) => (
-                  <div key={label} className={styles.infoItem}>
-                    <span className={styles.infoLabel}>{label}</span>
-                    <span className={styles.infoValue}>{val || '—'}</span>
-                  </div>
-                ))}
-              </div>
-              {ref.cuidados && ref.cuidados.length > 0 && (
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--gray-700)' }}>Instrucciones de Cuidado</div>
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    {ref.cuidados.map((c, i) => (
-                      <div key={i} style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 8, padding: '10px 14px', minWidth: 120, textAlign: 'center' }}>
-                        <div style={{ fontSize: 22 }}>{c.icono}</div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-600)', marginTop: 4 }}>{c.categoria}</div>
-                        <div style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 2 }}>{c.instruccion}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className={styles.vacio}>Marquilla pendiente de completar en Fase 4.1.</p>
-          )}
-        </SeccionColapsable>
-
-        {/* SECCIÓN 8: Contramuestra y SAP */}
-        <SeccionColapsable titulo="Industrializacion · Contramuestra y SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
-          {ref.contramuestra ? (
-            <div className={styles.gridInfo}>
-              {[
-                ['Orden de Trabajo (OT)', ref.contramuestra.OT],
-                ['Nota de Fabricación SAP', ref.contramuestra.notaSAP || 'Pendiente'],
-                ['Talla de Contramuestra', ref.contramuestra.talla],
-                ['Color', ref.contramuestra.colorContramuestra],
-                ['Fecha Traslado SAP', ref.contramuestra.fechaTrasladoSAP || 'Pendiente'],
-                ['Fecha Despacho ZF', ref.contramuestra.fechaDespachoZF || 'Pendiente'],
-              ].map(([label, val]) => (
-                <div key={label} className={styles.infoItem}>
-                  <span className={styles.infoLabel}>{label}</span>
-                  <span className={styles.infoValue}>{val}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.vacio}>Contramuestra pendiente de iniciar en Fase 4.2.</p>
-          )}
-        </SeccionColapsable>
+        <FinalSheetReadSections data={finalSheet} loading={finalSheetLoading} error={finalSheetError} onRetry={refreshFinalSheet} />
 
       </div>
 
@@ -735,10 +729,10 @@ export default function ReferenciaDetalle() {
                     <label className="form-label">Estado de la Referencia</label>
                     <select className="form-select" value={editForm.status_id || ''}
                       onChange={e => setEditForm(prev => ({ ...prev, status_id: e.target.value ? parseInt(e.target.value) : '' }))}>
-                      <option value="">Sin cambiar</option>
-                      {statusOptions.map(s => (
-                        <option key={s.id} value={s.id}>{s.status.replace('_', ' ')}</option>
-                      ))}
+                        <option value="">Sin cambiar</option>
+                        {statusOptions.map(s => (
+                         <option key={s.id} value={s.id}>{s.label || getReferenceStatusLabel(s.status)}</option>
+                        ))}
                     </select>
                   </div>
                 )}
@@ -850,20 +844,30 @@ function EstadoTrazador({ dbRefId }) {
   const [trazos, setTrazos] = useState([]);
   const [comparativo, setComparativo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!dbRefId) return;
     let cancelled = false;
+    startTransition(() => setError(null));
     async function load() {
-      const { data: t } = await supabase.from('trazos').select('*').eq('reference_id', dbRefId).order('fase').order('opcion_num');
-      const { data: c } = await supabase.from('comparativo_trazos').select('*').eq('reference_id', dbRefId).order('created_at', { ascending: false }).limit(1);
-      if (!cancelled) { setTrazos(t || []); setComparativo(c?.[0] || null); setLoading(false); }
+      try {
+        const { data: t, error: trazosError } = await supabase.from('trazos').select('*').eq('reference_id', dbRefId).order('fase').order('opcion_num');
+        if (trazosError) throw trazosError;
+        const { data: c, error: comparativoError } = await supabase.from('comparativo_trazos').select('*').eq('reference_id', dbRefId).order('created_at', { ascending: false }).limit(1);
+        if (comparativoError) throw comparativoError;
+        if (!cancelled) { setTrazos(t || []); setComparativo(c?.[0] || null); setLoading(false); }
+      } catch (loadError) {
+        if (!cancelled) { setError(loadError); setLoading(false); }
+      }
     }
     load();
     return () => { cancelled = true; };
-  }, [dbRefId]);
+  }, [dbRefId, reloadKey]);
 
-  if (loading) return <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Cargando trazos...</p>;
+  if (loading) return <AsyncState loading loadingMessage="Cargando trazos..." />;
+  if (error) return <AsyncState error={error} onRetry={() => setReloadKey(key => key + 1)} />;
 
   const costeo = trazos.filter(t => t.fase === 'costeo');
   const contramuestra = trazos.filter(t => t.fase === 'contramuestra');
@@ -907,5 +911,99 @@ function EstadoTrazador({ dbRefId }) {
         </Link>
       </div>
     </div>
+  );
+}
+
+function FinalSheetReadSections({ data, loading, error, onRetry }) {
+  if (loading) return <AsyncState loading loadingMessage="Cargando Ficha Final..." />;
+  if (error) return <AsyncState error={error} onRetry={onRetry} />;
+  if (!data) return <AsyncState empty emptyTitle="Sin Ficha Final registrada" emptyMessage="Esta referencia aun no tiene una ficha final." />;
+
+  const scopeLabels = { MUESTRA: 'Muestra', PRODUCCION: 'Producción' };
+  const compositionIsEmpty = composition => !composition?.id
+    && !composition?.description_usauk
+    && !composition?.fiber_composition
+    && !composition?.materials?.length;
+
+  return (
+    <>
+      <SeccionColapsable titulo="Ficha Final · Composición y Cuidados" icono={<Tag size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={false}>
+        {Object.entries(data.compositions || {}).map(([scope, composition]) => (
+          <div key={scope} style={{ marginBottom: 20 }}>
+            <h4 style={{ margin: '0 0 10px', color: 'var(--gray-700)' }}>{scopeLabels[scope] || scope}</h4>
+            {compositionIsEmpty(composition) ? <p className={styles.vacio}>Sin composición registrada.</p> : (
+              <>
+                <div className={styles.gridInfo}>
+                  {[
+                    ['Composición USA / UK', composition.description_usauk],
+                    ['Composición de fibras', composition.fiber_composition],
+                    ['Woven / Knitted', composition.woven_knitted],
+                    ['Composición interior', composition.inside_composition],
+                    ['Include', composition.include_description],
+                    ['SAP', composition.sap_registered ? 'Registrada' : 'Pendiente'],
+                  ].map(([label, value]) => (
+                    <div key={label} className={styles.infoItem}><span className={styles.infoLabel}>{label}</span><span className={styles.infoValue}>{value || '—'}</span></div>
+                  ))}
+                </div>
+                {composition.materials?.length > 0 && (
+                  <div className="table-container" style={{ marginTop: 12 }}>
+                    <table className="table"><thead><tr><th>Material</th><th>Porcentaje</th></tr></thead><tbody>
+                      {composition.materials.map(material => <tr key={material.id || `${scope}-${material.material}`}><td>{material.material}</td><td>{material.percentage ?? '—'}%</td></tr>)}
+                    </tbody></table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+        <div style={{ fontWeight: 700, margin: '12px 0 8px', color: 'var(--gray-700)' }}>Instrucciones de cuidado</div>
+        {data.careInstructions?.length > 0 ? (
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {data.careInstructions.map((care, index) => (
+              <div key={care.id || `${care.care_type_id}-${index}`} style={{ background: 'var(--gray-50)', border: '1px solid var(--gray-200)', borderRadius: 8, padding: '10px 14px', minWidth: 160 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-600)' }}>{care.care_type?.type || `ID ${care.care_type_id}`}</div>
+                <div style={{ fontSize: 11, color: 'var(--gray-500)', marginTop: 4 }}>{care.instruction || '—'}</div>
+              </div>
+            ))}
+          </div>
+        ) : <p className={styles.vacio}>Sin cuidados registrados.</p>}
+        {data.materialsError && <p style={{ color: 'var(--warning-dark)', fontSize: 12, marginTop: 10 }}>Materiales no disponibles: {data.materialsError.message}. Requiere `jo.composition_materials`.</p>}
+      </SeccionColapsable>
+
+      <SeccionColapsable titulo="Industrialización · Contramuestras y SAP" icono={<CheckCircle size={18} />} accentColor="var(--temp-hot-border)" defaultOpen={false}>
+        {data.contramuestras?.length > 0 ? (
+          <div className="table-container"><table className="table"><thead><tr><th>OT</th><th>Estado</th><th>Talla</th><th>Color</th><th>Nota SAP</th><th>Traslado SAP</th><th>Despacho ZF</th></tr></thead><tbody>
+            {data.contramuestras.map(contramuestra => (
+              <tr key={contramuestra.id || contramuestra.codigo_ot}>
+                <td><strong>{contramuestra.codigo_ot}</strong></td>
+                <td>{contramuestra.status || 'pendiente'}</td>
+                <td>{contramuestra.talla || '—'}</td>
+                <td>{contramuestra.descripcion_color || '—'}</td>
+                <td>{contramuestra.codigo_nota || '—'}</td>
+                <td>{contramuestra.fecha_traslado_sap || '—'}</td>
+                <td>{contramuestra.fecha_despacho_zf || '—'}</td>
+              </tr>
+            ))}
+          </tbody></table></div>
+        ) : <p className={styles.vacio}>Sin contramuestras registradas.</p>}
+      </SeccionColapsable>
+
+      <SeccionColapsable titulo="Novedades de Calidad" icono={<AlertTriangle size={18} />} accentColor="var(--temp-fire-border)" defaultOpen={false}>
+        {data.qualityIssues?.length > 0 ? (
+          <div className="table-container"><table className="table"><thead><tr><th>Detectada</th><th>Área</th><th>Clasificación</th><th>Descripción</th><th>Acción correctiva</th><th>Estado</th></tr></thead><tbody>
+            {data.qualityIssues.map(issue => (
+              <tr key={issue.id || issue.detected_at}>
+                <td>{issue.detected_at ? new Date(issue.detected_at).toLocaleDateString('es-CO') : '—'}</td>
+                <td>{issue.area || '—'}</td>
+                <td>{issue.classification || '—'}</td>
+                <td>{issue.description || '—'}</td>
+                <td>{issue.corrective_action || '—'}</td>
+                <td>{issue.resolved ? 'Resuelta' : 'Activa'}</td>
+              </tr>
+            ))}
+          </tbody></table></div>
+        ) : <p className={styles.vacio}>Sin novedades de calidad registradas.</p>}
+      </SeccionColapsable>
+    </>
   );
 }

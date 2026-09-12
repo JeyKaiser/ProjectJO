@@ -1,6 +1,7 @@
 -- ===========================================================================
 -- AtelierData v2.0 — RLS restrictivo para reference_codes (admin solo escribe)
 -- Ejecutar DESPUES de 013_code_log_and_triggers.sql
+-- LEGACY: 023_rbac_policies.sql vuelve a aplicar todas las politicas de Auth.
 -- ===========================================================================
 SET search_path = jo, public;
 

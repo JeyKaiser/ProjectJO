@@ -1,14 +1,15 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, startTransition } from 'react';
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   TrendingUp, AlertTriangle, CheckCircle, Clock, Package,
   Pause, Flame, BarChart2, ChevronRight, Activity, Scissors
 } from 'lucide-react';
-import { useDashboardData, subfaseToProgress, getFaseMacro } from '../lib/api';
+import { useDashboardData, subfaseToProgress, getFaseMacro, slugFromName } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
 import TemperatureBar from '../components/TemperatureBar';
+import AsyncState from '../components/AsyncState';
 import styles from './Dashboard.module.css';
 
 // ── Helpers de cálculo ──────────────────────────────────────
@@ -58,7 +59,7 @@ function calcularMetricasGlobales(colecciones) {
         const fm = getFaseMacro(r.faseActual);
         refsPorFase[fm.fase]++;
       });
-      alertas = [...alertas, ...getAlerts(col)];
+       alertas.push(...getAlerts(col));
     });
   });
 
@@ -96,7 +97,7 @@ const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
   const displayYear = latestYear.anio;
 
   return (
-            <div className={styles.coleccionRow} onClick={() => navigate(`/colecciones/${col.season?.toLowerCase()}/${col.id}/${displayYear}`)}>
+            <button type="button" className={styles.coleccionRow} onClick={() => navigate(`/colecciones/${slugFromName(col.nombre)}/${displayYear}`)} aria-label={`Abrir colección ${col.nombre} ${displayYear}`}>
       <div className={styles.coleccionRowLeft}>
         <div className={styles.coleccionRowImg} style={{ borderColor: col.borderColor }}>
           {col.imagen
@@ -122,9 +123,9 @@ const ColeccionRow = React.memo( function ColeccionRow({ col, navigate }) {
           </div>
           <span className={styles.coleccionProgresoPct} style={{ color: `var(--temp-${tempVar}-text)` }}>{progreso}%</span>
         </div>
-      </div>
-      <ChevronRight size={18} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
-    </div>
+       </div>
+       <ChevronRight size={18} style={{ color: 'var(--gray-400)', flexShrink: 0 }} />
+     </button>
   );
 });
 
@@ -136,19 +137,30 @@ const faseTempVars = { 1: 'frost', 2: 'cold', 3: 'warm', 4: 'hot', 5: 'fire', 6:
 export default function Dashboard() {
   const navigate = useNavigate();
   const { isTrazador } = useAuth();
-  const { data, loading, error } = useDashboardData();
-  const colecciones = data?.colecciones || [];
+  const { data, loading, error, refetch } = useDashboardData();
+  const colecciones = useMemo(() => data?.colecciones || [], [data]);
 
   const [trazadorStats, setTrazadorStats] = useState({ pendientes: 0, enProgreso: 0, completados: 0, conDiferencias: 0 });
+  const [trazadorError, setTrazadorError] = useState(null);
+  const [trazadorReloadKey, setTrazadorReloadKey] = useState(0);
 
   useEffect(() => {
     if (!isTrazador) return;
     let cancelled = false;
+    startTransition(() => setTrazadorError(null));
     async function load() {
       try {
-        const { count: totalRefs } = await supabase.from('references').select('*', { count: 'exact', head: true }).eq('is_hidden', false);
-        const { data: trazos } = await supabase.from('trazos').select('reference_id, fase').order('reference_id');
-        const { data: comparativos } = await supabase.from('comparativo_trazos').select('reference_id');
+        const [referencesResult, trazosResult, comparativosResult] = await Promise.all([
+          supabase.from('references').select('*', { count: 'exact', head: true }).eq('is_hidden', false),
+          supabase.from('trazos').select('reference_id, fase').order('reference_id'),
+          supabase.from('comparativo_trazos').select('reference_id'),
+        ]);
+        const { count: totalRefs, error: refsError } = referencesResult;
+        const { data: trazos, error: trazosError } = trazosResult;
+        const { data: comparativos, error: comparativosError } = comparativosResult;
+        if (refsError) throw refsError;
+        if (trazosError) throw trazosError;
+        if (comparativosError) throw comparativosError;
         if (cancelled) return;
 
         const refsConCosteo = new Set(trazos.filter(t => t.fase === 'costeo').map(t => t.reference_id));
@@ -166,21 +178,23 @@ export default function Dashboard() {
           completados: refsConContra.size,
           conDiferencias,
         });
-      } catch (_) { /* silent */ }
+      } catch (loadError) {
+        if (!cancelled) setTrazadorError(loadError);
+      }
     }
     load();
     return () => { cancelled = true; };
-  }, [isTrazador]);
+  }, [isTrazador, trazadorReloadKey]);
 
   const { totalRefs, enProceso, completadas, pausadas, refsPorFase, alertas, progresoGlobal } = useMemo(
     () => calcularMetricasGlobales(colecciones),
-    [data]
+    [colecciones]
   );
 
   const maxFase = Math.max(...Object.values(refsPorFase), 1);
 
-  if (loading) return <div className="fade-in p-8 text-center text-gray-400">Cargando datos desde Supabase...</div>;
-  if (error) return <div className="fade-in p-8 text-center text-red-500">Error al cargar datos: {error.message}</div>;
+  if (loading) return <AsyncState loading loadingMessage="Cargando datos desde Supabase..." />;
+  if (error) return <AsyncState error={error} onRetry={refetch} />;
 
   return (
     <div className="fade-in">
@@ -206,10 +220,10 @@ export default function Dashboard() {
           color="var(--primary-600)"
           bgColor="var(--primary-100)"
         />
-        <KpiCard
-          titulo="En Proceso"
-          valor={enProceso}
-          subtitulo={`${Math.round((enProceso/totalRefs)*100)}% del total activo`}
+            <KpiCard
+              titulo="En Proceso"
+              valor={enProceso}
+              subtitulo={totalRefs > 0 ? `${Math.round((enProceso/totalRefs)*100)}% del total activo` : 'Sin referencias activas'}
           icono={<Clock size={22} />}
           color="var(--warning-dark)"
           bgColor="var(--warning-light)"
@@ -239,12 +253,16 @@ export default function Dashboard() {
             <Scissors size={14} style={{ color: 'var(--success)' }} /> Panel del Trazador
             <Link to="/trazador" style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--primary-600)', textDecoration: 'underline', fontWeight: 400 }}>Ir al panel completo →</Link>
           </h4>
-          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-            <KpiCard titulo="Pendientes Trazo" valor={trazadorStats.pendientes} subtitulo="Sin trazo de costeo" icono={<Clock size={22} />} color="var(--warning-dark)" bgColor="var(--warning-light)" />
-            <KpiCard titulo="En Progreso" valor={trazadorStats.enProgreso} subtitulo="Costeo OK, falta contramuestra" icono={<Activity size={22} />} color="var(--secondary-600)" bgColor="var(--secondary-100)" />
-            <KpiCard titulo="Completados" valor={trazadorStats.completados} subtitulo="Ambos trazos registrados" icono={<CheckCircle size={22} />} color="var(--success-dark)" bgColor="var(--success-light)" />
-            <KpiCard titulo="Con Diferencias" valor={trazadorStats.conDiferencias} subtitulo="Requieren revisión" icono={<AlertTriangle size={22} />} color={trazadorStats.conDiferencias > 0 ? 'var(--error-dark)' : 'var(--success-dark)'} bgColor={trazadorStats.conDiferencias > 0 ? 'var(--error-light)' : 'var(--success-light)'} />
-          </div>
+          {trazadorError ? (
+            <AsyncState error={trazadorError} onRetry={() => setTrazadorReloadKey(key => key + 1)} />
+          ) : (
+            <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+              <KpiCard titulo="Pendientes Trazo" valor={trazadorStats.pendientes} subtitulo="Sin trazo de costeo" icono={<Clock size={22} />} color="var(--warning-dark)" bgColor="var(--warning-light)" />
+              <KpiCard titulo="En Progreso" valor={trazadorStats.enProgreso} subtitulo="Costeo OK, falta contramuestra" icono={<Activity size={22} />} color="var(--secondary-600)" bgColor="var(--secondary-100)" />
+              <KpiCard titulo="Completados" valor={trazadorStats.completados} subtitulo="Ambos trazos registrados" icono={<CheckCircle size={22} />} color="var(--success-dark)" bgColor="var(--success-light)" />
+              <KpiCard titulo="Con Diferencias" valor={trazadorStats.conDiferencias} subtitulo="Requieren revision" icono={<AlertTriangle size={22} />} color={trazadorStats.conDiferencias > 0 ? 'var(--error-dark)' : 'var(--success-dark)'} bgColor={trazadorStats.conDiferencias > 0 ? 'var(--error-light)' : 'var(--success-light)'} />
+             </div>
+           )}
         </div>
       )}
 
@@ -326,9 +344,15 @@ export default function Dashboard() {
           <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>Clic para explorar</span>
         </div>
         <div className={styles.coleccionesList}>
-          {colecciones.map(col => (
-            <ColeccionRow key={col.id} col={col} navigate={navigate} />
-          ))}
+           <AsyncState
+             empty={colecciones.length === 0}
+             emptyTitle="Sin colecciones activas"
+             emptyMessage="No hay colecciones disponibles para mostrar."
+           >
+             {colecciones.map(col => (
+               <ColeccionRow key={col.id} col={col} navigate={navigate} />
+             ))}
+           </AsyncState>
         </div>
       </div>
     </div>

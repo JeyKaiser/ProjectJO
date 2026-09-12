@@ -73,7 +73,7 @@ function ConsultaTab() {
   const { tipos, loading: loadingTipos } = useTiposPrenda();
   const { cantidades } = useCantidadesTelas(tipoPrenda);
   const { variantes } = useVariantes(tipoPrenda, Number(cantidadTelas));
-  const { filas, loading: loadingFilas } = useFilasReferente(
+  const { filas } = useFilasReferente(
     tipoPrenda, Number(cantidadTelas), Number(variante)
   );
 
@@ -147,7 +147,6 @@ function BuscarConsumoResultado({ tipoPrenda, cantidadTelas, variante, tela, uso
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     supabase
       .from('referents')
       .select('consumo')
@@ -480,6 +479,11 @@ function AdminTab({ isAdmin }) {
     );
   }
 
+  return <AdminTabContent />;
+}
+
+function AdminTabContent() {
+
   const [showForm, setShowForm] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -502,7 +506,20 @@ function AdminTab({ isAdmin }) {
       });
   };
 
-  useEffect(() => { loadTable(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from('referents')
+      .select('*')
+      .order('tipo_prenda')
+      .order('cantidad_telas')
+      .order('variante')
+      .order('tela')
+      .then(({ data }) => {
+        if (!cancelled) setTableData(data || []);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>

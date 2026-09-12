@@ -22,7 +22,7 @@ const safe = (val) => {
 };
 const safeNum = (val) => { const s = safe(val); return s ? Number(s) : null; };
 const cleanNum = (val) => {
-  const s = safe(val).toUpperCase().replace(/MTS|MT|CMS|\,/g, (c) => c === ',' ? '.' : '').trim();
+  const s = safe(val).toUpperCase().replace(/MTS|MT|CMS|,/g, (c) => c === ',' ? '.' : '').trim();
   const n = parseFloat(s); return isNaN(n) ? null : n;
 };
 const siNo = (val) => { const v = safe(val).toUpperCase(); if (v === 'SI') return true; if (v === 'NO') return false; return null; };
@@ -31,7 +31,7 @@ const parseDate = (val) => {
   if (!val) return null;
   if (val instanceof Date) return val.toISOString().split('T')[0];
   const s = String(val).trim();
-  const m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  const m = s.match(new RegExp('(\\d{1,2})[/-](\\d{1,2})[/-](\\d{2,4})'));
   if (m) return `${m[3].padStart(4,'20')}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
   if (/^\d{5}$/.test(s)) { const d = new Date((Number(s) - 25569) * 86400000); return d.toISOString().split('T')[0]; }
   return null;
@@ -81,19 +81,29 @@ const C = {
 
 // ── Tallajes ──
 const TALLA_NAMES = ['0','2','4','6','8','10','12','XS','S','M','L','XL'];
-const TALLA_COLS = [C.TALLA_0, C.TALLA_2, C.TALLA_4, C.TALLA_6, C.TALLA_8,
-  C.TALLA_10, C.TALLA_12, C.TALLA_XS, C.TALLA_S, C.TALLA_M, C.TALLA_L, C.TALLA_XL];
 
 // ── Status mapping ──
 const STATUS_MAP = {
-  'APROBADO': 2, 'EN PROCESO': 1, 'EN_PROCESO': 1, 'CANCELADO': 3, 'CANCELADO CORTADO': 3,
-  'CANCELADO SIN CORTAR': 3, 'JUST FOR SHOW': 3, 'PAQUETE COMPLETO': 4, 'PENDIENTE': 6,
+  'APROBADO': 'APROBADO',
+  'EN PROCESO': 'EN_PROCESO',
+  'EN_PROCESO': 'EN_PROCESO',
+  'CANCELADO': 'CANCELADO',
+  'CANCELADO COMERCIAL': 'CANCELADO_COMERCIAL',
+  'CANCELADO CORTADO': 'CANCELADO_CORTADO',
+  'CANCELADO SIN CORTAR': 'CANCELADO_SIN_CORTAR',
+  'CANCELADO PAQUETE COMPLETO': 'CANCELADO_PAQUETE_COMPLETO',
+  'SE RETOMA PROXIMA COLECCION': 'SE_RETOMA_PROXIMA_COLECCION',
+  'APROBADO REPROGRAMACION': 'APROBADO_REPROGRAMACION',
+  'JUST FOR SHOW': 'JUST_FOR_SHOW',
+  'PAQUETE COMPLETO': 'PAQUETE_COMPLETO',
+  'RECHAZADO': 'CANCELADO',
+  'PENDIENTE': 'EN_PROCESO',
 };
 
 /* ==========================================================================
    Main export: parseMatriz(fileData) → { coleccion, secciones }
    ========================================================================== */
-export async function parseMatriz(fileData, fileName) {
+export async function parseMatriz(fileData) {
   const XLSX = await getXLSX();
   const wb = XLSX.read(fileData, { type: 'array', cellDates: true });
   const ws = wb.Sheets[wb.SheetNames.find(s => s.toUpperCase().includes('MATRIZ')) || wb.SheetNames[1] || wb.SheetNames[0]];
@@ -143,7 +153,9 @@ export async function parseMatriz(fileData, fileName) {
         main_image_url: g('IMAGEN'),
         color: g('COLOR'),
         color_code: g('COD_COLOR'),
-        status_id: STATUS_MAP[g('STATUS').toUpperCase()] || 1,
+        status: STATUS_MAP[g('STATUS').toUpperCase().trim()]
+          || STATUS_MAP[g('STATUS').toUpperCase().trim().replace(/_/g, ' ')]
+          || 'EN_PROCESO',
         line_name: g('LINEA'),
         subline_name: g('SUBLINEA'),
         tallaje_group: g('TALLAJE'),
@@ -278,7 +290,7 @@ export async function parseMatriz(fileData, fileName) {
     if (g('PROCESO_CUID')) allData.cuidados.push({ ref_num: rn, tipo: 'PROCESO', instruccion: g('PROCESO_CUID') });
 
     // ── 11. Unidades de produccion ──
-    TALLA_NAMES.forEach((name, idx) => {
+    TALLA_NAMES.forEach(name => {
       const val = gn(`TALLA_${name === '10' || name === '12' ? name : name}`);
       if (val !== null && val > 0) {
         allData.produccionUnits.push({ ref_num: rn, talla: name, cantidad: val });
@@ -394,7 +406,7 @@ export async function parseMatriz(fileData, fileName) {
  * Auto-detecta si un archivo es formato MATRIZ observando la row 9.
  * Retorna 'MATRIZ' | 'VALIDACION_TELAS' | 'UNKNOWN'
  */
-export async function detectFormat(fileData, fileName) {
+export async function detectFormat(fileData) {
   try {
     const XLSX = await getXLSX();
     const wb = XLSX.read(fileData, { type: 'array' });

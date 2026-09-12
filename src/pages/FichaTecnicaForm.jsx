@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, startTransition } from 'react';
 import { Save, Image as ImageIcon, User, CheckCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardData, createReference, useCollectionYears, useColorLookup, useSearchReferences, assignCode } from '../lib/api';
+import { useDashboardData, createReference, slugFromName, useCollectionYears, useColorLookup, useSearchReferences, assignCode, validateReferenceLineSubline } from '../lib/api';
 import supabase from '../lib/supabase';
 import { useLineas, useSublineas, useTallajes, useClosures, useEmpaques, useComplejidad } from '../hooks/useCatalogos';
 import { usePersonsByArea } from '../hooks/usePersons';
@@ -77,8 +77,7 @@ export default function FichaTecnicaForm() {
   }));
 
   const colDbToSlug = {};
-  const colDbToSeason = {};
-  (data?.colecciones || []).forEach(c => { colDbToSlug[c.dbId] = c.id; colDbToSeason[c.dbId] = (c.season || '').toLowerCase(); });
+  (data?.colecciones || []).forEach(c => { colDbToSlug[c.dbId] = slugFromName(c.nombre); });
 
   const [formData, setFormData] = useState({
     coleccion: '',
@@ -139,7 +138,7 @@ export default function FichaTecnicaForm() {
 
   // ── Hooks de catálogos desde BD ────────────────────────────
   const { data: lineas } = useLineas();
-  const { data: sublineas } = useSublineas(formData.linea_id);
+  const { data: sublineas, loading: sublineasLoading } = useSublineas(formData.linea_id);
   const { data: tallajes } = useTallajes();
   const { data: closures } = useClosures();
   const { data: empaques } = useEmpaques();
@@ -165,7 +164,7 @@ export default function FichaTecnicaForm() {
 
   useEffect(() => {
     if (matchedColor && matchedColor.name) {
-      set('color', matchedColor.name);
+      startTransition(() => set('color', matchedColor.name));
     }
   }, [matchedColor]);
 
@@ -179,6 +178,15 @@ export default function FichaTecnicaForm() {
     if (!formData.nombre) err.nombre = 'Requerido';
     if (!formData.color) err.color = 'Requerido';
     if (!formData.codigoColor) err.codigoColor = 'Digita el codigo de color';
+    const lineSublineError = validateReferenceLineSubline({
+      line_id: formData.linea_id,
+      subline_id: formData.sublinea_id,
+      availableSublines: sublineasLoading ? null : sublineas,
+    });
+    if (lineSublineError) {
+      if (!formData.linea_id) err.linea_id = lineSublineError;
+      else err.sublinea_id = lineSublineError;
+    }
     if (!formData.disenadorCreativo) err.disenadorCreativo = 'El diseñador creativo es obligatorio';
     setErrors(err);
     return Object.keys(err).length === 0;
@@ -232,7 +240,6 @@ export default function FichaTecnicaForm() {
         closure_type_id: formData.closure_id,
         tallaje_group_id: formData.tallaje_id,
         package_type_id: formData.empaque_id,
-        status_id: 2,
         linned: formData.linned,
         requiere_muestra: formData.requiereMuestra,
         tiras_continuas: formData.tirasContinuas || null,
@@ -262,7 +269,7 @@ export default function FichaTecnicaForm() {
 
       const nuevoMD = formData.codigoMD || `MD-${refNum}`;
       const nuevoPT = formData.codigoPT || `PT03${refNum}`;
-      setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], seasonCode: colDbToSeason[collectionId] || 'ws', year: yearInt });
+       setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], year: yearInt });
     } catch (err) {
       alert('Error al crear la referencia: ' + err.message);
       console.error(err);
@@ -295,7 +302,7 @@ export default function FichaTecnicaForm() {
             <span className="code-badge code-pt" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoPT}</span>
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button className="btn btn-primary" onClick={() => navigate(`/colecciones/${guardado.seasonCode}/${guardado.collectionSlug}/${guardado.year}`)}>
+              <button className="btn btn-primary" onClick={() => navigate(`/colecciones/${guardado.collectionSlug}/${guardado.year}`)}>
               Ver en Colecciones
             </button>
             <button className="btn btn-secondary" onClick={handleReset}>
@@ -513,23 +520,26 @@ export default function FichaTecnicaForm() {
 
             {/* Línea */}
             <div className="form-group">
-              <label className="form-label">Línea</label>
-              <select name="linea_id" className="form-select" value={formData.linea_id || ''} onChange={(e) => {
+              <label className="form-label form-label-required">Línea</label>
+              <select name="linea_id" className={`form-select ${errors.linea_id ? 'input-error' : ''}`} value={formData.linea_id || ''} onChange={(e) => {
                 set('linea_id', e.target.value ? parseInt(e.target.value) : null);
                 set('sublinea_id', null);
               }}>
                 <option value="">Selecciona...</option>
-                {lineas.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {lineas.map(l => <option key={l.id} value={l.id}>{l.name} ({l.code})</option>)}
               </select>
+              {errors.linea_id && <span className="form-error">{errors.linea_id}</span>}
             </div>
 
             {/* Sublínea */}
             <div className="form-group">
-              <label className="form-label">Sublínea</label>
-              <select name="sublinea_id" className="form-select" value={formData.sublinea_id || ''} onChange={(e) => set('sublinea_id', e.target.value ? parseInt(e.target.value) : null)}>
+              <label className="form-label form-label-required">Sublínea</label>
+              <select name="sublinea_id" className={`form-select ${errors.sublinea_id ? 'input-error' : ''}`} value={formData.sublinea_id || ''} disabled={!formData.linea_id || sublineasLoading} onChange={(e) => set('sublinea_id', e.target.value ? parseInt(e.target.value) : null)}>
                 <option value="">Selecciona...</option>
                 {sublineas.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {!formData.linea_id && <span className="form-help">Selecciona una línea primero</span>}
+              {errors.sublinea_id && <span className="form-error">{errors.sublinea_id}</span>}
             </div>
 
             {/* Clasificación */}

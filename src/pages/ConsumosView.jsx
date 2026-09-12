@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, startTransition } from 'react';
 import { Save, FileSpreadsheet, Lock, Info, Ruler, Scissors, PenTool, CheckCircle2, Clock, Tag, AlertTriangle, ListChecks, Hash } from 'lucide-react';
 import supabase from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -13,7 +13,7 @@ const ROLE_CONFIG = {
 
 const TIPOS_TELA = ['SOLIDO', 'MOD_ARTE', 'UBI_TRAZO', 'CUERO', 'ALL_OVER'];
 
-function buildFlatRows(refFabrics, consumos, referenceId) {
+function buildFlatRows(refFabrics, consumos) {
   const grouped = {};
   for (const c of consumos) {
     const key = `${c.reference_fabric_id}|${c.role}|${c.tipo_tela || 'SOLIDO'}`;
@@ -146,7 +146,10 @@ export default function ConsumosView() {
   }, []);
 
   useEffect(() => {
-    if (!selectedCollectionId) { setFilteredYears([]); setSelectedYear(''); return; }
+    if (!selectedCollectionId) {
+      startTransition(() => { setFilteredYears([]); setSelectedYear(''); });
+      return;
+    }
     supabase.from('collection_years')
       .select('id, year').eq('collection_id', selectedCollectionId).eq('is_hidden', false)
       .order('year', { ascending: false })
@@ -154,7 +157,10 @@ export default function ConsumosView() {
   }, [selectedCollectionId]);
 
   useEffect(() => {
-    if (!selectedCollectionId || !selectedYear) { setReferencias([]); return; }
+    if (!selectedCollectionId || !selectedYear) {
+      startTransition(() => setReferencias([]));
+      return;
+    }
     supabase.from('references')
       .select('id, reference_number, name, has_art_modification, has_trace_location, has_all_over, has_embroidery')
       .eq('collection_id', selectedCollectionId).eq('year', selectedYear).eq('is_hidden', false)
@@ -164,11 +170,11 @@ export default function ConsumosView() {
 
   useEffect(() => {
     if (selectedRefId) loadReferenceData(selectedRefId);
-    else { setSelectedRef(null); setRefFabrics([]); setConsumos([]); }
+    else startTransition(() => { setSelectedRef(null); setRefFabrics([]); setConsumos([]); });
   }, [selectedRefId]);
 
   useEffect(() => {
-    setMateriales(buildFlatRows(refFabrics, consumos, selectedRefId));
+    startTransition(() => setMateriales(buildFlatRows(refFabrics, consumos)));
   }, [refFabrics, consumos]);
 
   async function loadReferenceData(dbRefId) {

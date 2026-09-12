@@ -134,13 +134,13 @@ components.js (re-renderiza)
 
 ```bash
 # Desarrollo
-npm run dev
+pnpm dev
 
 # Build
-npm run build
+pnpm build
 
 # Preview
-npm run preview
+pnpm preview
 ```
 
 ---
@@ -150,5 +150,4 @@ npm run preview
 - Datos de prueba: 60 referencias (10 por colección)
 - Límite localStorage: ~5-10 MB
 - Responsive: Chrome 90+, Firefox 88+, Safari 14+
-- No hay autenticación (datos locales)
-
+- Autenticación: Supabase Auth con roles enlazados a `jo.user_accounts`; `migracion/023_rbac_policies.sql` implementa RLS/RBAC por recurso y requiere aplicación/verificación en el proyecto Supabase

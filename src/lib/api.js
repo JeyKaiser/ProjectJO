@@ -1,5 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, startTransition } from 'react';
 import supabase, { uploadImage } from './supabase';
+import {
+  getReferenceStatusBucket,
+  getReferenceStatusLabel,
+  getReferenceStatusSubfase,
+  isCancelledStatus,
+} from './referenceStatuses';
 
 // ═══════════════════════════════════════════════════════════════
 // Helpers
@@ -115,9 +121,6 @@ export function getProcesoNombre(subfase) {
   return PROCESO_NOMBRES[subfase] || '';
 }
 
-// Mapea status_id a subfase aproximada
-const STATUS_TO_SUBFASE = { 1: 1.1, 2: 6.2, 3: 0, 4: 6.2, 5: 0, 6: 1.1 };
-
 // ═══════════════════════════════════════════════════════════════
 // Hook: useDashboardData — fetch collections + references
 // ═══════════════════════════════════════════════════════════════
@@ -125,40 +128,38 @@ export function useDashboardData() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       try {
-        // Fetch collections + collection_years
-        const { data: cols, error: colErr } = await supabase
-          .from('collections')
-          .select('id,code,name,image_url,year,season')
-          .eq('active', true);
+        const [collectionsResult, groupsResult, yearsResult, referencesResult] = await Promise.all([
+          supabase
+            .from('collections')
+            .select('id,code,name,image_url,year,season')
+            .eq('active', true),
+          supabase
+            .from('collection_groups')
+            .select('id,code,name,image_url')
+            .eq('active', true)
+            .order('id'),
+          supabase
+            .from('collection_years')
+            .select('id,collection_id,year,is_hidden'),
+          supabase
+            .from('references')
+            .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), reference_type, tipo_ref, lines(name, code), sublines(name), complejidad_corte_id, complejidad_confeccion_id, reference_statuses(status), created_at'),
+        ]);
 
+        const { data: cols, error: colErr } = collectionsResult;
+        const { data: groups, error: grpErr } = groupsResult;
+        const { data: colYears, error: cyErr } = yearsResult;
+        const { data: refs, error: refErr } = referencesResult;
         if (colErr) throw colErr;
-
-        // Fetch collection groups (canonical seasons)
-        const { data: groups, error: grpErr } = await supabase
-          .from('collection_groups')
-          .select('id,code,name,image_url')
-          .eq('active', true)
-          .order('id');
-
         if (grpErr) throw grpErr;
-
-        // Fetch collection years
-        const { data: colYears, error: cyErr } = await supabase
-          .from('collection_years')
-          .select('id,collection_id,year,is_hidden');
-
         if (cyErr) throw cyErr;
-
-        // Fetch references
-        const { data: refs, error: refErr } = await supabase
-          .from('references')
-          .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), reference_type, complejidad_corte_id, complejidad_confeccion_id, reference_statuses(status), created_at');
-
         if (refErr) throw refErr;
 
         if (cancelled) return;
@@ -173,6 +174,16 @@ export function useDashboardData() {
           yearsByCollection[cy.collection_id].push(cy);
         });
 
+        const refsByCollection = {};
+        const refsByCollectionYear = {};
+        (refs || []).forEach(ref => {
+          if (!refsByCollection[ref.collection_id]) refsByCollection[ref.collection_id] = [];
+          refsByCollection[ref.collection_id].push(ref);
+          const key = `${ref.collection_id}:${ref.year}`;
+          if (!refsByCollectionYear[key]) refsByCollectionYear[key] = [];
+          refsByCollectionYear[key].push(ref);
+        });
+
         // Build colecciones structure
         const colecciones = cols.map(col => {
           const colYearsList = yearsByCollection[col.id] || [];
@@ -180,18 +191,16 @@ export function useDashboardData() {
 
           const anios = colYearsList.length > 0
             ? colYearsList.map(cy => {
-                const yearRefs = (refs || []).filter(r =>
-                  r.collection_id === col.id && r.year === cy.year
-                );
+                const yearRefs = [...(refsByCollectionYear[`${col.id}:${cy.year}`] || [])];
                 const total = yearRefs.length;
-                const completadas = yearRefs.filter(r => r.status_id === 2 || r.status_id === 4).length;
-                const pausadas = yearRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
+                const completadas = yearRefs.filter(r => getReferenceStatusBucket(r.reference_statuses?.status) === 'completed').length;
+                const pausadas = yearRefs.filter(r => getReferenceStatusBucket(r.reference_statuses?.status) === 'paused').length;
                 const enProceso = total - completadas - pausadas;
 
                 yearRefs.sort((a, b) => (Number(a.reference_number) || 0) - (Number(b.reference_number) || 0));
                 const referencias = yearRefs.map(r => {
-                  const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
-                  const fm = getFaseMacro(sf);
+                  const status = r.reference_statuses?.status || '';
+                  const sf = getReferenceStatusSubfase(status);
                   const clasificacion = r.has_art_modification ? 'Mod. Arte'
                     : r.has_trace_location ? 'Ubicacion Trazo'
                     : r.has_all_over ? 'All Over'
@@ -200,18 +209,21 @@ export function useDashboardData() {
                   const rcCodes = codeMap[r.id] || {};
                   return {
                     id: `REF-${r.reference_number}`,
+                    referenceNumber: String(r.reference_number),
                     dbId: r.id,
                     codigoMD: rcCodes.MD || `MD-${String(r.reference_number).padStart(3, '0')}`,
                     codigoPT: rcCodes.PT || `PT03${String(r.reference_number).padStart(3, '0')}`,
                     mdAssigned: !!rcCodes.MD,
                     ptAssigned: !!rcCodes.PT,
+                    statusId: r.status_id,
                     nombre: r.name,
                     tipoPrenda: r.reference_type || col.name || '',
                     color: r.color || '',
                     codigoColor: r.color_code || '',
                     imagen: r.main_image_url || null,
-                    linea: '',
-                    sublinea: '',
+                    linea: r.lines?.name || '',
+                    sublinea: r.sublines?.name || '',
+                    tipoRef: r.tipo_ref || r.lines?.code || '',
                     tallaje: r.tallaje_groups?.name || '',
                     largo: r.length_description || '',
                     largoCms: r.length_cm || '',
@@ -221,6 +233,10 @@ export function useDashboardData() {
                     responsable: '',
                     tiempoFase: '',
                     clasificacion,
+                    status,
+                    statusLabel: getReferenceStatusLabel(status),
+                    isCancelled: isCancelledStatus(status),
+                    statusBucket: getReferenceStatusBucket(status),
                     prioridadFirstBuy: r.priority_first_buy || '',
                     dropEntrega: r.drop_entrega || '',
                     enviarMaquila: r.envio_confeccion_maquila || false,
@@ -258,14 +274,11 @@ export function useDashboardData() {
                 isHidden: false,
                 resumen: { total: 0, enProceso: 0, pausadas: 0, completadas: 0 },
                 referencias: (() => {
-                  const yearRefs = (refs || []).filter(r => r.collection_id === col.id);
-                  const total = yearRefs.length;
-                  const completadas = yearRefs.filter(r => r.status_id === 2 || r.status_id === 4).length;
-                  const pausadas = yearRefs.filter(r => r.status_id === 3 || r.status_id === 5).length;
-                  const enProceso = total - completadas - pausadas;
+                  const yearRefs = [...(refsByCollection[col.id] || [])];
                   yearRefs.sort((a, b) => (Number(a.reference_number) || 0) - (Number(b.reference_number) || 0));
                   return yearRefs.map(r => {
-                    const sf = STATUS_TO_SUBFASE[r.status_id] || 1.1;
+                    const status = r.reference_statuses?.status || '';
+                    const sf = getReferenceStatusSubfase(status);
                     const clasificacion = r.has_art_modification ? 'Mod. Arte'
                       : r.has_trace_location ? 'Ubicacion Trazo'
                       : r.has_all_over ? 'All Over'
@@ -273,22 +286,26 @@ export function useDashboardData() {
                     const fcCodes = codeMap[r.id] || {};
                     return {
                       id: `REF-${r.reference_number}`,
+                      referenceNumber: String(r.reference_number),
                       dbId: r.id,
                       codigoMD: fcCodes.MD || `MD-${String(r.reference_number).padStart(3, '0')}`,
                       codigoPT: fcCodes.PT || `PT03${String(r.reference_number).padStart(3, '0')}`,
                       mdAssigned: !!fcCodes.MD,
                       ptAssigned: !!fcCodes.PT,
+                      statusId: r.status_id,
                       nombre: r.name,
                       tipoPrenda: r.reference_type || col.name || '',
                       color: r.color || '', codigoColor: r.color_code || '',
                       imagen: r.main_image_url || null,
-                      linea: '', sublinea: '', tallaje: r.tallaje_groups?.name || '', largo: r.length_description || '', largoCms: r.length_cm || '', closure: '',
+                        linea: r.lines?.name || '', sublinea: r.sublines?.name || '', tipoRef: r.tipo_ref || r.lines?.code || '', tallaje: r.tallaje_groups?.name || '', largo: r.length_description || '', largoCms: r.length_cm || '', closure: '',
                       faseActual: sf,
                       subfaseNombre: getProcesoNombre(sf),
                       responsable: '', tiempoFase: '',
                       clasificacion,
-                      status: r.reference_statuses?.status || '',
-                    status: r.reference_statuses?.status || '',
+                      status,
+                      statusLabel: getReferenceStatusLabel(status),
+                      isCancelled: isCancelledStatus(status),
+                      statusBucket: getReferenceStatusBucket(status),
                       prioridadFirstBuy: r.priority_first_buy || '',
                       dropEntrega: r.drop_entrega || '',
                       enviarMaquila: r.envio_confeccion_maquila || false,
@@ -309,8 +326,8 @@ export function useDashboardData() {
           if (colYearsList.length === 0 && anios.length) {
             const refsForYear = anios[0].referencias;
             const t = refsForYear.length;
-            const c = refsForYear.filter(r => r.faseActual >= 6).length;
-            const p = refsForYear.filter(r => r.faseActual === 0).length;
+            const c = refsForYear.filter(r => r.statusBucket === 'completed').length;
+            const p = refsForYear.filter(r => r.statusBucket === 'paused').length;
             anios[0].resumen = { total: t, enProceso: t - c - p, pausadas: p, completadas: c };
           }
 
@@ -335,9 +352,9 @@ export function useDashboardData() {
     }
     load();
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
-  return { data, loading, error };
+  return { data, loading, error, refetch: () => setReloadKey(key => key + 1) };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -362,27 +379,29 @@ export function useReferenciaDetalle(refId) {
 
         if (refErr) throw refErr;
 
-        // Fetch fabrics for this reference
-        const { data: fabrics } = await supabase
-          .from('reference_fabrics')
-          .select('*, fabrics(code, description, width_cm, fabric_base_types(name))')
-          .eq('reference_id', refData.id);
-
-        // Fetch consumos
-        const { data: consumos } = await supabase
-          .from('consumos')
-          .select('*')
-          .eq('reference_id', refData.id)
-          .order('created_at');
+        const [fabricsResult, consumosResult, codeMap] = await Promise.all([
+          supabase
+            .from('reference_fabrics')
+            .select('*, fabrics(code, description, width_cm, fabric_base_types(name))')
+            .eq('reference_id', refData.id),
+          supabase
+            .from('consumos')
+            .select('*')
+            .eq('reference_id', refData.id)
+            .order('created_at'),
+          resolveReferenceCodes(refData.id),
+        ]);
+        const { data: fabrics, error: fabricsError } = fabricsResult;
+        const { data: consumos, error: consumosError } = consumosResult;
+        if (fabricsError) throw fabricsError;
+        if (consumosError) throw consumosError;
 
         if (cancelled) return;
 
-        const codeMap = await resolveReferenceCodes(refData.id);
         const rcCodes = codeMap[refData.id] || {};
 
-        const sf = STATUS_TO_SUBFASE[refData.status_id] || 1.1;
-        const fm = getFaseMacro(sf);
-
+        const statusNombre = refData.reference_statuses?.status || 'EN_PROCESO';
+        const sf = getReferenceStatusSubfase(statusNombre);
         setRef({
           ...refData,
           id: refId,
@@ -397,7 +416,10 @@ export function useReferenciaDetalle(refId) {
           coleccionId: refData.collection_id,
           year: refData.year,
           isHidden: refData.is_hidden || false,
-          statusNombre: refData.reference_statuses?.status || 'EN_PROCESO',
+          statusNombre,
+          statusLabel: getReferenceStatusLabel(statusNombre),
+          isCancelled: isCancelledStatus(statusNombre),
+          statusBucket: getReferenceStatusBucket(statusNombre),
           telasSupabase: fabrics || [],
           consumosSupabase: consumos || [],
           clasificacion: refData.has_art_modification ? 'Mod. Arte'
@@ -416,6 +438,295 @@ export function useReferenciaDetalle(refId) {
   }, [refId]);
 
   return { ref, loading };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Ficha final: lectura y persistencia de la ficha de produccion
+// ═══════════════════════════════════════════════════════════════
+
+export const FINAL_SHEET_SCOPES = ['MUESTRA', 'PRODUCCION'];
+
+function normalizeFinalSheetStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'activa' || normalized === 'active') return 'activa';
+  if (normalized === 'utilizada' || normalized === 'used') return 'utilizada';
+  if (normalized === 'anulada' || normalized === 'cancelled' || normalized === 'cancelada') return 'anulada';
+  return 'pendiente';
+}
+
+function emptyFinalComposition(scope) {
+  return {
+    id: null,
+    reference_id: null,
+    scope,
+    sap_registered: false,
+    description_usauk: '',
+    fiber_composition: '',
+    woven_knitted: '',
+    inside_composition: '',
+    include_description: '',
+    notes: '',
+    materials: [],
+  };
+}
+
+/**
+ * Lee todos los datos de Ficha Final usando el id numerico de references.
+ * composition_materials es opcional durante la transicion: cuando la tabla
+ * aun no existe se conserva el resto de la ficha y se devuelve el error para
+ * que la UI pueda avisarlo sin volver a datos mock.
+ */
+export async function readFinalSheet(referenceId) {
+  const numericReferenceId = Number(referenceId);
+  if (!Number.isInteger(numericReferenceId) || numericReferenceId <= 0) {
+    throw new Error('La Ficha Final requiere un reference_id numerico valido.');
+  }
+
+  const [referenceResult, compositionResult, careTypesResult, careResult, contraResult, notesResult, qualityResult] = await Promise.all([
+    supabase.from('references').select('*').eq('id', numericReferenceId).single(),
+    supabase.from('compositions').select('*').eq('reference_id', numericReferenceId).order('id'),
+    supabase.from('care_types').select('id,type,description').order('id'),
+    supabase.from('care_instructions').select('*').eq('reference_id', numericReferenceId).order('care_type_id').order('id'),
+    supabase.from('contramuestras').select('*').eq('reference_id', numericReferenceId).order('created_at').order('id'),
+    supabase.from('notas_fabricacion').select('*').eq('reference_id', numericReferenceId).order('created_at').order('id'),
+    supabase.from('quality_issues').select('*').eq('reference_id', numericReferenceId).order('detected_at').order('id'),
+  ]);
+
+  const firstError = [referenceResult, compositionResult, careTypesResult, careResult, contraResult, notesResult, qualityResult]
+    .find(result => result.error)?.error;
+  if (firstError) throw firstError;
+
+  const compositions = compositionResult.data || [];
+  const compositionIds = compositions.map(composition => composition.id).filter(Boolean);
+  let materialRows = [];
+  let materialsError = null;
+
+  if (compositionIds.length > 0) {
+    const materialResult = await supabase
+      .from('composition_materials')
+       .select('id,composition_id,material,percentage')
+      .in('composition_id', compositionIds)
+      .order('composition_id').order('material');
+    if (materialResult.error) materialsError = materialResult.error;
+    else materialRows = materialResult.data || [];
+  }
+
+  const materialByComposition = {};
+  materialRows.forEach(material => {
+    if (!materialByComposition[material.composition_id]) materialByComposition[material.composition_id] = [];
+    materialByComposition[material.composition_id].push({
+      id: material.id,
+      composition_id: material.composition_id,
+      material: material.material || '',
+      percentage: material.percentage ?? '',
+    });
+  });
+
+  const compositionByScope = FINAL_SHEET_SCOPES.reduce((result, scope) => {
+    const row = compositions.find(composition => composition.scope === scope);
+    result[scope] = row
+      ? {
+          ...emptyFinalComposition(scope),
+          ...row,
+          materials: materialByComposition[row.id] || [],
+        }
+      : emptyFinalComposition(scope);
+    return result;
+  }, {});
+
+  const careTypes = (careTypesResult.data || []).map(type => ({
+    id: type.id,
+    type: type.type,
+    description: type.description || '',
+  }));
+  const careTypeById = new Map(careTypes.map(type => [type.id, type]));
+  const careInstructions = (careResult.data || []).map(instruction => ({
+    ...instruction,
+    care_type: careTypeById.get(instruction.care_type_id) || null,
+  }));
+
+  const notesById = new Map((notesResult.data || []).map(note => [note.id, note]));
+  const contramuestras = (contraResult.data || []).map(contramuestra => {
+    const note = notesById.get(contramuestra.nota_fabricacion_id) || null;
+    return {
+      ...contramuestra,
+      status: normalizeFinalSheetStatus(contramuestra.status),
+      nota_fabricacion: note,
+      codigo_nota: note?.codigo_nota || '',
+      fecha_traslado_sap: note?.fecha_traslado_sap || '',
+      fecha_despacho_zf: note?.fecha_despacho_zf || '',
+      observaciones_nota: note?.observaciones || '',
+    };
+  });
+
+  const qualityIssues = (qualityResult.data || []).map(issue => ({
+    ...issue,
+    classification: issue.classification || '',
+    description: issue.description || '',
+    resolved: issue.resolved === true,
+  }));
+
+  const codeMap = await resolveReferenceCodes(numericReferenceId);
+  const reference = referenceResult.data;
+  const codes = codeMap[numericReferenceId] || {};
+
+  return {
+    reference: {
+      ...reference,
+      codigoMD: codes.MD || `MD-${String(reference.reference_number).padStart(3, '0')}`,
+      codigoPT: codes.PT || `PT03${String(reference.reference_number).padStart(3, '0')}`,
+    },
+    compositions: compositionByScope,
+    careTypes,
+    careInstructions,
+    contramuestras,
+    qualityIssues,
+    materialsError,
+  };
+}
+
+// Alias semantico para consumidores que llaman a esta operacion "load".
+export const loadFinalSheet = readFinalSheet;
+
+export function useFinalSheet(referenceId) {
+  const [state, setState] = useState({ key: referenceId || null, data: null, loading: Boolean(referenceId), error: null });
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (!referenceId) return undefined;
+
+    let cancelled = false;
+    readFinalSheet(referenceId)
+      .then(result => {
+        if (!cancelled) setState({ key: referenceId, data: result, loading: false, error: null });
+      })
+      .catch(loadError => {
+        if (!cancelled) setState({ key: referenceId, data: null, loading: false, error: loadError });
+      });
+
+    return () => { cancelled = true; };
+  }, [referenceId, reloadKey]);
+
+  const isCurrent = Boolean(referenceId) && state.key === referenceId;
+  return {
+    data: isCurrent ? state.data : null,
+    loading: Boolean(referenceId) && (!isCurrent || state.loading),
+    error: isCurrent ? state.error : null,
+    refresh: () => setReloadKey(key => key + 1),
+  };
+}
+
+function nullableNumber(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function nullableText(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  return String(value).trim();
+}
+
+/**
+ * Contrato JSON de jo.save_final_sheet. Los registros con id existente se
+ * actualizan; los registros sin id se insertan. No se envia ninguna lista de
+ * borrado, por lo que las novedades omitidas no se eliminan.
+ */
+export function buildFinalSheetPayload({ referenceId, compositions, careInstructions, contramuestras, qualityIssues }) {
+  const numericReferenceId = Number(referenceId);
+  const scopes = FINAL_SHEET_SCOPES.reduce((result, scope) => {
+    const composition = compositions?.[scope] || emptyFinalComposition(scope);
+    result[scope] = {
+      composition: {
+        id: composition.id || null,
+        reference_id: numericReferenceId,
+        scope,
+        sap_registered: composition.sap_registered === true,
+        description_usauk: nullableText(composition.description_usauk),
+        fiber_composition: nullableText(composition.fiber_composition),
+        woven_knitted: nullableText(composition.woven_knitted),
+        inside_composition: nullableText(composition.inside_composition),
+        include_description: nullableText(composition.include_description),
+        notes: nullableText(composition.notes),
+      },
+      materials: (composition.materials || [])
+        .filter(material => String(material.material || '').trim() !== '')
+        .map(material => ({
+          composition_id: composition.id || null,
+          material: String(material.material).trim(),
+          percentage: nullableNumber(material.percentage),
+        })),
+    };
+    return result;
+  }, {});
+
+  let activeContramuestraFound = false;
+  const contraPayload = (contramuestras || []).map(contramuestra => {
+    const requestedStatus = normalizeFinalSheetStatus(contramuestra.status);
+    const status = requestedStatus === 'activa' && activeContramuestraFound ? 'utilizada' : requestedStatus;
+    if (status === 'activa') activeContramuestraFound = true;
+    return {
+      id: contramuestra.id || null,
+      reference_id: numericReferenceId,
+      nombre: nullableText(contramuestra.nombre),
+      codigo_ot: nullableText(contramuestra.codigo_ot),
+      talla: nullableText(contramuestra.talla),
+      descripcion_color: nullableText(contramuestra.descripcion_color),
+      unidades_cortadas: nullableNumber(contramuestra.unidades_cortadas),
+      nota_fabricacion_id: nullableNumber(contramuestra.nota_fabricacion_id),
+      prioridad: nullableNumber(contramuestra.prioridad),
+      fecha_meta_entrega: nullableText(contramuestra.fecha_meta_entrega),
+      drop_entrega: nullableText(contramuestra.drop_entrega),
+      status,
+      observaciones_confeccion: nullableText(contramuestra.observaciones_confeccion),
+      nota_fabricacion: {
+        id: contramuestra.nota_fabricacion_id || null,
+        reference_id: numericReferenceId,
+        codigo_nota: nullableText(contramuestra.codigo_nota),
+        fecha_traslado_sap: nullableText(contramuestra.fecha_traslado_sap),
+        fecha_despacho_zf: nullableText(contramuestra.fecha_despacho_zf),
+        observaciones: nullableText(contramuestra.observaciones_nota),
+      },
+    };
+  }).filter(contramuestra => contramuestra.codigo_ot);
+
+  return {
+    version: 1,
+    reference_id: numericReferenceId,
+    scopes,
+    care_instructions: (careInstructions || []).map(instruction => ({
+      id: instruction.id || null,
+      reference_id: numericReferenceId,
+      care_type_id: nullableNumber(instruction.care_type_id),
+      instruction: nullableText(instruction.instruction),
+      icon_url: nullableText(instruction.icon_url),
+      notes: nullableText(instruction.notes),
+    })).filter(instruction => instruction.care_type_id !== null && (instruction.id || instruction.instruction)),
+    contramuestras: contraPayload,
+    quality_issues: (qualityIssues || []).map(issue => ({
+      id: issue.id || null,
+      reference_id: numericReferenceId,
+      detected_at: issue.detected_at || new Date().toISOString(),
+      area: nullableText(issue.area),
+      classification: nullableText(issue.classification),
+      material: nullableText(issue.material),
+      material_classification: nullableText(issue.material_classification),
+      execution_type: nullableText(issue.execution_type),
+      description: nullableText(issue.description),
+      corrective_action: nullableText(issue.corrective_action),
+      resolved: issue.resolved === true,
+    })),
+  };
+}
+
+export async function saveFinalSheet(payload) {
+  if (!payload || !Number.isInteger(Number(payload.reference_id)) || Number(payload.reference_id) <= 0) {
+    throw new Error('El payload de Ficha Final requiere reference_id numerico.');
+  }
+
+  const { data, error } = await supabase.rpc('save_final_sheet', { p_payload: payload });
+  if (error) throw error;
+  return data;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -487,10 +798,16 @@ export function useFabrics() {
 export function useReferenceFabrics(refId) {
   const [refFabrics, setRefFabrics] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!refId) return;
+    if (!refId) {
+      startTransition(() => { setRefFabrics([]); setLoading(false); setError(null); });
+      return undefined;
+    }
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       const { data, error } = await supabase
         .from('reference_fabrics')
@@ -499,14 +816,20 @@ export function useReferenceFabrics(refId) {
         .eq('active', true)
         .order('id');
 
-      if (!error && !cancelled) setRefFabrics(data || []);
+      if (error) throw error;
+      if (!cancelled) setRefFabrics(data || []);
       if (!cancelled) setLoading(false);
     }
-    load();
+    load().catch(loadError => {
+      if (!cancelled) {
+        setError(loadError);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, [refId]);
+  }, [refId, reloadKey]);
 
-  return { refFabrics, loading };
+  return { refFabrics, loading, error, refresh: () => setReloadKey(key => key + 1) };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -642,7 +965,10 @@ export function useCollectionYears(collectionId) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!collectionId) { setYears([]); setLoading(false); return; }
+    if (!collectionId) {
+      startTransition(() => { setYears([]); setLoading(false); });
+      return;
+    }
     let cancelled = false;
     async function load() {
       const { data, error } = await supabase
@@ -663,6 +989,15 @@ export function useCollectionYears(collectionId) {
 // ═══════════════════════════════════════════════════════════════
 // CRUD: References (create, update, hide)
 // ═══════════════════════════════════════════════════════════════
+export function validateReferenceLineSubline({ line_id, subline_id, availableSublines } = {}) {
+  if (!line_id) return 'La línea es obligatoria.';
+  if (!subline_id) return 'La sublínea es obligatoria.';
+  if (availableSublines && !availableSublines.some(subline => subline.id === subline_id)) {
+    return 'La sublínea no pertenece a la línea seleccionada.';
+  }
+  return null;
+}
+
 export async function createReference(data) {
   const {
     collection_id, year, reference_number, name, color, color_code,
@@ -677,6 +1012,20 @@ export async function createReference(data) {
     linned, requiere_muestra, tiras_continuas,
     especificacion_confeccion,
   } = data;
+
+  const lineSublineError = validateReferenceLineSubline({ line_id, subline_id });
+  if (lineSublineError) return { data: null, error: new Error(lineSublineError) };
+
+  let resolvedStatusId = status_id;
+  if (!resolvedStatusId) {
+    const { data: defaultStatus, error: statusError } = await supabase
+      .from('reference_statuses')
+      .select('id')
+      .eq('status', 'EN_PROCESO')
+      .single();
+    if (statusError) return { data: null, error: statusError };
+    resolvedStatusId = defaultStatus.id;
+  }
 
   return supabase
     .from('references')
@@ -695,7 +1044,7 @@ export async function createReference(data) {
       envio_corte_maquila: envio_corte_maquila || false,
       envio_confeccion_maquila: envio_confeccion_maquila || false,
       main_image_url,
-      status_id: status_id || 1,
+      status_id: resolvedStatusId,
       is_hidden: false,
       linned: linned || false,
       requiere_muestra: requiere_muestra || false,
@@ -731,7 +1080,7 @@ export function useCutRequests({ source } = {}) {
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    startTransition(() => { setLoading(true); setError(null); });
     try {
       let query = supabase
         .from('cut_requests')
@@ -744,11 +1093,11 @@ export function useCutRequests({ source } = {}) {
       const { data, error: err } = await query;
 
       if (err) throw err;
-      setItems(data || []);
+      startTransition(() => setItems(data || []));
     } catch (e) {
-      setError(e.message);
+      startTransition(() => setError(e.message));
     } finally {
-      setLoading(false);
+      startTransition(() => setLoading(false));
     }
   }, [source]);
 
@@ -781,6 +1130,132 @@ export async function updateCutRequest(id, updates) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CRUD: Ordenes de Trabajo del Taller
+// ═══════════════════════════════════════════════════════════════
+const WORKSHOP_ORDER_SELECT = `
+  *,
+  references(reference_number, name, color, main_image_url, has_embroidery, has_semielaborated),
+  collections(code, name, year)
+`;
+
+export function useWorkshopOrders() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    startTransition(() => { setLoading(true); setError(null); });
+    try {
+      const { data, error: err } = await supabase
+        .from('workshop_orders')
+        .select(WORKSHOP_ORDER_SELECT)
+        .order('created_at', { ascending: false });
+
+      if (err) throw err;
+      startTransition(() => setItems(data || []));
+    } catch (e) {
+      startTransition(() => setError(e));
+    } finally {
+      startTransition(() => setLoading(false));
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { items, loading, error, refresh: load };
+}
+
+export async function createWorkshopOrder(data) {
+  return supabase
+    .from('workshop_orders')
+    .insert(data)
+    .select(WORKSHOP_ORDER_SELECT)
+    .single();
+}
+
+export async function updateWorkshopOrder(id, updates) {
+  return supabase
+    .from('workshop_orders')
+    .update(updates)
+    .eq('id', id)
+    .select(WORKSHOP_ORDER_SELECT)
+    .single();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CRUD: Hand-off de Referencias
+// ═══════════════════════════════════════════════════════════════
+export function useReferenceHandoffs(referenceId) {
+  const [data, setData] = useState({ current: null, history: [] });
+  const [loading, setLoading] = useState(Boolean(referenceId));
+  const [error, setError] = useState(null);
+
+  const load = useCallback(async () => {
+    if (!referenceId) {
+      setData({ current: null, history: [] });
+      setLoading(false);
+      return;
+    }
+
+    startTransition(() => { setLoading(true); setError(null); });
+    try {
+      const { data: rows, error: err } = await supabase
+        .from('reference_handoffs')
+        .select('*')
+        .eq('reference_id', referenceId)
+        .order('created_at', { ascending: false });
+
+      if (err) throw err;
+      const history = rows || [];
+      const current = history.find(row => row.status !== 'COMPLETED') || null;
+      startTransition(() => setData({ current, history }));
+    } catch (e) {
+      startTransition(() => setError(e));
+    } finally {
+      startTransition(() => setLoading(false));
+    }
+  }, [referenceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { ...data, loading, error, refresh: load };
+}
+
+export async function createReferenceHandoff(data) {
+  return supabase
+    .from('reference_handoffs')
+    .insert(data)
+    .select('*')
+    .single();
+}
+
+export async function updateReferenceHandoff(id, updates) {
+  return supabase
+    .from('reference_handoffs')
+    .update(updates)
+    .eq('id', id)
+    .select('*')
+    .single();
+}
+
+export async function deliverReferenceHandoff(handoffId, nextArea, actorRole) {
+  return supabase.rpc('deliver_reference_handoff', {
+    p_handoff_id: handoffId,
+    p_next_area: nextArea,
+    p_actor_role: actorRole,
+  });
+}
+
+export async function returnReferenceHandoff(handoffId, nextArea, actorRole, notes) {
+  return supabase.rpc('return_reference_handoff', {
+    p_handoff_id: handoffId,
+    p_next_area: nextArea,
+    p_actor_role: actorRole,
+    p_notes: notes,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CRUD: Trazos (Workflow del Trazador)
 // ═══════════════════════════════════════════════════════════════
 
@@ -791,7 +1266,7 @@ export function useTrazos(refId, fase) {
 
   const load = useCallback(async () => {
     if (!refId) return;
-    setLoading(true);
+    startTransition(() => setLoading(true));
     try {
       let query = supabase
         .from('trazos')
@@ -804,11 +1279,11 @@ export function useTrazos(refId, fase) {
 
       const { data, error: err } = await query;
       if (err) throw err;
-      setTrazos(data || []);
+      startTransition(() => setTrazos(data || []));
     } catch (e) {
-      setError(e.message);
+      startTransition(() => setError(e.message));
     } finally {
-      setLoading(false);
+      startTransition(() => setLoading(false));
     }
   }, [refId, fase]);
 
@@ -885,10 +1360,16 @@ export async function deleteTrazo(id) {
 export function useComparativo(refId) {
   const [comparativo, setComparativo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!refId) return;
+    if (!refId) {
+      startTransition(() => { setComparativo(null); setLoading(false); setError(null); });
+      return undefined;
+    }
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       const { data, error } = await supabase
         .from('comparativo_trazos')
@@ -897,14 +1378,20 @@ export function useComparativo(refId) {
         .order('created_at', { ascending: false })
         .limit(1);
 
-      if (!error && !cancelled) setComparativo(data?.[0] || null);
+      if (error) throw error;
+      if (!cancelled) setComparativo(data?.[0] || null);
       if (!cancelled) setLoading(false);
     }
-    load();
+    load().catch(loadError => {
+      if (!cancelled) {
+        setError(loadError);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, [refId]);
+  }, [refId, reloadKey]);
 
-  return { comparativo, loading };
+  return { comparativo, loading, error, refresh: () => setReloadKey(key => key + 1) };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -938,7 +1425,10 @@ export function useCollectionColors(collectionId) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!collectionId) { setColors([]); setLoading(false); return; }
+    if (!collectionId) {
+      startTransition(() => { setColors([]); setLoading(false); });
+      return;
+    }
     let cancelled = false;
     async function load() {
       const { data, error } = await supabase
@@ -964,7 +1454,10 @@ export function useColorLookup(code) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!code || code.trim().length === 0) { setColor(null); setLoading(false); return; }
+    if (!code || code.trim().length === 0) {
+      startTransition(() => { setColor(null); setLoading(false); });
+      return;
+    }
     let cancelled = false;
     const timeout = setTimeout(async () => {
       setLoading(true);
@@ -1008,7 +1501,10 @@ export function useSearchReferences(searchTerm, collectionId) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!searchTerm || searchTerm.length < 2) { setResults([]); return; }
+    if (!searchTerm || searchTerm.length < 2) {
+      startTransition(() => setResults([]));
+      return;
+    }
     let cancelled = false;
     const timeout = setTimeout(async () => {
       setLoading(true);
@@ -1066,8 +1562,11 @@ export function useGruposVariante(tipoPrenda) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!tipoPrenda) { setGrupos([]); return; }
-    setLoading(true);
+    if (!tipoPrenda) {
+      startTransition(() => setGrupos([]));
+      return;
+    }
+    startTransition(() => setLoading(true));
     let cancelled = false;
     supabase
       .from('referents')
@@ -1104,8 +1603,11 @@ export function useFilasReferente(tipoPrenda, cantidadTelas, variante) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!tipoPrenda || !cantidadTelas || !variante) { setFilas([]); return; }
-    setLoading(true);
+    if (!tipoPrenda || !cantidadTelas || !variante) {
+      startTransition(() => setFilas([]));
+      return;
+    }
+    startTransition(() => setLoading(true));
     let cancelled = false;
     supabase
       .from('referents')
@@ -1130,8 +1632,11 @@ export function useCantidadesTelas(tipoPrenda) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!tipoPrenda) { setCantidades([]); return; }
-    setLoading(true);
+    if (!tipoPrenda) {
+      startTransition(() => setCantidades([]));
+      return;
+    }
+    startTransition(() => setLoading(true));
     let cancelled = false;
     supabase
       .from('referents')
@@ -1155,8 +1660,11 @@ export function useVariantes(tipoPrenda, cantidadTelas) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!tipoPrenda || !cantidadTelas) { setVariantes([]); return; }
-    setLoading(true);
+    if (!tipoPrenda || !cantidadTelas) {
+      startTransition(() => setVariantes([]));
+      return;
+    }
+    startTransition(() => setLoading(true));
     let cancelled = false;
     supabase
       .from('referents')
@@ -1182,8 +1690,11 @@ export function useTelasDeReferente(tipoPrenda, cantidadTelas, variante) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!tipoPrenda || !cantidadTelas || !variante) { setTelas([]); setItems([]); return; }
-    setLoading(true);
+    if (!tipoPrenda || !cantidadTelas || !variante) {
+      startTransition(() => { setTelas([]); setItems([]); });
+      return;
+    }
+    startTransition(() => setLoading(true));
     let cancelled = false;
     supabase
       .from('referents')
@@ -1277,8 +1788,11 @@ export function useReferentPhoto(tipoPrenda, cantidadTelas, variante) {
   const [loading, setLoading] = useState(false);
 
   const reload = useCallback(() => {
-    if (!tipoPrenda) { setFotoUrl(null); setLoading(false); return; }
-    setLoading(true);
+    if (!tipoPrenda) {
+      startTransition(() => { setFotoUrl(null); setLoading(false); });
+      return;
+    }
+    startTransition(() => setLoading(true));
     let cancelled = false;
     let query = supabase
       .from('referent_photos')
@@ -1388,7 +1902,10 @@ export function useReferenciaDB(dbRefId) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!dbRefId) { setRefDb(null); setLoading(false); return; }
+    if (!dbRefId) {
+      startTransition(() => { setRefDb(null); setLoading(false); });
+      return;
+    }
     let cancelled = false;
     async function load() {
       const { data, error } = await supabase
@@ -1428,7 +1945,8 @@ export async function resolveReferenceCodes(referenceIds) {
     .in('reference_id', ids)
     .eq('active', true);
 
-  if (error || !data) return {};
+  if (error) throw error;
+  if (!data) return {};
 
   const map = {};
   data.forEach(rc => {
@@ -1436,6 +1954,46 @@ export async function resolveReferenceCodes(referenceIds) {
     map[rc.reference_id][rc.code_type] = rc.code;
   });
   return map;
+}
+
+export async function searchReferences(searchTerm) {
+  const term = String(searchTerm || '').trim().toLocaleLowerCase();
+  if (!term) return [];
+
+  const { data, error } = await supabase
+    .from('references')
+    .select('id, reference_number, name, collection_id, year, is_hidden, collections(code, name, season, year), reference_codes(code_type, code, active)')
+    .eq('is_hidden', false)
+    .order('reference_number')
+    .limit(250);
+
+  if (error) throw error;
+
+  return (data || [])
+    .filter(reference => {
+      const codes = (reference.reference_codes || [])
+        .filter(code => code.active !== false)
+        .map(code => code.code);
+      return [reference.name, reference.reference_number, ...codes]
+        .some(value => String(value || '').toLocaleLowerCase().includes(term));
+    })
+    .slice(0, 12)
+    .map(reference => {
+      const codes = (reference.reference_codes || []).filter(code => code.active !== false);
+      const md = codes.find(code => code.code_type === 'MD')?.code || deriveMD(reference.reference_number);
+      const pt = codes.find(code => code.code_type === 'PT')?.code || derivePT(reference.reference_number);
+      return {
+        id: reference.id,
+        referenceNumber: reference.reference_number,
+        name: reference.name,
+        collectionId: reference.collection_id,
+        collectionName: reference.collections?.name || '',
+        collectionCode: reference.collections?.season || reference.collections?.code || '',
+        year: reference.year || reference.collections?.year,
+        codigoMD: md,
+        codigoPT: pt,
+      };
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1447,7 +2005,10 @@ export function useReferenceCodes(dbRefId, referenceNumber) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!dbRefId) { setLoading(false); return; }
+    if (!dbRefId) {
+      startTransition(() => setLoading(false));
+      return;
+    }
     let cancelled = false;
     async function load() {
       const { data, error } = await supabase
@@ -1504,7 +2065,7 @@ export function useCodePool(filters = {}) {
       if (filters.limit) query = query.limit(filters.limit);
       else query = query.limit(500);
 
-      const { data, error, count } = await query;
+      const { data, error } = await query;
       if (cancelled) return;
       if (!error) setCodes(data || []);
 
@@ -1701,15 +2262,15 @@ export function useSupplies() {
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    startTransition(() => { setLoading(true); setError(null); });
     const { data, error: err } = await supabase
       .from('supplies')
       .select('*')
       .eq('active', true)
       .order('code');
-    if (err) setError(err.message);
-    else setSupplies(data || []);
-    setLoading(false);
+    if (err) startTransition(() => setError(err.message));
+    else startTransition(() => setSupplies(data || []));
+    startTransition(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -1747,16 +2308,16 @@ export function useSupplyRequests(referenceId) {
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    startTransition(() => setLoading(true));
     let query = supabase
       .from('supply_requests')
       .select('*, supplies(code, description, unit_of_measure)')
       .order('created_at', { ascending: false });
     if (referenceId) query = query.eq('reference_id', referenceId);
     const { data, error: err } = await query;
-    if (err) setError(err.message);
-    else setRequests(data || []);
-    setLoading(false);
+    if (err) startTransition(() => setError(err.message));
+    else startTransition(() => setRequests(data || []));
+    startTransition(() => setLoading(false));
   }, [referenceId]);
 
   useEffect(() => { load(); }, [load]);
@@ -1835,24 +2396,36 @@ export async function confirmSupplyAsUsed(reference_id, request) {
 export function useReferenceSupplies(referenceId) {
   const [supplies, setSupplies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!referenceId) { setSupplies([]); setLoading(false); return; }
+    if (!referenceId) {
+      startTransition(() => { setSupplies([]); setLoading(false); setError(null); });
+      return undefined;
+    }
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       const { data, error } = await supabase
         .from('reference_supplies')
         .select('*, supplies(code, description, unit_of_measure)')
         .eq('reference_id', referenceId)
         .order('id');
-      if (!error && !cancelled) setSupplies(data || []);
+      if (error) throw error;
+      if (!cancelled) setSupplies(data || []);
       if (!cancelled) setLoading(false);
     }
-    load();
+    load().catch(loadError => {
+      if (!cancelled) {
+        setError(loadError);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, [referenceId]);
+  }, [referenceId, reloadKey]);
 
-  return { supplies, loading };
+  return { supplies, loading, error, refresh: () => setReloadKey(key => key + 1) };
 }
 
 export async function saveReferenceSupply({ id, reference_id, supply_id, talla = null, quantity, unit_of_measure, notes }) {
@@ -1903,7 +2476,7 @@ export async function saveReferenceSuppliesByTalla(reference_id, supply_id, unit
 
   if (inserts.length === 0) return { error: null, count: 0 };
 
-  const { error, count } = await supabase.from('reference_supplies').insert(inserts);
+  const { error } = await supabase.from('reference_supplies').insert(inserts);
   return { error, count: inserts.length };
 }
 
@@ -1919,16 +2492,19 @@ export function useMediciones(referenceId) {
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    if (!referenceId) { setMediciones([]); setLoading(false); return; }
+    startTransition(() => setLoading(true));
+    if (!referenceId) {
+      startTransition(() => { setMediciones([]); setLoading(false); });
+      return;
+    }
     const { data, error: err } = await supabase
       .from('mediciones')
       .select('*')
       .eq('reference_id', referenceId)
       .order('created_at', { ascending: false });
-    if (err) setError(err.message);
-    else setMediciones(data || []);
-    setLoading(false);
+    if (err) startTransition(() => setError(err.message));
+    else startTransition(() => setMediciones(data || []));
+    startTransition(() => setLoading(false));
   }, [referenceId]);
 
   useEffect(() => { load(); }, [load]);
@@ -1969,11 +2545,11 @@ export async function deleteMedicion(id) {
 export async function updateReferenceStatusByNombre(referenceId, statusNombre) {
   const { data: st } = await supabase
     .from('reference_statuses')
-    .select('id')
+    .select('id, active')
     .eq('status', statusNombre)
     .maybeSingle();
 
-  if (!st) return { error: { message: `Status ${statusNombre} no encontrado en reference_statuses` } };
+  if (!st || st.active === false) return { error: { message: `Status ${statusNombre} no encontrado en reference_statuses` } };
 
   return supabase
     .from('references')
@@ -1994,16 +2570,19 @@ export function useLaboratorios(referenceId) {
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    if (!referenceId) { setLaboratorios([]); setLoading(false); return; }
+    startTransition(() => setLoading(true));
+    if (!referenceId) {
+      startTransition(() => { setLaboratorios([]); setLoading(false); });
+      return;
+    }
     const { data, error: err } = await supabase
       .from('laboratorios')
       .select('*')
       .eq('reference_id', referenceId)
       .order('created_at', { ascending: false });
-    if (err) setError(err.message);
-    else setLaboratorios(data || []);
-    setLoading(false);
+    if (err) startTransition(() => setError(err.message));
+    else startTransition(() => setLaboratorios(data || []));
+    startTransition(() => setLoading(false));
   }, [referenceId]);
 
   useEffect(() => { load(); }, [load]);
@@ -2049,7 +2628,10 @@ export function useMolderia(referenceId) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!referenceId) { setMolderia([]); setLoading(false); return; }
+    if (!referenceId) {
+      startTransition(() => { setMolderia([]); setLoading(false); });
+      return;
+    }
     let cancelled = false;
     async function load() {
       const { data, error } = await supabase
@@ -2091,45 +2673,66 @@ export async function deleteMolderia(id) {
 export function useCorteTypes() {
   const [tipos, setTipos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       const { data, error } = await supabase
         .from('corte_types')
         .select('id, type, description')
         .order('id');
-      if (!error && !cancelled) setTipos(data || []);
+      if (error) throw error;
+      if (!cancelled) setTipos(data || []);
       if (!cancelled) setLoading(false);
     }
-    load();
+    load().catch(loadError => {
+      if (!cancelled) {
+        setError(loadError);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
-  return { tipos, loading };
+  return { tipos, loading, error, refresh: () => setReloadKey(key => key + 1) };
 }
 
 export function useCutsMuestra(referenceId) {
   const [cuts, setCuts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!referenceId) { setCuts([]); setLoading(false); return; }
+    if (!referenceId) {
+      startTransition(() => { setCuts([]); setLoading(false); setError(null); });
+      return undefined;
+    }
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       const { data, error } = await supabase
         .from('cuts')
         .select('*')
         .eq('reference_id', referenceId)
         .order('created_at', { ascending: false });
-      if (!error && !cancelled) setCuts(data || []);
+      if (error) throw error;
+      if (!cancelled) setCuts(data || []);
       if (!cancelled) setLoading(false);
     }
-    load();
+    load().catch(loadError => {
+      if (!cancelled) {
+        setError(loadError);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, [referenceId]);
+  }, [referenceId, reloadKey]);
 
-  return { cuts, loading };
+  return { cuts, loading, error, refresh: () => setReloadKey(key => key + 1) };
 }
 
 export async function createCutMuestra(data) {
@@ -2159,24 +2762,36 @@ export async function deleteCut(id) {
 export function useSewingsMuestra(referenceId) {
   const [sewings, setSewings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!referenceId) { setSewings([]); setLoading(false); return; }
+    if (!referenceId) {
+      startTransition(() => { setSewings([]); setLoading(false); setError(null); });
+      return undefined;
+    }
     let cancelled = false;
+    startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       const { data, error } = await supabase
         .from('sewings')
         .select('*')
         .eq('reference_id', referenceId)
         .order('created_at', { ascending: false });
-      if (!error && !cancelled) setSewings(data || []);
+      if (error) throw error;
+      if (!cancelled) setSewings(data || []);
       if (!cancelled) setLoading(false);
     }
-    load();
+    load().catch(loadError => {
+      if (!cancelled) {
+        setError(loadError);
+        setLoading(false);
+      }
+    });
     return () => { cancelled = true; };
-  }, [referenceId]);
+  }, [referenceId, reloadKey]);
 
-  return { sewings, loading };
+  return { sewings, loading, error, refresh: () => setReloadKey(key => key + 1) };
 }
 
 export async function createSewing(data) {
@@ -2218,8 +2833,11 @@ export function usePanelCreativo(refIds) {
   const key = (refIds || []).join(',');
 
   const refresh = useCallback(async () => {
-    if (!refIds || refIds.length === 0) { setData({}); setLoading(false); return; }
-    setLoading(true);
+    if (!refIds || refIds.length === 0) {
+      startTransition(() => { setData({}); setLoading(false); setError(null); });
+      return;
+    }
+    startTransition(() => setLoading(true));
     setError(null);
     try {
       const q = {
@@ -2253,11 +2871,11 @@ export function usePanelCreativo(refIds) {
       });
       (cons.data || []).forEach(r => { if (byRef[r.reference_id]) byRef[r.reference_id].consumosCreativo += 1; });
 
-      setData(byRef);
+      startTransition(() => setData(byRef));
     } catch (e) {
-      setError(e);
+      startTransition(() => setError(e));
     } finally {
-      setLoading(false);
+      startTransition(() => setLoading(false));
     }
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
