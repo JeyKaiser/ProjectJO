@@ -1,7 +1,7 @@
 ---
 description: "Worker general para implementación, debugging moderado, pruebas y refactoring convencional."
 mode: subagent
-model: openai/gpt-5.6-terra
+model: openai/gpt-6-terra
 hidden: true
 permission:
   task: deny

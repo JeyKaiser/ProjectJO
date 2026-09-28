@@ -2,7 +2,7 @@
 name: atelier-data
 description: Agente especialista en análisis de datos de manufactura textil y colecciones de moda (Matriz JO). Audita, segmenta, analiza eficiencia textil y genera reportes premium de archivos CSV/Excel.
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: openai/gpt-6-terra
 permission:
   edit: ask
   bash: ask

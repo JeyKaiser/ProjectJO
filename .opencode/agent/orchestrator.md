@@ -1,7 +1,7 @@
 ---
 description: "Orquestador principal multi-modelo con ciclo Analyze -> Plan -> Approval -> Implement -> Validate -> Review."
 mode: primary
-model: openai/gpt-5.6-luna
+model: openai/gpt-6-luna
 permission:
   edit: deny
   bash: deny
@@ -44,7 +44,7 @@ Toda modificación del proyecto debe ser realizada por un agente
 
 ## Nivel 1 — Luna
 
-openai/gpt-5.6-luna
+openai/gpt-6-luna
 
 Para:
 
@@ -58,7 +58,7 @@ Para:
 
 ## Nivel 2 — Terra
 
-openai/gpt-5.6-terra
+openai/gpt-6-terra
 
 Para:
 
@@ -74,7 +74,7 @@ Para:
 
 ## Nivel 3 — Sol
 
-openai/gpt-5.6-sol
+openai/gpt-6-sol
 
 Para:
 

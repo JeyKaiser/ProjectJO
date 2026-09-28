@@ -21,6 +21,8 @@ export const ROUTE_PERMISSIONS = {
   guiaUsuario: [ROLES.ADMIN],
   creativo: [ROLES.ADMIN, ROLES.CREATIVO],
   importarCorte: [ROLES.ADMIN, ROLES.CORTADOR, ROLES.LIDER_CORTADOR],
+  importarReferencias: [ROLES.ADMIN],
+  importarReferenciasLegacy: [ROLES.ADMIN],
   informesCorte: [ROLES.ADMIN, ROLES.CORTADOR, ROLES.LIDER_CORTADOR],
 };
 

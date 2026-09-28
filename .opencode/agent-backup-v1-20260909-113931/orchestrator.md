@@ -1,7 +1,7 @@
 ---
 description: "Orquestador multi-modelo que selecciona Luna, Terra, Sol o solicita aprobación antes de Astra."
 mode: primary
-model: openai/gpt-5.6-luna
+model: openai/gpt-6-luna
 permission:
   task:
     "*": deny

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen, Package, Palette } from 'lucide-react';
+import { FileText, Scissors, PackageCheck, Settings, FolderOpen, LayoutDashboard, BookMarked, Shield, FileSpreadsheet, BarChart2, Hash, PanelLeftClose, PanelLeftOpen, Package, Palette, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 
@@ -180,6 +180,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose = () => {} }
             <NavLink to="/configuracion/guia-usuario" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Guia para crear usuarios' : undefined}>
               <span className="nav-item-icon"><BookMarked size={20} /></span>
               <span>Guía de usuarios</span>
+            </NavLink>
+          )}
+
+          {isAdmin && (
+            <NavLink to="/admin/importar-referencias" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Importar referencias' : undefined}>
+              <span className="nav-item-icon"><Upload size={20} /></span>
+              <span>Importar referencias</span>
             </NavLink>
           )}
 

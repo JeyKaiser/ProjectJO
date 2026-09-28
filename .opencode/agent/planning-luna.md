@@ -1,7 +1,7 @@
 ---
 description: "Planificador económico para cambios pequeños, localizados y de bajo riesgo."
 mode: subagent
-model: openai/gpt-5.6-luna
+model: openai/gpt-6-luna
 hidden: true
 permission:
   edit: deny

@@ -20,7 +20,7 @@ function mapRoleToDB(role) {
 }
 
 
-export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
+export default function AsignacionTelasConsumos({ dbRefId: referenceId, tallajeGroupId }) {
   const { role } = useAuth();
 
   const canConfirmarTela = role === 'Administrador' || role === 'Diseñador Creativo';
@@ -60,15 +60,14 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
   }, [refFabrics]);
 
   useEffect(() => {
-    if (!refId) return;
+    if (!referenceId) return;
     let cancelled = false;
     async function load() {
       try {
-        const refNum = refId.replace('REF-', '');
         const { data: ref, error: refError } = await supabase
           .from('references')
           .select('id, tallaje_group_id')
-          .eq('reference_number', refNum)
+          .eq('id', referenceId)
           .maybeSingle();
         if (refError) throw refError;
 
@@ -95,7 +94,7 @@ export default function AsignacionTelasConsumos({ refId, tallajeGroupId }) {
     }
     load();
     return () => { cancelled = true; };
-  }, [refId, tallajeGroupId]);
+  }, [referenceId, tallajeGroupId]);
 
   const resetForm = useCallback(() => {
     setSelectedFabric(null);

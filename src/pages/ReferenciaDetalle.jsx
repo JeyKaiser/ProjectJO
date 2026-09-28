@@ -505,7 +505,7 @@ export default function ReferenciaDetalle() {
 
         {/* SECCIÓN 2: Telas y Consumos */}
         <SeccionColapsable titulo="Telas y Consumos" icono={<Scissors size={18} />} accentColor="var(--temp-warm-border)" defaultOpen={false}>
-           <AsignacionTelasConsumos refId={ref.id} />
+           <AsignacionTelasConsumos dbRefId={ref.dbId} />
         </SeccionColapsable>
 
         {/* SECCIÓN 2.5: Estado Trazador */}

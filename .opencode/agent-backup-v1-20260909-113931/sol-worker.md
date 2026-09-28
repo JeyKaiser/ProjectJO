@@ -1,7 +1,7 @@
 ---
 description: "Worker avanzado para arquitectura, debugging difícil, seguridad, integraciones y problemas complejos."
 mode: subagent
-model: openai/gpt-5.6-sol
+model: openai/gpt-6-sol
 hidden: true
 permission:
   task: deny

@@ -1,7 +1,7 @@
 ---
 description: "Planificador de propósito general para features, debugging y cambios multarchivo de complejidad media."
 mode: subagent
-model: openai/gpt-5.6-terra
+model: openai/gpt-6-terra
 hidden: true
 permission:
   edit: deny

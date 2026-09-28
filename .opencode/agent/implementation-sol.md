@@ -1,7 +1,7 @@
 ---
 description: "Implementador senior para cambios complejos y de alto impacto previamente aprobados."
 mode: subagent
-model: openai/gpt-5.6-sol
+model: openai/gpt-6-sol
 hidden: true
 permission:
   edit: allow

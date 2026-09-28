@@ -1,7 +1,7 @@
 ---
 description: "Implementador económico para cambios pequeños previamente aprobados."
 mode: subagent
-model: openai/gpt-5.6-luna
+model: openai/gpt-6-luna
 hidden: true
 permission:
   edit: allow

@@ -1,7 +1,7 @@
 ---
 description: "Revisor senior independiente para arquitectura, seguridad, datos y cambios de alto riesgo."
 mode: subagent
-model: openai/gpt-5.6-sol
+model: openai/gpt-6-sol
 hidden: true
 permission:
   edit: deny

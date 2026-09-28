@@ -29,6 +29,8 @@ const AdminCodigos = lazy(() => import('./pages/AdminCodigos'));
 const AdminInsumos = lazy(() => import('./pages/AdminInsumos'));
 const PanelCreativo = lazy(() => import('./pages/PanelCreativo'));
 const GuiaCrearUsuario = lazy(() => import('./pages/GuiaCrearUsuario'));
+const ImportarCSV = lazy(() => import('./pages/ImportarCSV'));
+const ImportarLegacyCSV = lazy(() => import('./pages/ImportarLegacyCSV'));
 
 function App() {
   const { authError, loading, session, signOut } = useAuth();
@@ -188,6 +190,16 @@ function App() {
             <Route path="/importar/corte" element={
               <ProtectedRoute allowedRoles={ROUTE_PERMISSIONS.importarCorte}>
                 <ImportarCorteCSV />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/importar-referencias" element={
+              <ProtectedRoute allowedRoles={ROUTE_PERMISSIONS.importarReferencias}>
+                <ImportarCSV />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/importar-referencias/legacy" element={
+              <ProtectedRoute allowedRoles={ROUTE_PERMISSIONS.importarReferenciasLegacy}>
+                <ImportarLegacyCSV />
               </ProtectedRoute>
             } />
             <Route path="/informes/corte" element={

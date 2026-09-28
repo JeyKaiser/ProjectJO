@@ -186,6 +186,7 @@ export default function TallerKanban() {
     setActionError(null);
     try {
       const selectedCollection = collections.find(c => String(c.id) === formData.coleccion);
+      if (!selectedCollection) throw new Error('La colección seleccionada ya no está disponible');
       const rawCollection = selectedCollection
         ? [selectedCollection.code, selectedCollection.year].filter(Boolean).join(' - ')
         : formData.coleccion;
@@ -195,6 +196,8 @@ export default function TallerKanban() {
         const { data: reference, error: referenceError } = await supabase
           .from('references')
           .select('id')
+          .eq('collection_id', selectedCollection.id)
+          .eq('year', selectedCollection.year)
           .eq('reference_number', formData.referencia.trim())
           .maybeSingle();
         if (referenceError) throw referenceError;

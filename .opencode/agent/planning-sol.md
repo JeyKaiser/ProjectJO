@@ -1,7 +1,7 @@
 ---
 description: "Planificador senior para arquitectura, seguridad, migraciones y cambios técnicos de alto impacto."
 mode: subagent
-model: openai/gpt-5.6-sol
+model: openai/gpt-6-sol
 hidden: true
 permission:
   edit: deny

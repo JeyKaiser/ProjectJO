@@ -202,15 +202,18 @@ export default function FichaTecnicaForm() {
       const collectionId = parseInt(formData.coleccion);
       const yearInt = parseInt(formData.year);
 
-      // Verificar unicidad del reference_number
+      // La identidad es colección + año + referencia; el mismo número puede
+      // existir legítimamente en otro año o colección.
       const { data: existingRef } = await supabase
         .from('references')
         .select('id')
+        .eq('collection_id', collectionId)
+        .eq('year', yearInt)
         .eq('reference_number', refNum)
         .maybeSingle();
 
       if (existingRef) {
-        setErrors(prev => ({ ...prev, referencia: 'Este numero de referencia ya existe' }));
+        setErrors(prev => ({ ...prev, referencia: 'Este número de referencia ya existe en la colección y año seleccionados' }));
         setSaving(false);
         return;
       }
