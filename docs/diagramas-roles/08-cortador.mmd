@@ -1,0 +1,18 @@
+sequenceDiagram
+    title Cortador - Procesar solicitud
+    participant Cortador
+    participant Aplicacion
+    participant SupabaseJo
+    Cortador->>Aplicacion: Abrir Corte de Muestras
+    Aplicacion->>SupabaseJo: useCutRequests
+    SupabaseJo-->>Aplicacion: Solicitudes en cola
+    Cortador->>Aplicacion: Asignar cortadores e iniciar
+    Aplicacion->>SupabaseJo: updateCutRequest a en_corte
+    SupabaseJo-->>Aplicacion: Corte iniciado
+    Cortador->>Aplicacion: Completar corte
+    Aplicacion->>SupabaseJo: updateCutRequest a cortado y fecha
+    SupabaseJo-->>Aplicacion: Corte completado
+    Cortador->>Aplicacion: Registrar entrega
+    Aplicacion->>SupabaseJo: updateCutRequest a entregado
+    SupabaseJo-->>Aplicacion: Entrega registrada
+    Aplicacion-->>Cortador: Actualizar tablero de corte

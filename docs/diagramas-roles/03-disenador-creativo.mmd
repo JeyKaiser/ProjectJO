@@ -1,0 +1,16 @@
+sequenceDiagram
+    title Diseñador Creativo - Tela y consumo
+    participant Creativo
+    participant Aplicacion
+    participant SupabaseJo
+    Creativo->>Aplicacion: Abrir detalle de referencia
+    Aplicacion->>SupabaseJo: Consultar telas y consumos
+    SupabaseJo-->>Aplicacion: Materiales y versiones
+    Creativo->>Aplicacion: Seleccionar tela y consumo
+    Aplicacion->>SupabaseJo: saveReferenceFabric
+    SupabaseJo-->>Aplicacion: Tela asociada
+    Aplicacion->>SupabaseJo: Consultar última versión CREATIVO
+    SupabaseJo-->>Aplicacion: Versión vigente
+    Aplicacion->>SupabaseJo: saveConsumos con nueva versión
+    SupabaseJo-->>Aplicacion: Consumo registrado
+    Aplicacion-->>Creativo: Mostrar tela y consumo

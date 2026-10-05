@@ -1,0 +1,438 @@
+[
+  {
+    "slug": "01-administrador",
+    "role": "Administrador",
+    "flow": "Administrar personal",
+    "source": "src/pages/ConfiguracionPersonas.jsx",
+    "description": "Administra la configuración y puede utilizar todos los módulos.",
+    "routes": "Todas las rutas protegidas.",
+    "cases": [
+      [
+        "ADM-01",
+        "Administrar personal",
+        "Crear, editar, activar, desactivar y eliminar personas; asociarlas con su área y oficio."
+      ],
+      [
+        "ADM-02",
+        "Administrar colecciones",
+        "Crear y editar colecciones; gestionar años y visibilidad."
+      ],
+      [
+        "ADM-03",
+        "Administrar códigos MD/PT",
+        "Gestionar códigos, asignaciones, rangos y consultar su registro de auditoría."
+      ],
+      [
+        "ADM-04",
+        "Administrar insumos y referentes",
+        "Mantener catálogos de insumos y referentes, importar datos y gestionar fotografías de referentes."
+      ],
+      [
+        "ADM-05",
+        "Importar referencias",
+        "Acceder a importación CSV de referencias y al importador legacy."
+      ],
+      [
+        "ADM-06",
+        "Operar módulos funcionales",
+        "Crear fichas, operar taller y corte, registrar trazos y completar fichas finales."
+      ],
+      [
+        "ADM-07",
+        "Consultar guía de habilitación de usuarios",
+        "Seguir la guía para crear una identidad en Supabase Auth y enlazar jo.user_accounts. Es un procedimiento administrativo externo a la aplicación."
+      ]
+    ],
+    "conditions": "El diagrama ADM-01 representa el registro de una persona y su oficio. La cuenta de acceso es una entidad distinta y no se crea automáticamente con ese registro. El log de códigos se consulta; sus entradas las generan los triggers y no se editan directamente."
+  },
+  {
+    "slug": "02-creador-de-ficha",
+    "role": "Creador de Ficha",
+    "flow": "Crear una referencia",
+    "source": "src/pages/FichaTecnicaForm.jsx",
+    "description": "Registra la identidad y las características de las prendas, y controla su seguimiento.",
+    "routes": "/ficha-nueva, /referentes, /v2/sm/* y rutas comunes.",
+    "cases": [
+      [
+        "FIC-01",
+        "Crear referencia y ficha inicial",
+        "Seleccionar colección y año; registrar número, nombre, color, línea, sublínea, tallaje y características de la prenda."
+      ],
+      [
+        "FIC-02",
+        "Editar información general",
+        "Actualizar los campos habilitados en el detalle, incluido el estado general."
+      ],
+      [
+        "FIC-03",
+        "Consultar referentes",
+        "Consultar el catálogo y consumos históricos para elegir un referente base."
+      ],
+      [
+        "FIC-04",
+        "Vincular referente base",
+        "Asociar una referencia anterior como base de moldería durante la creación de la ficha."
+      ],
+      [
+        "FIC-05",
+        "Operar máquina de estados",
+        "Consultar bandejas, alertas e historial; inicializar estados y ejecutar transiciones válidas."
+      ]
+    ],
+    "conditions": "El número se valida dentro de colección + año. El diagrama muestra la creación sin referente opcional. La asignación oficial de códigos MD/PT y la administración de catálogos se reservan al Administrador."
+  },
+  {
+    "slug": "03-disenador-creativo",
+    "role": "Diseñador Creativo",
+    "flow": "Asignar tela y consumo creativo",
+    "source": "src/components/AsignacionTelasConsumos.jsx",
+    "description": "Desarrolla la muestra y registra materiales, procesos y validaciones de diseño.",
+    "routes": "/creativo y rutas comunes, con acciones dentro del detalle de referencia.",
+    "cases": [
+      [
+        "CRE-01",
+        "Consultar avance creativo",
+        "Buscar referencias y revisar progreso de laboratorio, corte, confección, insumos, telas, consumos y medición."
+      ],
+      [
+        "CRE-02",
+        "Gestionar telas y consumos creativos",
+        "Asociar telas a la referencia, registrar consumos versionados y confirmar telas utilizadas."
+      ],
+      [
+        "CRE-03",
+        "Gestionar insumos",
+        "Solicitar insumos a Bodega, cancelar solicitudes y confirmar insumos recibidos como utilizados; registrar consumos por talla."
+      ],
+      [
+        "CRE-04",
+        "Registrar laboratorio y moldería",
+        "Crear y actualizar laboratorios y registrar información de moldería."
+      ],
+      [
+        "CRE-05",
+        "Registrar corte y confección de muestra",
+        "Registrar cortes y confecciones de muestra desde el detalle de la referencia."
+      ],
+      [
+        "CRE-06",
+        "Registrar medición de muestra",
+        "Guardar talla, medición, resultado de aprobación o rechazo y observaciones."
+      ],
+      [
+        "CRE-07",
+        "Solicitar corte",
+        "Crear una solicitud para muestra, laboratorio, pieza u otro tipo habilitado."
+      ],
+      [
+        "CRE-08",
+        "Entregar o devolver referencia",
+        "Entregar a Diseño Técnico cuando el área CREATIVO está IN_PROGRESS, o devolver con observaciones."
+      ]
+    ],
+    "conditions": "El diagrama CRE-02 muestra una tela con valores de consumo que generan una nueva versión CREATIVO. Registrar una medición APROBADA con este rol no actualiza automáticamente el estado general: la interfaz indica que debe hacerlo Administrador o Creador de Ficha."
+  },
+  {
+    "slug": "04-disenador-tecnico",
+    "role": "Diseñador Técnico",
+    "flow": "Recibir y entregar una referencia",
+    "source": "src/pages/ReferenciaDetalle.jsx",
+    "description": "Recibe el trabajo técnico y coordina su entrega hacia Trazador.",
+    "routes": "Rutas comunes; las acciones se habilitan en el detalle de referencia.",
+    "cases": [
+      [
+        "TEC-01",
+        "Recibir referencia",
+        "Aceptar una entrega destinada a TECNICO y registrar recepción e inicio."
+      ],
+      [
+        "TEC-02",
+        "Entregar a Trazador",
+        "Cerrar el trabajo técnico en curso y crear la siguiente entrega hacia TRAZADOR."
+      ],
+      [
+        "TEC-03",
+        "Devolver con observaciones",
+        "Registrar una devolución al área anterior mediante el flujo de entregas."
+      ],
+      [
+        "TEC-04",
+        "Solicitar corte",
+        "Enviar desde el detalle una solicitud de corte, por ejemplo de contramuestra."
+      ],
+      [
+        "TEC-05",
+        "Solicitar insumos",
+        "Crear y cancelar solicitudes de insumos a Bodega."
+      ],
+      [
+        "TEC-06",
+        "Consultar desarrollo",
+        "Revisar materiales, muestra, historial y ficha final de la referencia."
+      ]
+    ],
+    "conditions": "La recepción exige área TECNICO en PENDING_RECEIPT; la entrega o devolución exige IN_PROGRESS. La entrega mediante deliver_reference_handoff cierra la fila actual y crea la siguiente en una transacción. La pantalla /produccion/consumos no permite el rol Diseñador Técnico, aunque la política de base de datos sí contempla consumos TECNICO. No se documenta la edición de esos consumos como un flujo completo disponible en la interfaz."
+  },
+  {
+    "slug": "05-lider-de-modistas",
+    "role": "Líder de Modistas",
+    "flow": "Avanzar una orden de taller",
+    "source": "src/pages/TallerKanban.jsx",
+    "description": "Coordina el avance de las órdenes de trabajo del taller.",
+    "routes": "/taller y rutas comunes.",
+    "cases": [
+      [
+        "MOD-01",
+        "Consultar tablero de taller",
+        "Revisar órdenes por corte, confección, proceso externo y medición; filtrar por estado y consultar indicadores."
+      ],
+      [
+        "MOD-02",
+        "Crear orden de trabajo",
+        "Registrar prenda, colección, referencia opcional, etapa, prioridad y observaciones."
+      ],
+      [
+        "MOD-03",
+        "Iniciar orden",
+        "Cambiar una orden pendiente a active."
+      ],
+      [
+        "MOD-04",
+        "Avanzar o cerrar orden",
+        "Mover una orden activa a la siguiente etapa; completar la orden al terminar la última etapa."
+      ],
+      [
+        "MOD-05",
+        "Solicitar insumos",
+        "Solicitar y cancelar solicitudes de insumos en el detalle de referencia."
+      ]
+    ],
+    "conditions": "El diagrama MOD-03/MOD-04 parte de una orden existente. El tablero distingue etapas y estados. Las políticas permiten también escrituras de contramuestras y consumos CONTRAMUESTRA para este rol, pero /produccion/ficha-final y /produccion/consumos no están habilitadas para él; esos permisos de base de datos no equivalen a pantallas accesibles."
+  },
+  {
+    "slug": "06-trazador",
+    "role": "Trazador",
+    "flow": "Registrar un trazo",
+    "source": "src/components/TrazoForm.jsx",
+    "description": "Registra trazos, analiza opciones y mantiene los consumos de trazado.",
+    "routes": "/trazador, /trazador/comparativo/:refId, /produccion/consumos y rutas comunes.",
+    "cases": [
+      [
+        "TRA-01",
+        "Recibir referencia",
+        "Aceptar una entrega destinada a TRAZADOR desde el detalle de referencia."
+      ],
+      [
+        "TRA-02",
+        "Consultar trazos",
+        "Buscar referencias y revisar sus telas y trazos por fase."
+      ],
+      [
+        "TRA-03",
+        "Crear, editar o eliminar trazo",
+        "Registrar fase de costeo o contramuestra, opción, piezas, tallas, anchos, consumo, fechas y datos del archivo Audaces."
+      ],
+      [
+        "TRA-04",
+        "Comparar opciones",
+        "Comparar trazos y registrar las opciones seleccionadas en el comparativo."
+      ],
+      [
+        "TRA-05",
+        "Registrar consumos de Trazador",
+        "Guardar consumos versionados del área TRAZADOR y consultar sus versiones."
+      ]
+    ],
+    "conditions": "El diagrama TRA-03 representa un nuevo trazo. El rol de las escrituras de consumo debe ser TRAZADOR. Audaces aparece como información registrada; el diagrama no presupone una integración automática con ese software."
+  },
+  {
+    "slug": "07-especificadora",
+    "role": "Especificadora",
+    "flow": "Guardar la ficha final",
+    "source": "src/pages/FichaFinalView.jsx",
+    "description": "Consolida la composición, los cuidados y los datos finales de la prenda.",
+    "routes": "/produccion/ficha-final y rutas comunes.",
+    "cases": [
+      [
+        "ESP-01",
+        "Consultar ficha final",
+        "Seleccionar colección, año y referencia para revisar la ficha completa."
+      ],
+      [
+        "ESP-02",
+        "Gestionar composición",
+        "Registrar materiales y porcentajes para muestra y producción."
+      ],
+      [
+        "ESP-03",
+        "Gestionar cuidados",
+        "Registrar las instrucciones de cuidado asociadas a la referencia."
+      ],
+      [
+        "ESP-04",
+        "Gestionar contramuestras",
+        "Registrar OT, estado, fechas, color, talla, cantidades y observaciones."
+      ],
+      [
+        "ESP-05",
+        "Registrar notas de fabricación",
+        "Registrar datos de notas de fabricación SAP asociados a contramuestras."
+      ],
+      [
+        "ESP-06",
+        "Registrar novedades de calidad",
+        "Registrar hallazgos, clasificación, acciones correctivas y resolución."
+      ],
+      [
+        "ESP-07",
+        "Guardar ficha final",
+        "Validar y persistir los cambios relacionados mediante save_final_sheet."
+      ]
+    ],
+    "conditions": "Las contramuestras pendientes, activas o utilizadas requieren código de OT. El guardado se hace mediante una transacción que se ejecuta con los permisos del usuario. Los datos SAP son registrados en la aplicación; este flujo no implica un intercambio automático con SAP."
+  },
+  {
+    "slug": "08-cortador",
+    "role": "Cortador",
+    "flow": "Procesar una solicitud de corte",
+    "source": "src/pages/CorteKanban.jsx",
+    "description": "Ejecuta y registra el trabajo de corte.",
+    "routes": "/taller/corte, /importar/corte, /informes/corte y rutas comunes.",
+    "cases": [
+      [
+        "COR-01",
+        "Consultar cola de corte",
+        "Filtrar solicitudes por colección o cortador y consultar solicitudes archivadas."
+      ],
+      [
+        "COR-02",
+        "Crear solicitud manual",
+        "Registrar referencia, colección, tipo, manejo de tela, solicitante, cortadores, fechas y observaciones."
+      ],
+      [
+        "COR-03",
+        "Asignar e iniciar corte",
+        "Seleccionar uno o varios cortadores y cambiar la solicitud a en_corte."
+      ],
+      [
+        "COR-04",
+        "Completar y entregar corte",
+        "Registrar cortado con fecha de entrega y después el estado entregado."
+      ],
+      [
+        "COR-05",
+        "Gestionar historial",
+        "Reencolar, archivar y desarchivar solicitudes."
+      ],
+      [
+        "COR-06",
+        "Importar datos de corte",
+        "Cargar CSV; la pantalla también ofrece sincronización de entrada desde Google Sheets mediante una función Supabase."
+      ],
+      [
+        "COR-07",
+        "Consultar y exportar informe",
+        "Consultar informes de corte y exportar sus detalles a CSV."
+      ]
+    ],
+    "conditions": "El diagrama COR-03/COR-04 recorre en_cola, en_corte, cortado y entregado. El trabajo físico de preparar, fusionar y cortar telas sucede fuera de la aplicación. La disponibilidad real de la sincronización Google Sheets depende de la función y su configuración desplegada."
+  },
+  {
+    "slug": "09-lider-de-cortadores",
+    "role": "Líder de Cortadores",
+    "flow": "Asignar solicitudes de corte",
+    "source": "src/pages/CorteKanban.jsx",
+    "description": "Coordina solicitudes y asignaciones del equipo de corte.",
+    "routes": "/taller/corte, /importar/corte, /informes/corte y rutas comunes.",
+    "cases": [
+      [
+        "LCO-01",
+        "Supervisar cola de corte",
+        "Revisar solicitudes y filtrar por colección o cortador."
+      ],
+      [
+        "LCO-02",
+        "Registrar solicitudes",
+        "Crear solicitudes manuales con sus datos y observaciones."
+      ],
+      [
+        "LCO-03",
+        "Asignar cortadores",
+        "Seleccionar el equipo responsable e iniciar el corte."
+      ],
+      [
+        "LCO-04",
+        "Supervisar avances y entregas",
+        "Registrar estados de corte y consultar el historial."
+      ],
+      [
+        "LCO-05",
+        "Gestionar historial",
+        "Reencolar, archivar o desarchivar solicitudes."
+      ],
+      [
+        "LCO-06",
+        "Importar solicitudes",
+        "Usar la importación CSV o la sincronización de entrada disponible en la pantalla."
+      ],
+      [
+        "LCO-07",
+        "Consultar y exportar informes",
+        "Consultar el informe de corte y exportar detalles a CSV."
+      ]
+    ],
+    "conditions": "Actualmente tiene los mismos permisos de rutas y de cut_requests que Cortador. La diferencia es organizativa. La documentación del oficio menciona definir prioridades, pero el tablero de corte no implementa un permiso exclusivo del líder ni un flujo específico de priorización; no se agrega esa función al diagrama."
+  },
+  {
+    "slug": "10-bodega",
+    "role": "Bodega",
+    "flow": "Registrar una entrega de insumos",
+    "source": "src/components/InsumosBodega.jsx",
+    "description": "Atiende solicitudes de insumos y registra las entregas.",
+    "routes": "Rutas comunes; sección Insumos Bodega dentro del detalle de referencia.",
+    "cases": [
+      [
+        "BOD-01",
+        "Consultar solicitudes",
+        "Revisar las solicitudes de insumos asociadas a una referencia."
+      ],
+      [
+        "BOD-02",
+        "Registrar entrega",
+        "Guardar código entregado, cantidad, responsable, fecha y observaciones; cambiar la solicitud a ENTREGADO."
+      ],
+      [
+        "BOD-03",
+        "Consultar trazabilidad",
+        "Revisar cantidades solicitadas y entregadas y estado de las solicitudes."
+      ]
+    ],
+    "conditions": "No existe una ruta independiente /bodega. En la interfaz, Bodega entrega insumos; la confirmación de que se usaron corresponde a Diseñador Creativo o Administrador. La política de UPDATE de supply_requests permite más roles que el botón de entrega; la distinción indicada aquí corresponde al flujo presentado por la interfaz."
+  },
+  {
+    "slug": "11-visitante",
+    "role": "Visitante",
+    "flow": "Consultar una referencia",
+    "source": "src/pages/ReferenciaDetalle.jsx",
+    "description": "Consulta información de la aplicación con una cuenta habilitada.",
+    "routes": "/ y /colecciones con sus rutas de año y detalle.",
+    "cases": [
+      [
+        "VIS-01",
+        "Consultar Dashboard",
+        "Ver indicadores y avance general de colecciones."
+      ],
+      [
+        "VIS-02",
+        "Explorar colecciones",
+        "Navegar por colección y año, buscar y filtrar referencias."
+      ],
+      [
+        "VIS-03",
+        "Consultar referencia",
+        "Revisar información general, materiales, procesos, historial y secciones de ficha final disponibles en el detalle."
+      ]
+    ],
+    "conditions": "Visitante es un rol autenticado. Sin sesión se muestra el login; no se habilita acceso público al negocio. Las políticas del repositorio permiten consulta con cuenta activa y no conceden escrituras funcionales al rol Visitante."
+  }
+]

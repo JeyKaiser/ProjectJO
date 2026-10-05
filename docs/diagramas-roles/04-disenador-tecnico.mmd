@@ -1,0 +1,17 @@
+sequenceDiagram
+    title Diseñador Técnico - Recepción y entrega
+    participant Tecnico
+    participant Aplicacion
+    participant SupabaseJo
+    Tecnico->>Aplicacion: Abrir referencia asignada
+    Aplicacion->>SupabaseJo: Consultar reference_handoffs
+    SupabaseJo-->>Aplicacion: PENDING_RECEIPT
+    Tecnico->>Aplicacion: Recibir referencia
+    Aplicacion->>SupabaseJo: updateReferenceHandoff a IN_PROGRESS
+    SupabaseJo-->>Aplicacion: Recepción registrada
+    Aplicacion-->>Tecnico: Habilitar entrega o devolución
+    Tecnico->>Aplicacion: Entregar a Trazador
+    Aplicacion->>SupabaseJo: RPC deliver_reference_handoff a TRAZADOR
+    SupabaseJo->>SupabaseJo: TRAZADOR queda PENDING_RECEIPT
+    SupabaseJo-->>Aplicacion: Entrega confirmada
+    Aplicacion-->>Tecnico: Actualizar historial de referencia

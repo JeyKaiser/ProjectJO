@@ -1,0 +1,15 @@
+sequenceDiagram
+    title Bodega - Entrega de insumos
+    participant Bodega
+    participant Aplicacion
+    participant SupabaseJo
+    Bodega->>Aplicacion: Abrir detalle de referencia
+    Aplicacion->>SupabaseJo: useSupplyRequests
+    SupabaseJo-->>Aplicacion: Solicitudes de insumos
+    Aplicacion->>Aplicacion: Habilitar entrega para Bodega
+    Aplicacion-->>Bodega: Mostrar solicitudes pendientes
+    Bodega->>Aplicacion: Registrar código, cantidad y responsable
+    Aplicacion->>SupabaseJo: deliverSupplyRequest
+    SupabaseJo->>SupabaseJo: Guardar ENTREGADO y fecha
+    SupabaseJo-->>Aplicacion: Entrega registrada
+    Aplicacion-->>Bodega: Actualizar solicitudes de referencia

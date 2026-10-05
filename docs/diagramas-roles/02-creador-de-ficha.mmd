@@ -1,0 +1,16 @@
+sequenceDiagram
+    title Creador de Ficha - Crear referencia
+    participant CreadorFicha
+    participant Aplicacion
+    participant SupabaseJo
+    CreadorFicha->>Aplicacion: Abrir Ficha nueva
+    Aplicacion->>Aplicacion: Comprobar rol autorizado
+    Aplicacion->>SupabaseJo: Consultar colecciones y catálogos
+    SupabaseJo-->>Aplicacion: Colecciones, años y opciones
+    CreadorFicha->>Aplicacion: Completar y guardar ficha
+    Aplicacion->>Aplicacion: Validar campos y línea
+    Aplicacion->>SupabaseJo: Buscar colección, año y número
+    SupabaseJo-->>Aplicacion: Número disponible
+    Aplicacion->>SupabaseJo: createReference con EN_PROCESO
+    SupabaseJo-->>Aplicacion: Referencia creada
+    Aplicacion-->>CreadorFicha: Confirmar creación de ficha

@@ -1,0 +1,15 @@
+sequenceDiagram
+    title Líder de Cortadores - Asignar corte
+    participant LiderCortadores
+    participant Aplicacion
+    participant SupabaseJo
+    LiderCortadores->>Aplicacion: Abrir tablero de corte
+    Aplicacion->>Aplicacion: Comprobar rol autorizado
+    Aplicacion->>SupabaseJo: Consultar solicitudes y personas
+    SupabaseJo-->>Aplicacion: Cola de corte y cortadores
+    Aplicacion-->>LiderCortadores: Mostrar solicitudes disponibles
+    LiderCortadores->>Aplicacion: Seleccionar solicitud y cortadores
+    Aplicacion->>Aplicacion: Validar selección de cortadores
+    Aplicacion->>SupabaseJo: updateCutRequest con cortadores y en_corte
+    SupabaseJo-->>Aplicacion: Asignación registrada
+    Aplicacion-->>LiderCortadores: Actualizar tablero de corte

@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="955" viewBox="0 0 1250 955" role="img" aria-labelledby="diagramTitle diagramDesc">
+<title id="diagramTitle">Líder de Cortadores: Asignar solicitudes de corte</title>
+<desc id="diagramDesc">Diagrama de secuencia. Precondición: sesión válida y cuenta habilitada.</desc>
+<rect width="100%" height="100%" fill="white"/>
+<rect x="0" y="0" width="1250" height="88" rx="0" fill="#eef3fb"/>
+<text x="38" y="36" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="24" fill="#17243b">09. Líder de Cortadores</text>
+<text x="38" y="66" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="#4d5c74">Asignar solicitudes de corte</text>
+<line x1="170" y1="155" x2="170" y2="874" stroke="#b8c2d3" stroke-width="1" stroke-dasharray="7 5"/>
+<rect x="30" y="108" width="280" height="47" rx="8" fill="#17243b"/>
+<text x="170" y="138" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="white">Líder de Cortadores</text>
+<line x1="620" y1="155" x2="620" y2="874" stroke="#b8c2d3" stroke-width="1" stroke-dasharray="7 5"/>
+<rect x="480" y="108" width="280" height="47" rx="8" fill="#17243b"/>
+<text x="620" y="138" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="white">Aplicación React</text>
+<line x1="1070" y1="155" x2="1070" y2="874" stroke="#b8c2d3" stroke-width="1" stroke-dasharray="7 5"/>
+<rect x="930" y="108" width="280" height="47" rx="8" fill="#17243b"/>
+<text x="1070" y="138" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="white">Supabase · esquema jo</text>
+<text x="31" y="215" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">1</text>
+<line x1="170" y1="210" x2="620" y2="210" stroke="#315bad" stroke-width="2"/>
+<polygon points="620,210 609,205 609,215" fill="#315bad"/>
+<text x="395.0" y="200" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Abrir tablero de corte</text>
+<text x="31" y="281" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">2</text>
+<line x1="620" y1="276" x2="686" y2="276" stroke="#85519a" stroke-width="2"/>
+<line x1="686" y1="276" x2="686" y2="293" stroke="#85519a" stroke-width="2"/>
+<line x1="686" y1="293" x2="620" y2="293" stroke="#85519a" stroke-width="2"/>
+<polygon points="620,293 631,288 631,298" fill="#85519a"/>
+<text x="640" y="266" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Comprobar rol autorizado</text>
+<text x="31" y="347" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">3</text>
+<line x1="620" y1="342" x2="1070" y2="342" stroke="#315bad" stroke-width="2"/>
+<polygon points="1070,342 1059,337 1059,347" fill="#315bad"/>
+<text x="845.0" y="332" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Consultar solicitudes y personas</text>
+<text x="31" y="413" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">4</text>
+<line x1="1070" y1="408" x2="620" y2="408" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="620,408 631,403 631,413" fill="#32755a"/>
+<text x="845.0" y="398" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Cola de corte y cortadores</text>
+<text x="31" y="479" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">5</text>
+<line x1="620" y1="474" x2="170" y2="474" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="170,474 181,469 181,479" fill="#32755a"/>
+<text x="395.0" y="464" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Mostrar solicitudes disponibles</text>
+<text x="31" y="545" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">6</text>
+<line x1="170" y1="540" x2="620" y2="540" stroke="#315bad" stroke-width="2"/>
+<polygon points="620,540 609,535 609,545" fill="#315bad"/>
+<text x="395.0" y="530" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Seleccionar solicitud y cortadores</text>
+<text x="31" y="611" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">7</text>
+<line x1="620" y1="606" x2="686" y2="606" stroke="#85519a" stroke-width="2"/>
+<line x1="686" y1="606" x2="686" y2="623" stroke="#85519a" stroke-width="2"/>
+<line x1="686" y1="623" x2="620" y2="623" stroke="#85519a" stroke-width="2"/>
+<polygon points="620,623 631,618 631,628" fill="#85519a"/>
+<text x="640" y="596" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Validar selección de cortadores</text>
+<text x="31" y="677" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">8</text>
+<line x1="620" y1="672" x2="1070" y2="672" stroke="#315bad" stroke-width="2"/>
+<polygon points="1070,672 1059,667 1059,677" fill="#315bad"/>
+<text x="845.0" y="662" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">updateCutRequest con cortadores y en_corte</text>
+<text x="31" y="743" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">9</text>
+<line x1="1070" y1="738" x2="620" y2="738" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="620,738 631,733 631,743" fill="#32755a"/>
+<text x="845.0" y="728" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Asignación registrada</text>
+<text x="31" y="809" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">10</text>
+<line x1="620" y1="804" x2="170" y2="804" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="170,804 181,799 181,809" fill="#32755a"/>
+<text x="395.0" y="794" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Actualizar tablero de corte</text>
+<rect x="26" y="893" width="1198" height="40" rx="7" fill="#f1f5f9"/>
+<text x="42" y="919" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="15" fill="#4d5c74">Sesión válida y cuenta habilitada · Continua: solicitud · Discontinua: respuesta</text>
+</svg>

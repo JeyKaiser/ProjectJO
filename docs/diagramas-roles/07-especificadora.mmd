@@ -1,0 +1,19 @@
+sequenceDiagram
+    title Especificadora - Guardar ficha final
+    participant Especificadora
+    participant Aplicacion
+    participant SupabaseJo
+    Especificadora->>Aplicacion: Abrir Ficha Final
+    Aplicacion->>Aplicacion: Comprobar rol autorizado
+    Especificadora->>Aplicacion: Seleccionar colección, año y referencia
+    Aplicacion->>SupabaseJo: loadFinalSheet
+    SupabaseJo-->>Aplicacion: Composición, cuidados y contramuestras
+    Especificadora->>Aplicacion: Completar y guardar ficha
+    Aplicacion->>Aplicacion: Validar OT y construir payload
+    Aplicacion->>SupabaseJo: RPC save_final_sheet
+    SupabaseJo->>SupabaseJo: Guardar composición y cuidados
+    SupabaseJo->>SupabaseJo: Guardar contramuestras, notas y calidad
+    SupabaseJo-->>Aplicacion: Guardado confirmado
+    Aplicacion->>SupabaseJo: Recargar loadFinalSheet
+    SupabaseJo-->>Aplicacion: Ficha final guardada
+    Aplicacion-->>Especificadora: Mostrar ficha final actualizada

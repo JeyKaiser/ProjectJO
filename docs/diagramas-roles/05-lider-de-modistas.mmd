@@ -1,0 +1,17 @@
+sequenceDiagram
+    title Líder de Modistas - Orden de taller
+    participant LiderModistas
+    participant Aplicacion
+    participant SupabaseJo
+    LiderModistas->>Aplicacion: Abrir Control de Taller
+    Aplicacion->>Aplicacion: Comprobar acceso al taller
+    Aplicacion->>SupabaseJo: useWorkshopOrders
+    SupabaseJo-->>Aplicacion: Órdenes por etapa y estado
+    Aplicacion-->>LiderModistas: Mostrar tablero de taller
+    LiderModistas->>Aplicacion: Iniciar orden pendiente
+    Aplicacion->>SupabaseJo: updateWorkshopOrder a active
+    SupabaseJo-->>Aplicacion: Orden iniciada
+    LiderModistas->>Aplicacion: Avanzar etapa de orden activa
+    Aplicacion->>SupabaseJo: updateWorkshopOrder con próxima etapa
+    SupabaseJo-->>Aplicacion: Orden actualizada
+    Aplicacion-->>LiderModistas: Actualizar tablero e indicadores

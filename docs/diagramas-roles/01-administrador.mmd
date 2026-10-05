@@ -1,0 +1,15 @@
+sequenceDiagram
+    title Administrador - Administrar personal
+    participant Administrador
+    participant Aplicacion
+    participant SupabaseJo
+    Administrador->>Aplicacion: Abrir Configuración
+    Aplicacion->>Aplicacion: Comprobar rol Administrador
+    Aplicacion->>SupabaseJo: Consultar persons
+    SupabaseJo-->>Aplicacion: Personas por área
+    Administrador->>Aplicacion: Registrar persona y área
+    Aplicacion->>SupabaseJo: Insertar persons
+    SupabaseJo-->>Aplicacion: Identificador de persona
+    Aplicacion->>SupabaseJo: Asignar person_role_assignments
+    SupabaseJo-->>Aplicacion: Asignación registrada
+    Aplicacion-->>Administrador: Actualizar listado de personal

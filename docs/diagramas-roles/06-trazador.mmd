@@ -1,0 +1,16 @@
+sequenceDiagram
+    title Trazador - Registrar trazo
+    participant Trazador
+    participant Aplicacion
+    participant SupabaseJo
+    Trazador->>Aplicacion: Abrir módulo Trazador
+    Aplicacion->>Aplicacion: Comprobar rol autorizado
+    Aplicacion->>SupabaseJo: Consultar referencias y trazos
+    SupabaseJo-->>Aplicacion: Referencias y telas disponibles
+    Trazador->>Aplicacion: Seleccionar referencia y tela
+    Aplicacion-->>Trazador: Mostrar formulario de trazo
+    Trazador->>Aplicacion: Registrar fase, piezas y consumo
+    Aplicacion->>Aplicacion: Validar formulario
+    Aplicacion->>SupabaseJo: createTrazo
+    SupabaseJo-->>Aplicacion: Trazo registrado
+    Aplicacion-->>Trazador: Actualizar listado de trazos

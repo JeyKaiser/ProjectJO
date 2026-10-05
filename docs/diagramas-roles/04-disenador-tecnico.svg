@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="1107" viewBox="0 0 1250 1107" role="img" aria-labelledby="diagramTitle diagramDesc">
+<title id="diagramTitle">Diseñador Técnico: Recibir y entregar una referencia</title>
+<desc id="diagramDesc">Diagrama de secuencia. Precondición: sesión válida y cuenta habilitada.</desc>
+<rect width="100%" height="100%" fill="white"/>
+<rect x="0" y="0" width="1250" height="88" rx="0" fill="#eef3fb"/>
+<text x="38" y="36" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="24" fill="#17243b">04. Diseñador Técnico</text>
+<text x="38" y="66" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="#4d5c74">Recibir y entregar una referencia</text>
+<line x1="170" y1="155" x2="170" y2="1026" stroke="#b8c2d3" stroke-width="1" stroke-dasharray="7 5"/>
+<rect x="30" y="108" width="280" height="47" rx="8" fill="#17243b"/>
+<text x="170" y="138" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="white">Diseñador Técnico</text>
+<line x1="620" y1="155" x2="620" y2="1026" stroke="#b8c2d3" stroke-width="1" stroke-dasharray="7 5"/>
+<rect x="480" y="108" width="280" height="47" rx="8" fill="#17243b"/>
+<text x="620" y="138" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="white">Aplicación React</text>
+<line x1="1070" y1="155" x2="1070" y2="1026" stroke="#b8c2d3" stroke-width="1" stroke-dasharray="7 5"/>
+<rect x="930" y="108" width="280" height="47" rx="8" fill="#17243b"/>
+<text x="1070" y="138" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="18" fill="white">Supabase · esquema jo</text>
+<text x="31" y="215" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">1</text>
+<line x1="170" y1="210" x2="620" y2="210" stroke="#315bad" stroke-width="2"/>
+<polygon points="620,210 609,205 609,215" fill="#315bad"/>
+<text x="395.0" y="200" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Abrir referencia asignada</text>
+<text x="31" y="281" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">2</text>
+<line x1="620" y1="276" x2="1070" y2="276" stroke="#315bad" stroke-width="2"/>
+<polygon points="1070,276 1059,271 1059,281" fill="#315bad"/>
+<text x="845.0" y="266" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Consultar reference_handoffs</text>
+<text x="31" y="347" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">3</text>
+<line x1="1070" y1="342" x2="620" y2="342" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="620,342 631,337 631,347" fill="#32755a"/>
+<text x="845.0" y="332" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">PENDING_RECEIPT</text>
+<text x="31" y="413" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">4</text>
+<line x1="170" y1="408" x2="620" y2="408" stroke="#315bad" stroke-width="2"/>
+<polygon points="620,408 609,403 609,413" fill="#315bad"/>
+<text x="395.0" y="398" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Recibir referencia</text>
+<text x="31" y="479" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">5</text>
+<line x1="620" y1="474" x2="1070" y2="474" stroke="#315bad" stroke-width="2"/>
+<polygon points="1070,474 1059,469 1059,479" fill="#315bad"/>
+<text x="845.0" y="464" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">updateReferenceHandoff a IN_PROGRESS</text>
+<text x="31" y="545" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">6</text>
+<line x1="1070" y1="540" x2="620" y2="540" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="620,540 631,535 631,545" fill="#32755a"/>
+<text x="845.0" y="530" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Recepción registrada</text>
+<text x="31" y="611" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">7</text>
+<line x1="620" y1="606" x2="170" y2="606" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="170,606 181,601 181,611" fill="#32755a"/>
+<text x="395.0" y="596" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Habilitar entrega o devolución</text>
+<text x="31" y="677" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">8</text>
+<line x1="170" y1="672" x2="620" y2="672" stroke="#315bad" stroke-width="2"/>
+<polygon points="620,672 609,667 609,677" fill="#315bad"/>
+<text x="395.0" y="662" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Entregar a Trazador</text>
+<text x="31" y="743" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">9</text>
+<line x1="620" y1="738" x2="1070" y2="738" stroke="#315bad" stroke-width="2"/>
+<polygon points="1070,738 1059,733 1059,743" fill="#315bad"/>
+<text x="845.0" y="728" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">RPC deliver_reference_handoff a TRAZADOR</text>
+<text x="31" y="809" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">10</text>
+<line x1="1070" y1="804" x2="1136" y2="804" stroke="#85519a" stroke-width="2"/>
+<line x1="1136" y1="804" x2="1136" y2="821" stroke="#85519a" stroke-width="2"/>
+<line x1="1136" y1="821" x2="1070" y2="821" stroke="#85519a" stroke-width="2"/>
+<polygon points="1070,821 1081,816 1081,826" fill="#85519a"/>
+<text x="1160" y="774" text-anchor="end" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">TRAZADOR queda</text>
+<text x="1160" y="794" text-anchor="end" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">PENDING_RECEIPT</text>
+<text x="31" y="895" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">11</text>
+<line x1="1070" y1="890" x2="620" y2="890" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="620,890 631,885 631,895" fill="#32755a"/>
+<text x="845.0" y="880" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Entrega confirmada</text>
+<text x="31" y="961" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="13" fill="#63738b">12</text>
+<line x1="620" y1="956" x2="170" y2="956" stroke="#32755a" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="170,956 181,951 181,961" fill="#32755a"/>
+<text x="395.0" y="946" text-anchor="middle" font-family="Arial, DejaVu Sans, sans-serif" font-size="16" fill="#17243b">Actualizar historial de referencia</text>
+<rect x="26" y="1045" width="1198" height="40" rx="7" fill="#f1f5f9"/>
+<text x="42" y="1071" text-anchor="start" font-family="Arial, DejaVu Sans, sans-serif" font-size="15" fill="#4d5c74">Sesión válida y cuenta habilitada · Continua: solicitud · Discontinua: respuesta</text>
+</svg>

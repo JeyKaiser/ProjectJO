@@ -1,0 +1,14 @@
+sequenceDiagram
+    title Visitante - Consultar referencia
+    participant Visitante
+    participant Aplicacion
+    participant SupabaseJo
+    Visitante->>Aplicacion: Abrir Dashboard o Colecciones
+    Aplicacion->>Aplicacion: Comprobar cuenta autenticada
+    Aplicacion->>SupabaseJo: Consultar colecciones y referencias
+    SupabaseJo-->>Aplicacion: Colecciones y referencias
+    Aplicacion-->>Visitante: Mostrar indicadores y colecciones
+    Visitante->>Aplicacion: Seleccionar año y referencia
+    Aplicacion->>SupabaseJo: Consultar detalle y ficha final
+    SupabaseJo-->>Aplicacion: Ficha, materiales e historial
+    Aplicacion-->>Visitante: Mostrar detalle para consulta
