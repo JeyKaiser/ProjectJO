@@ -1,5 +1,6 @@
-import { getAllStates, getReferencesByIds, getCollections } from '../lib/supabase';
+import { getAllStates, getPilotStates, getReferencesByIds, getCollections } from '../lib/supabase';
 import { STATE_LABELS, ROLE_MAP } from '../lib/states';
+import { restrictPilotCollections, PILOT_COLLECTION_CODE } from '../../lib/pilotScope';
 
 let collectionsCache = null;
 
@@ -54,8 +55,13 @@ export function getStatusBadgeColor(stateName) {
 
 export async function fetchCollections() {
   if (collectionsCache) return collectionsCache;
-  const { data } = await getCollections();
-  collectionsCache = data || [];
+  const { data, error } = await getCollections();
+  if (error) throw error;
+  const visible = restrictPilotCollections(data || []);
+  if (PILOT_COLLECTION_CODE === 'SS27' && !visible.some(c => c.code === 'SS27' && c.year === 2027)) {
+    throw new Error('Colección SS27/2027 no disponible o no visible; revisar configuración y permisos.');
+  }
+  collectionsCache = visible;
   return collectionsCache;
 }
 
@@ -63,20 +69,53 @@ export function clearCollectionsCache() {
   collectionsCache = null;
 }
 
+export async function loadAlertSource() {
+  let states;
+  if (PILOT_COLLECTION_CODE === 'SS27') {
+    const collections = await fetchCollections();
+    const pilotCollection = collections.find(c => c.code === 'SS27' && c.year === 2027);
+    if (!pilotCollection) throw new Error('Colección SS27/2027 no disponible o no visible.');
+    const result = await getPilotStates(pilotCollection.id);
+    if (result.error) throw result.error;
+    states = result.data.filter(state => state.collection_id === pilotCollection.id
+      && state.references?.year === 2027);
+  } else {
+    const result = await getAllStates();
+    if (result.error) throw result.error;
+    states = result.data;
+  }
+  if (!states?.length) return { states: [], refs: [] };
+  const { data: refs, error } = await getReferencesByIds(states.map(state => state.reference_id));
+  if (error) throw error;
+  const collectionByReference = new Map(states.map(state => [state.reference_id, state.collection_id]));
+  const scopedRefs = PILOT_COLLECTION_CODE === 'SS27'
+    ? refs.filter(ref => ref.year === 2027 && collectionByReference.get(ref.id) === ref.collection_id) : refs;
+  const allowed = new Set(scopedRefs.map(ref => ref.id));
+  return { states: states.filter(state => allowed.has(state.reference_id)), refs: scopedRefs };
+}
+
 export async function getInbox(filters = {}) {
-  const { data: states } = await getAllStates();
+  const collections = await fetchCollections();
+  const pilotCollection = PILOT_COLLECTION_CODE === 'SS27'
+    ? collections.find(c => c.code === 'SS27' && c.year === 2027) : null;
+  if (PILOT_COLLECTION_CODE === 'SS27' && !pilotCollection) throw new Error('Colección SS27/2027 no disponible o no visible.');
+  const { data: states, error: statesError } = PILOT_COLLECTION_CODE === 'SS27'
+    ? await getPilotStates(pilotCollection.id) : await getAllStates();
+  if (statesError) throw statesError;
   if (!states?.length) return [];
 
   const refIds = states.map(s => s.reference_id);
-  const { data: refs } = await getReferencesByIds(refIds);
+  const { data: refs, error: refsError } = await getReferencesByIds(refIds);
+  if (refsError) throw refsError;
   const refMap = {};
   (refs || []).forEach(r => { refMap[r.id] = r; });
 
-  const collections = await fetchCollections();
   const colMap = {};
   collections.forEach(c => { colMap[c.id] = c; });
 
-  let items = states.map(state => {
+  let items = states.filter(state => !PILOT_COLLECTION_CODE ||
+    (colMap[state.collection_id]?.code === 'SS27' && refMap[state.reference_id]?.year === 2027)
+  ).map(state => {
     const ref = refMap[state.reference_id] || {};
     const col = colMap[state.collection_id] || {};
     const quietTime = calculateQuietTime(state.timestamp_entry);
@@ -89,8 +128,8 @@ export async function getInbox(filters = {}) {
       collectionYear: col.year || null,
       referenceNumber: ref.reference_number || `#${state.reference_id}`,
       referenceName: ref.name || '',
-      codigoMD: ref.reference_number ? `MD-${String(ref.reference_number).padStart(3, '0')}` : '',
-      codigoPT: ref.reference_number ? `PT03${String(ref.reference_number).padStart(3, '0')}` : '',
+      codigoMD: ref.reference_codes?.find(code => code.active && code.code_type === 'MD')?.code || null,
+      codigoPT: ref.reference_codes?.find(code => code.active && code.code_type === 'PT')?.code || null,
       currentState: state.current_state,
       stateLabel: STATE_LABELS[state.current_state] || state.current_state,
       alertLevel: state.alert_level || 'none',

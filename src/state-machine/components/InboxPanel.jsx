@@ -81,7 +81,7 @@ export default function InboxPanel({
   };
 
   const handleConfirm = async (payload) => {
-    if (!modalState) return;
+    if (!modalState || !onTransition) return;
     await onTransition(modalState.item.referenceId, modalState.event, payload);
     setModalState(null);
   };
@@ -123,7 +123,7 @@ export default function InboxPanel({
 
   const renderReferenceRow = (item) => {
     const stateRecord = stateRecords?.[item.referenceId];
-    const events = getAvailableEvents(item.currentState, stateRecord);
+    const events = onTransition ? getAvailableEvents(item.currentState, stateRecord) : [];
     const isCritical = item.alertLevel === 'critical';
 
     return (

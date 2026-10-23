@@ -1,11 +1,12 @@
 ﻿import { useState, useEffect, startTransition } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronRight, User, Clock, Calendar, CheckCircle, AlertCircle, Pause, Package, Scissors, Tag, Shirt, BookMarked, Search, Send, ArrowDownToLine, AlertTriangle, Eye, EyeOff, Edit2, Save, FlaskConical } from 'lucide-react';
-import { useDashboardData, getFaseMacro, slugFromName, toggleReferenceHidden, createCutRequest, updateReference, useFinalSheet, assignCode, useReferenceHandoffs, createReferenceHandoff, updateReferenceHandoff, deliverReferenceHandoff, returnReferenceHandoff } from '../lib/api';
+import { useDashboardData, getFaseMacro, slugFromName, selectDashboardReference, toggleReferenceHidden, createCutRequest, updateReference, useFinalSheet, assignCode, useReferenceHandoffs, createReferenceHandoff, updateReferenceHandoff, deliverReferenceHandoff, returnReferenceHandoff } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
-import { useComplejidad, useLargos } from '../hooks/useCatalogos';
+import { useComplejidad, useLargos, useTipoPrendas } from '../hooks/useCatalogos';
 import { getReferenceStatusLabel, getReferenceStatusStyle } from '../lib/referenceStatuses';
+import { describeGarmentType } from '../lib/garmentType';
 import TemperatureBar from '../components/TemperatureBar';
 import AsignacionTelasConsumos from '../components/AsignacionTelasConsumos';
 import InsumosBodega from '../components/InsumosBodega';
@@ -57,6 +58,7 @@ export default function ReferenciaDetalle() {
   // Hooks de catálogos desde BD
   const { data: complejidad } = useComplejidad();
   const { data: largos } = useLargos();
+  const { data: tipoPrendas, loading: tiposLoading, error: tiposError } = useTipoPrendas(true);
 
   const [showCorteModal, setShowCorteModal] = useState(false);
   const [corteForm, setCorteForm] = useState({ type: 'muestra', fabric_handling: 'solido', observations: '' });
@@ -88,14 +90,7 @@ export default function ReferenciaDetalle() {
   const coleccionesData = data?.colecciones || [];
   const groups = data?.groups || [];
 
-  const anioNumero = anio ? Number(anio) : null;
-  const coleccion = coleccionesData.find(c =>
-    slugFromName(c.nombre).toLowerCase() === seasonSlug?.toLowerCase() &&
-    c.anios.some(a => a.anio === anioNumero)
-  );
-
-  const anioData = coleccion?.anios.find(a => a.anio === parseInt(anio));
-  const ref = anioData?.referencias.find(r => r.referenceNumber === String(referenceNumber));
+  const { coleccion, ref } = selectDashboardReference(coleccionesData, seasonSlug, anio, referenceNumber);
 
   const [isHidden, setIsHidden] = useState(ref?.isHidden || false);
 
@@ -197,14 +192,14 @@ export default function ReferenciaDetalle() {
 
     const { data: refData } = await supabase
       .from('references')
-      .select('*')
+       .select('id,name,tipo_prenda_id,length_description,length_cm,color,color_code,tallaje_group_id,has_embroidery,has_semielaborated,complejidad_corte_id,complejidad_confeccion_id,drop_entrega,priority_first_buy,envio_confeccion_maquila,has_art_modification,has_trace_location,status_id')
       .eq('id', ref.dbId)
       .single();
 
     if (refData) {
       setEditForm({
         name: refData.name || '',
-        reference_type: refData.reference_type || '',
+        tipo_prenda_id: refData.tipo_prenda_id || '',
         length_description: refData.length_description || '',
         length_cm: refData.length_cm || '',
         color: refData.color || '',
@@ -237,7 +232,9 @@ export default function ReferenciaDetalle() {
       if (payload.complejidad_confeccion_id === '') payload.complejidad_confeccion_id = null;
       if (!payload.length_cm) payload.length_cm = null;
       if (!payload.priority_first_buy) payload.priority_first_buy = null;
-      if (payload.status_id === '') payload.status_id = null;
+      if (payload.status_id === '') delete payload.status_id;
+      if (!isAdmin) delete payload.status_id;
+      if (payload.tipo_prenda_id === '') payload.tipo_prenda_id = null;
 
       const { error: err } = await updateReference(ref.dbId, payload);
       if (err) throw err;
@@ -309,14 +306,14 @@ export default function ReferenciaDetalle() {
                 {ref.id.replace('REF-', '')}
               </span>
               <span className="code-badge code-md" style={{ fontSize: 14, padding: '4px 12px' }}>
-                {ref.codigoMD}
+                {ref.codigoMD || 'Sin asignar'}
                 {isAdmin && ref.mdAssigned && <span title="ASIGNADO (oficial)" style={{ marginLeft: 4, color: '#22c55e', fontSize: 10 }}>●</span>}
-                {isAdmin && !ref.mdAssigned && <span title="DERIVADO (auto)" style={{ marginLeft: 4, color: '#f59e0b', fontSize: 10 }}>●</span>}
+                {isAdmin && !ref.mdAssigned && <span title="SIN ASIGNAR" style={{ marginLeft: 4, color: '#f59e0b', fontSize: 10 }}>●</span>}
               </span>
               <span className="code-badge code-pt" style={{ fontSize: 14, padding: '4px 12px' }}>
-                {ref.codigoPT}
+                {ref.codigoPT || 'Sin asignar'}
                 {isAdmin && ref.ptAssigned && <span title="ASIGNADO (oficial)" style={{ marginLeft: 4, color: '#22c55e', fontSize: 10 }}>●</span>}
-                {isAdmin && !ref.ptAssigned && <span title="DERIVADO (auto)" style={{ marginLeft: 4, color: '#f59e0b', fontSize: 10 }}>●</span>}
+                {isAdmin && !ref.ptAssigned && <span title="SIN ASIGNAR" style={{ marginLeft: 4, color: '#f59e0b', fontSize: 10 }}>●</span>}
               </span>
               <span style={{ background: `var(--temp-${faseMacro.tempVar})`, color: `var(--temp-${faseMacro.tempVar}-text)`, padding: '4px 12px', borderRadius: '999px', fontSize: 12, fontWeight: 700, border: `1px solid var(--temp-${faseMacro.tempVar}-border)` }}>
                 {ref.clasificacion}
@@ -358,7 +355,8 @@ export default function ReferenciaDetalle() {
               )}
             </div>
             <h1 className={styles.nombre}>{ref.nombre}</h1>
-            <p className={styles.meta}>{ref.tipoPrenda} · {ref.color} · {ref.linea} / {ref.sublinea}</p>
+            <p className={styles.meta}>{ref.tipoPrenda || describeGarmentType(ref.tipo_prendas?.name, ref.reference_type).label} · {ref.color} · {ref.linea} / {ref.sublinea}</p>
+            {ref.legacyTipoHint && <p className={styles.meta}>{ref.legacyTipoHint}</p>}
           </div>
 
           {/* Fase actual */}
@@ -694,14 +692,13 @@ export default function ReferenciaDetalle() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tipo de Prenda</label>
-                  <select className="form-select" value={editForm.reference_type || ''}
-                    onChange={e => setEditForm(prev => ({ ...prev, reference_type: e.target.value }))}>
-                    <option value="">Sin definir</option>
-                    <option value="SILUETA">Silueta</option>
-                    <option value="BASICA">Basica</option>
-                    <option value="SPECIAL">Special</option>
-                    <option value="OTRO">Otro</option>
-                  </select>
+                   <select className="form-select" value={editForm.tipo_prenda_id || ''} disabled={tiposLoading || Boolean(tiposError)}
+                     onChange={e => setEditForm(prev => ({ ...prev, tipo_prenda_id: e.target.value ? Number(e.target.value) : '' }))}>
+                     <option value="">Sin definir</option>
+                     {tipoPrendas.filter(t => t.active || t.id === Number(editForm.tipo_prenda_id)).map(t =>
+                       <option key={t.id} value={t.id}>{t.name}{t.active ? '' : ' (oculto)'}</option>)}
+                   </select>
+                   {tiposError && <span role="alert" className="form-error">{tiposError.message}</span>}
                 </div>
                 <div className="form-group">
                   <label className="form-label">Color</label>
@@ -724,8 +721,8 @@ export default function ReferenciaDetalle() {
                   </select>
                   <span className="form-help">Requerido para ingresar consumos por talla.</span>
                 </div>
-                {canEdit && (
-                  <div className="form-group">
+                 {isAdmin ? (
+                   <div className="form-group">
                     <label className="form-label">Estado de la Referencia</label>
                     <select className="form-select" value={editForm.status_id || ''}
                       onChange={e => setEditForm(prev => ({ ...prev, status_id: e.target.value ? parseInt(e.target.value) : '' }))}>
@@ -734,8 +731,9 @@ export default function ReferenciaDetalle() {
                          <option key={s.id} value={s.id}>{s.label || getReferenceStatusLabel(s.status)}</option>
                         ))}
                     </select>
-                  </div>
-                )}
+                   </div>
+                 ) : <div className="form-group"><label className="form-label">Estado general (solo lectura)</label>
+                   <div>{ref.statusLabel}</div></div>}
                 {/* MD / PT — solo admin */}
                 {isAdmin && (
                   <>

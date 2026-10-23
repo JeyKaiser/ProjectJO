@@ -56,6 +56,7 @@ demuestra por sí sola que el requisito haya sido validado.
 | [`dominio/glosario.md`](dominio/glosario.md) | GLO | APROBADA | Definiciones comunes del dominio (`GLO-001` a `GLO-026`). |
 | [`colecciones/contrato-colecciones.md`](colecciones/contrato-colecciones.md) | COL | APROBADA | Contrato de colecciones y requisitos `COL-001` a `COL-011`. |
 | [`importaciones/contrato-csv-referencias.md`](importaciones/contrato-csv-referencias.md) | CSV | APROBADA | Contrato CSV de referencias y requisitos `CSV-001` a `CSV-023`. |
+| [`piloto-ss27-l3-v5.md`](piloto-ss27-l3-v5.md) | L3-v7 | APROBADA / NO VERIFICADA EN BD | Enmienda temporal de ficha, catálogo y autoridad workflow exclusivamente para clon SS27 aislado; incluye historial L3-v5. |
 
 ## Identificadores futuros pendientes
 

@@ -4,6 +4,57 @@ import { Settings, Users, Plus, Pencil, Trash2, X, Check, Search, AlertTriangle,
 import { useAuth } from '../context/AuthContext';
 import supabase from '../lib/supabase';
 import AsyncState from '../components/AsyncState';
+import { useTipoPrendas } from '../hooks/useCatalogos';
+import { createGarmentType, setGarmentTypeActive } from '../lib/api';
+
+function GarmentCatalog() {
+  const { data: types, loading, error, refetch } = useTipoPrendas(true);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const { error: writeError } = await createGarmentType(name, description);
+      if (writeError) throw writeError;
+      setName(''); setDescription(''); refetch();
+    } catch (cause) { setSaveError(cause); }
+    finally { setSaving(false); }
+  }
+
+  async function toggle(type) {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const { error: writeError } = await setGarmentTypeActive(type.id, !type.active);
+      if (writeError) throw writeError;
+      refetch();
+    } catch (cause) { setSaveError(cause); }
+    finally { setSaving(false); }
+  }
+
+  return <section className="card" style={{ padding: 20, marginBottom: 20 }}>
+    <h3>Tipos de prenda</h3>
+    <p>Los tipos ocultos se conservan en fichas existentes; solo tipos activos se pueden seleccionar en fichas nuevas.</p>
+    <form onSubmit={submit} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <label>Nombre <input className="form-input" value={name} onChange={e => setName(e.target.value)} required /></label>
+      <label>Descripción <input className="form-input" value={description} onChange={e => setDescription(e.target.value)} /></label>
+      <button className="btn btn-primary" disabled={saving || !name.trim()}>Agregar tipo</button>
+    </form>
+    {loading && <p>Cargando tipos...</p>}
+    {(error || saveError) && <p role="alert" className="form-error">{(error || saveError).message}</p>}
+    <ul>{types.map(type => <li key={type.id} style={{ margin: 6 }}>
+      {type.name} {type.active ? '' : '(oculto)'}
+      <button type="button" className="btn btn-secondary btn-sm" disabled={saving} onClick={() => toggle(type)}>
+        {type.active ? 'Ocultar' : 'Activar'}
+      </button>
+    </li>)}</ul>
+  </section>;
+}
 
 const AREAS = [
   { key: 'creativos', label: 'Creativos', singular: 'Creativo' },
@@ -234,6 +285,8 @@ export default function ConfiguracionPersonas() {
         <span className="breadcrumb-separator">/</span>
         <span className="breadcrumb-current">Personas</span>
       </nav>
+
+      {isAdmin && <GarmentCatalog />}
 
       <div className="flex gap-6" style={{ minHeight: 'calc(100vh - 180px)' }}>
         {/* SIDEBAR DE ÁREAS */}

@@ -93,10 +93,12 @@ export function useComplejidad() {
   ));
 }
 
-export function useTipoPrendas() {
+export function useTipoPrendas(includeInactive = false) {
   return useSupabaseQuery(() => queryRows(
-    supabase.from('tipo_prendas').select('id,name').eq('active', true).order('name')
-  ));
+    includeInactive
+      ? supabase.from('tipo_prendas').select('id,name,description,active').order('name')
+      : supabase.from('tipo_prendas').select('id,name,description,active').eq('active', true).order('name')
+  ), [includeInactive]);
 }
 
 export function useLargos() {
@@ -149,6 +151,6 @@ export function useCareTypes() {
 
 export function useReferenceStatuses() {
   return useSupabaseQuery(() => queryRows(
-    supabase.from('reference_statuses').select('id,status,description').order('id')
+    supabase.from('reference_statuses').select('id,status,description').eq('active', true).order('id')
   ));
 }

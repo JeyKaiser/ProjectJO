@@ -180,7 +180,7 @@ export default function ConsumosView() {
   async function loadReferenceData(dbRefId) {
     setLoading(true);
     try {
-      const { data: ref } = await supabase.from('references').select('*').eq('id', dbRefId).single();
+      const { data: ref } = await supabase.from('references').select('id,reference_number,name,has_embroidery').eq('id', dbRefId).single();
       setSelectedRef(ref || null);
 
       const { data: fabrics } = await supabase

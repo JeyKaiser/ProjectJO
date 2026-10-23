@@ -94,7 +94,7 @@ export default function ComparativoTrazos() {
     setLoading(true);
     try {
       const numericId = parseInt(refId, 10);
-      const { data: ref } = await supabase.from('references').select('*').eq('id', numericId).single();
+      const { data: ref } = await supabase.from('references').select('id,reference_number,name').eq('id', numericId).single();
       setReferencia(ref || null);
 
       const { data: allTrazos } = await supabase

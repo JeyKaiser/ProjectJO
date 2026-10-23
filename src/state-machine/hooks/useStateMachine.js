@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getReferenceState } from '../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { PILOT_COLLECTION_CODE } from '../../lib/pilotScope';
 import {
   transition,
   initializeReference,
@@ -8,6 +10,8 @@ import {
 } from '../services/transitionService';
 
 export function useStateMachine(referenceId) {
+  const { isAdmin } = useAuth();
+  const pilotReadonly = PILOT_COLLECTION_CODE === 'SS27' && !isAdmin;
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,7 +26,7 @@ export function useStateMachine(referenceId) {
       if (err) { setError(err.message); setLoading(false); return; }
       if (data) {
         setState(data);
-        setAvailableEvents(getAvailableEvents(data.current_state, data));
+         setAvailableEvents(pilotReadonly ? [] : getAvailableEvents(data.current_state, data));
       } else {
         setState(null);
         setAvailableEvents([]);
@@ -31,9 +35,10 @@ export function useStateMachine(referenceId) {
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [referenceId, refreshKey]);
+   }, [referenceId, refreshKey, pilotReadonly]);
 
   const init = useCallback(async (collectionId) => {
+    if (pilotReadonly) throw new Error('El workflow SS27 solo puede operarlo Administrador.');
     setLoading(true);
     try {
       const result = await initializeReference(referenceId, collectionId);
@@ -47,9 +52,10 @@ export function useStateMachine(referenceId) {
     } finally {
       setLoading(false);
     }
-  }, [referenceId]);
+   }, [referenceId, pilotReadonly]);
 
   const execTransition = useCallback(async (event, payload = {}) => {
+    if (pilotReadonly) throw new Error('El workflow SS27 solo puede operarlo Administrador.');
     setLoading(true);
     try {
       const result = await transition(referenceId, event, payload);
@@ -63,12 +69,12 @@ export function useStateMachine(referenceId) {
     } finally {
       setLoading(false);
     }
-  }, [referenceId]);
+   }, [referenceId, pilotReadonly]);
 
   const checkTransition = useCallback((event) => {
-    if (!state) return false;
+    if (!state || pilotReadonly) return false;
     return isValidTransition(state.current_state, event);
-  }, [state]);
+   }, [state, pilotReadonly]);
 
   const refresh = useCallback(() => {
     setRefreshKey(k => k + 1);

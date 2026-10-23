@@ -348,7 +348,7 @@ export default function CorteKanban() {
               <table className="table" style={{ fontSize: 12 }}>
                 <thead>
                   <tr>
-                    <th>MD</th>
+                    <th>REF</th>
                     <th>Nombre</th>
                     <th>Coleccion</th>
                     <th>Tipo</th>
@@ -366,7 +366,7 @@ export default function CorteKanban() {
                     const coll = item.collections || {};
                     return (
                       <tr key={item.id}>
-                        <td><strong>{ref.reference_number ? `MD-${String(ref.reference_number).padStart(3, '0')}` : '—'}</strong></td>
+                        <td><strong>{ref.reference_number ? `Ref #${ref.reference_number}` : '—'}</strong></td>
                         <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {ref.name || '—'}
                         </td>
@@ -471,7 +471,7 @@ export default function CorteKanban() {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {pendingItem && (
                 <p style={{ fontSize: 13, color: 'var(--gray-600)', margin: 0 }}>
-                  <strong>{pendingItem.references?.reference_number ? `MD-${String(pendingItem.references.reference_number).padStart(3, '0')}` : '—'}</strong>
+                  <strong>{pendingItem.references?.reference_number ? `Ref #${pendingItem.references.reference_number}` : '—'}</strong>
                   {' — '}{pendingItem.references?.name || 'Sin nombre'}
                 </p>
               )}
@@ -656,11 +656,10 @@ export default function CorteKanban() {
 function CutCard({ item, onAction, onRequeue, onArchive, onAssignCortador, col }) {
   const ref = item.references || {};
   const coll = item.collections || {};
-  // const codigoMD = ref.reference_number ? `MD-${String(ref.reference_number).padStart(3, '0')}` : '—';
   const csvRef = item.reference_number_csv;
-  const codigoMD = csvRef
+  const referenciaLabel = csvRef
     ? `RF-${csvRef}`
-    : (ref.reference_number ? `MD-${String(ref.reference_number).padStart(3, '0')}` : '—');
+    : (ref.reference_number ? `Ref #${ref.reference_number}` : '—');
 
   return (
     <div style={{
@@ -672,7 +671,7 @@ function CutCard({ item, onAction, onRequeue, onArchive, onAssignCortador, col }
       fontSize: 12,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <span className="code-badge code-md" style={{ fontSize: 11, padding: '2px 8px' }}>{codigoMD}</span>
+        <span className="badge badge-primary" style={{ fontSize: 11, padding: '2px 8px' }}>{referenciaLabel}</span>
         <div style={{ display: 'flex', gap: 4 }}>
           <span style={{ background: 'var(--gray-100)', color: 'var(--gray-600)', padding: '1px 6px', borderRadius: 999, fontSize: 10, fontWeight: 700 }}>
             {TYPE_LABELS[item.type] || item.type}

@@ -84,7 +84,7 @@ export default function AlertsPage() {
             Referencias con diferencias de consumo que requieren atención
           </p>
         </div>
-        <div style={styles.stats}>
+        {!error && <div style={styles.stats}>
           <span style={{
             padding: '4px 12px',
             borderRadius: 6,
@@ -119,14 +119,17 @@ export default function AlertsPage() {
           >
             ↻
           </button>
-        </div>
+        </div>}
       </div>
-
-      {error && <div style={styles.error}>{error}</div>}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)' }}>
           Cargando alertas...
+        </div>
+      ) : error ? (
+        <div role="alert" style={styles.error}>
+          <p>No se pudieron cargar las alertas: {error}</p>
+          <button type="button" onClick={refresh}>Reintentar</button>
         </div>
       ) : alerts.length === 0 ? (
         <div style={{

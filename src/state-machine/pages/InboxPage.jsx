@@ -4,8 +4,12 @@ import { initializeReference } from '../services/transitionService';
 import { transition } from '../services/transitionService';
 import { getReferenceState } from '../lib/supabase';
 import InboxPanel from '../components/InboxPanel';
+import { useAuth } from '../../context/AuthContext';
+import { PILOT_COLLECTION_CODE } from '../../lib/pilotScope';
 
 export default function InboxPage() {
+  const { isAdmin } = useAuth();
+  const pilotReadonly = PILOT_COLLECTION_CODE === 'SS27' && !isAdmin;
   const {
     items, loading, error, filters, collections,
     setFilters, resetFilters, refresh,
@@ -16,6 +20,7 @@ export default function InboxPage() {
   const [stateRecords, setStateRecords] = useState({});
 
   const handleTransition = useCallback(async (referenceId, event, payload = {}) => {
+    if (pilotReadonly) throw new Error('Solo Administrador puede operar workflow SS27.');
     setTransitioning(true);
     try {
       if (event === 'INIT') {
@@ -34,7 +39,7 @@ export default function InboxPage() {
     } finally {
       setTransitioning(false);
     }
-  }, [refresh]);
+   }, [refresh, pilotReadonly]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +117,7 @@ export default function InboxPage() {
         onFilterChange={setFilters}
         onResetFilters={resetFilters}
         onRefresh={refresh}
-        onTransition={handleTransition}
+        onTransition={pilotReadonly ? undefined : handleTransition}
         stateRecords={stateRecords}
       />
     </div>

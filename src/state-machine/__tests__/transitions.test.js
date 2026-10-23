@@ -5,6 +5,7 @@ vi.mock('../lib/supabase', () => ({
   upsertReferenceState: vi.fn(),
   insertHistory: vi.fn(),
   getReference: vi.fn(),
+  pilotWorkflowEvent: vi.fn(),
   getHistory: vi.fn(),
   getAllStates: vi.fn(),
   getReferencesByIds: vi.fn(),
@@ -47,6 +48,19 @@ const MOCK_STATE = {
 describe('transitionService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    supabase.getReference.mockResolvedValue({ data: { collection_id: 1, year: 2026, collections: { code: 'SS26', year: 2026 } }, error: null });
+  });
+
+  it('uses an atomic server RPC instead of direct writes for the SS27 pilot', async () => {
+    supabase.getReference.mockResolvedValue({ data: { collection_id: 2, year: 2027, collections: { code: 'SS27', year: 2027 } }, error: null });
+    supabase.getReferenceState.mockResolvedValue({ data: { ...MOCK_STATE, pilot_version: 4 }, error: null });
+    supabase.pilotWorkflowEvent.mockResolvedValue({ ...MOCK_STATE, current_state: 'diseno', pilot_version: 5 });
+
+    const result = await transition(1, 'AVANZAR_CONCEPTO');
+    expect(result.current_state).toBe('diseno');
+    expect(supabase.pilotWorkflowEvent).toHaveBeenCalledWith(1, 'AVANZAR_CONCEPTO', 4, {});
+    expect(supabase.upsertReferenceState).not.toHaveBeenCalled();
+    expect(supabase.insertHistory).not.toHaveBeenCalled();
   });
 
   describe('isValidTransition', () => {

@@ -1,5 +1,16 @@
 # Tareas Pendientes — Matriz JO / AtelierData
 
+## Pendientes tras aprobación L3-v7 (piloto SS27 aislado)
+
+- [ ] [MEDIA] Tras L3-v7: definir destino y transacción de Includes, asignaciones de equipo y boceto/archivo antes de reintroducir estos controles en `/ficha-nueva`. No enviar campos invisibles ni descartar silenciosamente selecciones.
+
+- [ ] [ALTA] Sustituir autoridad TEMPORAL Admin del piloto: definir y aprobar mapeo evento/estado/fork→área, catálogo extensible de áreas, pertenencia líder/persona activa y asignación líder↔referencia/fork concreta; implementar denegación por defecto y permisos solo al líder asignado. No inferir desde ROLE_MAP ni extender permisos a producción.
+- [ ] [ALTA] Aprovisionar y verificar de forma independiente un clon SS27 separado, con proyecto y configuración distintos; revisar scripts 030/031, probar con JWT de Administrador y Creador, y verificar RLS, snapshots y concurrencia en ese clon ANTES de autorizar ejecución. Ninguna importación/promoción/borrado en base real.
+- [ ] [ALTA] Clasificar manualmente en el clon las 11 referencias históricas con `tipo_prenda_id` NULL; no inferir `SILUETA/BASICA` del enum anterior. La retirada de `reference_type` exige aprobación futura explícita y NO existe script DROP en esta entrega.
+- [ ] [MEDIA] Automatizar subfases derivadas de procesos especiales solo con requisitos nuevos aprobados; en L3-v5 no se crean desde la ficha.
+- [ ] [ALTA] Validación de credenciales pospuesta hasta la tarea final; no inspeccionarlas ni validarlas durante el piloto.
+
+
 ## Fase 1: Auditoria
 
 - [x] ~~[ALTA] RLS bloquea INSERT/UPDATE en navegador~~ — Corregido: politicas anon agregadas a 30 tablas

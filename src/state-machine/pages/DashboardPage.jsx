@@ -1,13 +1,9 @@
-import { useState } from 'react';
 import { useInbox } from '../hooks/useInbox';
-import { initializeReference } from '../services/transitionService';
-import { getAllReferences, getReferenceState } from '../lib/supabase';
 import StateMachineDashboard from '../components/StateMachineDashboard';
 import StateFlowGraph from '../components/StateFlowGraph';
 
 export default function DashboardPage() {
   const { items, loading, error, criticalCount, warningCount, byState, refresh } = useInbox();
-  const [initStatus, setInitStatus] = useState(null);
 
   const activeByState = {};
   (items || []).forEach(i => {
@@ -58,42 +54,6 @@ export default function DashboardPage() {
           <p style={styles.subtitle}>Panel general del ciclo de vida de referencias</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {initStatus && (
-            <span style={{ fontSize: 12, color: initStatus.includes('Error') ? 'var(--error)' : 'var(--success-dark)' }}>
-              {initStatus}
-            </span>
-          )}
-          <button
-            onClick={async () => {
-              setInitStatus('Inicializando...');
-              try {
-                const { data: refs } = await getAllReferences();
-                let initCount = 0;
-                for (const ref of refs) {
-                  const { data: existing } = await getReferenceState(ref.id);
-                  if (!existing) {
-                    await initializeReference(ref.id, ref.collection_id);
-                    initCount++;
-                  }
-                }
-                setInitStatus(`${initCount} referencias inicializadas ✓`);
-                refresh();
-              } catch (e) {
-                setInitStatus(`Error: ${e.message}`);
-              }
-            }}
-            style={{
-              padding: '8px 16px',
-              borderRadius: 6,
-              border: '1px solid var(--gray-300)',
-              backgroundColor: 'var(--white)',
-              color: 'var(--gray-700)',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            ⟳ Inicializar Todo
-          </button>
           <button
             onClick={refresh}
             style={{

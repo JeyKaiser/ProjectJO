@@ -7,6 +7,8 @@ import StateFlowGraph from './StateFlowGraph';
 import StateTimeline from './StateTimeline';
 import TransitionModal from './TransitionModal';
 import LifecycleGraph from './LifecycleGraph';
+import { useAuth } from '../../context/AuthContext';
+import { PILOT_COLLECTION_CODE } from '../../lib/pilotScope';
 
 function InfoRow({ label, value, color }) {
   return (
@@ -25,9 +27,10 @@ export default function ReferenceStateDetail({
   onTransition,
   loading,
 }) {
+  const { isAdmin } = useAuth();
   const [modalState, setModalState] = useState(null);
 
-  const availableEvents = stateRecord
+  const availableEvents = stateRecord && (PILOT_COLLECTION_CODE !== 'SS27' || isAdmin)
     ? getAvailableEvents(stateRecord.current_state, stateRecord)
     : [];
 
@@ -52,8 +55,10 @@ export default function ReferenceStateDetail({
         color: 'var(--gray-500)',
       }}>
         <div style={{ fontSize: 24, marginBottom: 8 }}>📄</div>
-        <div>Esta referencia no está inicializada en la Máquina de Estados.</div>
-        <button
+        <div>{PILOT_COLLECTION_CODE === 'SS27'
+          ? 'Referencia histórica sin workflow fiable: requiere revisión manual.'
+          : 'Esta referencia no está inicializada en la Máquina de Estados.'}</div>
+        {PILOT_COLLECTION_CODE !== 'SS27' && <button
           onClick={() => onTransition(referenceId, 'INIT')}
           style={{
             marginTop: 12,
@@ -68,7 +73,7 @@ export default function ReferenceStateDetail({
           }}
         >
           Inicializar en Estado Concepto
-        </button>
+        </button>}
       </div>
     );
   }
@@ -195,6 +200,12 @@ export default function ReferenceStateDetail({
               }
               color="#22c55e"
             />
+            {PILOT_COLLECTION_CODE === 'SS27' && <InfoRow
+              label="Procesos Cancelados (resueltos)"
+              value={stateRecord.cancelled_sub_states?.length
+                ? stateRecord.cancelled_sub_states.map(s => STATE_LABELS[s]).join(', ')
+                : 'Ninguno'}
+            />}
             {stateRecord.waiting_for_merge && (
               <div style={{
                 marginTop: 8,
@@ -269,7 +280,7 @@ export default function ReferenceStateDetail({
         </div>
       </div>
 
-      {stateRecord.current_state !== 'completado' && stateRecord.current_state !== 'cancelado' && (
+      {PILOT_COLLECTION_CODE !== 'SS27' && stateRecord.current_state !== 'completado' && stateRecord.current_state !== 'cancelado' && (
         <div style={{
           backgroundColor: 'var(--white)',
           borderRadius: 8,
@@ -364,7 +375,7 @@ export default function ReferenceStateDetail({
         <TransitionModal
           isOpen={true}
           onClose={() => setModalState(null)}
-          referenceInfo={{ codigoMD: `MD-${referenceNumber}`, codigoPT: `PT03${referenceNumber}`, referenceName }}
+          referenceInfo={{ codigoMD: null, codigoPT: null, referenceName: referenceName || `Referencia #${referenceNumber}` }}
           fromState={stateRecord.current_state}
           toState={stateRecord.current_state}
           event={modalState.event}

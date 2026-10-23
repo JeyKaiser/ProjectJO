@@ -13,11 +13,14 @@ vi.mock('../src/lib/supabase', () => ({
 import { buildFinalSheetPayload, readFinalSheet, saveFinalSheet } from '../src/lib/api';
 
 function queryResult(result) {
+  let pastCursor = false;
   const query = {
     select: vi.fn(() => query),
     eq: vi.fn(() => query),
     in: vi.fn(() => query),
     order: vi.fn(() => query),
+    gt: vi.fn(() => { pastCursor = true; return query; }),
+    limit: vi.fn(() => Promise.resolve(pastCursor ? { data: [], error: null } : result)),
     single: vi.fn(() => Promise.resolve(result)),
     then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
   };
@@ -73,14 +76,14 @@ describe('final sheet payload', () => {
       notas_fabricacion: { data: [{ id: 9, codigo_nota: 'N-1', observaciones: 'Revisar' }], error: null },
       quality_issues: { data: [{ id: 5, area: 'Costura', resolved: 1 }], error: null },
       composition_materials: { data: [{ id: 8, composition_id: 7, material: 'Algodon', percentage: 80 }], error: null },
-      reference_codes: { data: [{ reference_id: 42, code_type: 'MD', code: 'MD-007' }], error: null },
+      reference_codes: { data: [{ id: 1, reference_id: 42, code_type: 'MD', code: 'MD-007' }], error: null },
     };
     supabaseMock.from.mockImplementation(table => queryResult(results[table] || { data: [], error: null }));
 
     const result = await readFinalSheet(42);
 
     expect(result.reference.codigoMD).toBe('MD-007');
-    expect(result.reference.codigoPT).toBe('PT03007');
+    expect(result.reference.codigoPT).toBeNull(); // No active PT assignment: never invent a code.
     expect(result.compositions.MUESTRA.materials).toEqual([
       { id: 8, composition_id: 7, material: 'Algodon', percentage: 80 },
     ]);

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, startTransition } from 'react';
 import supabase, { uploadImage } from './supabase';
+import { restrictPilotCollections, PILOT_COLLECTION_CODE } from './pilotScope';
+import { describeGarmentType } from './garmentType';
 import {
   getReferenceStatusBucket,
   getReferenceStatusLabel,
@@ -31,6 +33,14 @@ export const COLLECTION_SLUGS = {
 
 export function slugFromName(name) {
   return COLLECTION_SLUGS[name] || name.toLowerCase().replace(/\s+/g, '-');
+}
+
+export function selectDashboardReference(collections, collectionSlug, year, referenceNumber) {
+  const coleccion = collections.find(c => slugFromName(c.nombre).toLowerCase() === collectionSlug?.toLowerCase()
+    && c.anios.some(a => a.anio === Number(year)));
+  const anioData = coleccion?.anios.find(a => a.anio === Number(year));
+  const ref = anioData?.referencias.find(r => r.referenceNumber === String(referenceNumber));
+  return { coleccion, anioData, ref };
 }
 
 export function borderFromName(name) {
@@ -121,6 +131,65 @@ export function getProcesoNombre(subfase) {
   return PROCESO_NOMBRES[subfase] || '';
 }
 
+export async function loadReferenceMontages(referenceIds) {
+  if (!referenceIds?.length) return {};
+  const types = {};
+  // Bound both the IN filter and the result window; a one-shot query can be
+  // silently truncated at the PostgREST max-rows setting.
+  for (let start = 0; start < referenceIds.length; start += 200) {
+    const ids = referenceIds.slice(start, start + 200);
+    let cursor = null;
+    let page;
+    do {
+      let query = supabase.from('montage_mannequin')
+        .select('id,reference_id,montage_type').in('reference_id', ids)
+        .order('id', { ascending: false });
+      if (cursor !== null) query = query.lt('id', cursor);
+      const { data, error } = await query.limit(500);
+      if (error) throw error;
+      page = data || [];
+      for (const row of page) {
+        if (!Object.hasOwn(types, row.reference_id)) types[row.reference_id] = row.montage_type || '';
+      }
+      if (page.length) cursor = page[page.length - 1].id;
+    } while (page.length > 0);
+  }
+  return types;
+}
+
+const DASHBOARD_REFERENCE_SELECT = 'id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), tipo_prenda_id, tipo_prendas(name), reference_type, tipo_ref, lines(name, code), sublines(name, complejidad_corte_id, complejidad_confeccion_id, reference_statuses(status), created_at';
+
+export async function loadDashboardReferences(collectionIds, year) {
+  if (Array.isArray(collectionIds) && collectionIds.length === 0) return [];
+  const result = [];
+  let cursor = null;
+  let page;
+  do {
+    let query = supabase.from('references').select(DASHBOARD_REFERENCE_SELECT).order('id');
+    if (collectionIds?.length === 1) query = query.eq('collection_id', collectionIds[0]);
+    else if (collectionIds?.length) query = query.in('collection_id', collectionIds);
+    if (year != null) query = query.eq('year', year);
+    if (cursor !== null) query = query.gt('id', cursor);
+    const { data, error } = await query.limit(500);
+    if (error) throw error;
+    page = data || [];
+    result.push(...page);
+    if (page.length) cursor = page[page.length - 1].id;
+  } while (page.length > 0);
+  return result;
+}
+
+export async function getReferenceById(dbRefId, select = DASHBOARD_REFERENCE_SELECT) {
+  if (!Number.isSafeInteger(Number(dbRefId)) || Number(dbRefId) <= 0) throw new Error('Se requiere ID de referencia válido.');
+  const { data, error } = await supabase.from('references').select(select).eq('id', Number(dbRefId)).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export function isDefinitiveCreateError(error) {
+  return Boolean(error?.code && /^[0-9A-Z]{5}$/.test(error.code) && !error.code.startsWith('PGRST'));
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Hook: useDashboardData — fetch collections + references
 // ═══════════════════════════════════════════════════════════════
@@ -135,37 +204,42 @@ export function useDashboardData() {
     startTransition(() => { setLoading(true); setError(null); });
     async function load() {
       try {
-        const [collectionsResult, groupsResult, yearsResult, referencesResult] = await Promise.all([
-          supabase
+        let collectionsQuery = supabase
             .from('collections')
             .select('id,code,name,image_url,year,season')
-            .eq('active', true),
+            .eq('active', true);
+        if (PILOT_COLLECTION_CODE === 'SS27') collectionsQuery = collectionsQuery.eq('code', 'SS27').eq('year', 2027);
+        const [collectionsResult, groupsResult] = await Promise.all([
+          collectionsQuery,
           supabase
             .from('collection_groups')
             .select('id,code,name,image_url')
             .eq('active', true)
             .order('id'),
-          supabase
-            .from('collection_years')
-            .select('id,collection_id,year,is_hidden'),
-          supabase
-            .from('references')
-            .select('id, reference_number, name, collection_id, year, status_id, is_hidden, main_image_url, has_art_modification, has_trace_location, has_all_over, has_embroidery, drop_entrega, priority_first_buy, color, color_code, length_description, length_cm, has_semielaborated, envio_confeccion_maquila, tallaje_group_id, tallaje_groups(id, name), reference_type, tipo_ref, lines(name, code), sublines(name), complejidad_corte_id, complejidad_confeccion_id, reference_statuses(status), created_at'),
         ]);
 
         const { data: cols, error: colErr } = collectionsResult;
         const { data: groups, error: grpErr } = groupsResult;
-        const { data: colYears, error: cyErr } = yearsResult;
-        const { data: refs, error: refErr } = referencesResult;
         if (colErr) throw colErr;
         if (grpErr) throw grpErr;
-        if (cyErr) throw cyErr;
-        if (refErr) throw refErr;
 
         if (cancelled) return;
 
-        const refIds = (refs || []).map(r => r.id);
-        const codeMap = await resolveReferenceCodes(refIds);
+        const visibleCollections = restrictPilotCollections(cols || []);
+        const visibleIdList = visibleCollections.map(c => c.id);
+        const [refs, yearsResult] = await Promise.all([
+          loadDashboardReferences(visibleIdList, PILOT_COLLECTION_CODE === 'SS27' ? 2027 : undefined),
+          visibleIdList.length ? supabase.from('collection_years').select('id,collection_id,year,is_hidden')
+            .in('collection_id', visibleIdList) : Promise.resolve({ data: [], error: null }),
+        ]);
+        if (yearsResult.error) throw yearsResult.error;
+        const colYears = yearsResult.data;
+        if (cancelled) return;
+        const visibleRefs = refs;
+         const refIds = visibleRefs.map(r => r.id);
+         const [codeMap, montageMap] = await Promise.all([
+           resolveReferenceCodes(refIds), loadReferenceMontages(refIds),
+         ]);
 
         // Mapa rápido: collection_id -> years
         const yearsByCollection = {};
@@ -176,7 +250,7 @@ export function useDashboardData() {
 
         const refsByCollection = {};
         const refsByCollectionYear = {};
-        (refs || []).forEach(ref => {
+         visibleRefs.forEach(ref => {
           if (!refsByCollection[ref.collection_id]) refsByCollection[ref.collection_id] = [];
           refsByCollection[ref.collection_id].push(ref);
           const key = `${ref.collection_id}:${ref.year}`;
@@ -185,7 +259,7 @@ export function useDashboardData() {
         });
 
         // Build colecciones structure
-        const colecciones = cols.map(col => {
+         const colecciones = visibleCollections.map(col => {
           const colYearsList = yearsByCollection[col.id] || [];
           const fallbackYear = col.year || 2026;
 
@@ -211,19 +285,20 @@ export function useDashboardData() {
                     id: `REF-${r.reference_number}`,
                     referenceNumber: String(r.reference_number),
                     dbId: r.id,
-                    codigoMD: rcCodes.MD || `MD-${String(r.reference_number).padStart(3, '0')}`,
-                    codigoPT: rcCodes.PT || `PT03${String(r.reference_number).padStart(3, '0')}`,
+                     codigoMD: rcCodes.MD || null,
+                     codigoPT: rcCodes.PT || null,
                     mdAssigned: !!rcCodes.MD,
                     ptAssigned: !!rcCodes.PT,
                     statusId: r.status_id,
                     nombre: r.name,
-                    tipoPrenda: r.reference_type || col.name || '',
+                     tipoPrenda: describeGarmentType(r.tipo_prendas?.name, r.reference_type).label,
+                     legacyTipoHint: describeGarmentType(r.tipo_prendas?.name, r.reference_type).legacyHint,
                     color: r.color || '',
                     codigoColor: r.color_code || '',
                     imagen: r.main_image_url || null,
                     linea: r.lines?.name || '',
                     sublinea: r.sublines?.name || '',
-                    tipoRef: r.tipo_ref || r.lines?.code || '',
+                     tipoRef: r.lines?.code || '',
                     tallaje: r.tallaje_groups?.name || '',
                     largo: r.length_description || '',
                     largoCms: r.length_cm || '',
@@ -244,7 +319,7 @@ export function useDashboardData() {
                     complejidadConfeccion: '',
                     tieneBordado: r.has_embroidery || false,
                     tieneSemielaborado: r.has_semielaborated || false,
-                    montajeManiqui: '',
+                     montajeManiqui: montageMap[r.id] || '',
                     tirasContinuas: false,
                     includes: '',
                     tipoEmpaque: '',
@@ -288,16 +363,17 @@ export function useDashboardData() {
                       id: `REF-${r.reference_number}`,
                       referenceNumber: String(r.reference_number),
                       dbId: r.id,
-                      codigoMD: fcCodes.MD || `MD-${String(r.reference_number).padStart(3, '0')}`,
-                      codigoPT: fcCodes.PT || `PT03${String(r.reference_number).padStart(3, '0')}`,
+                       codigoMD: fcCodes.MD || null,
+                       codigoPT: fcCodes.PT || null,
                       mdAssigned: !!fcCodes.MD,
                       ptAssigned: !!fcCodes.PT,
                       statusId: r.status_id,
                       nombre: r.name,
-                      tipoPrenda: r.reference_type || col.name || '',
+                       tipoPrenda: describeGarmentType(r.tipo_prendas?.name, r.reference_type).label,
+                       legacyTipoHint: describeGarmentType(r.tipo_prendas?.name, r.reference_type).legacyHint,
                       color: r.color || '', codigoColor: r.color_code || '',
                       imagen: r.main_image_url || null,
-                        linea: r.lines?.name || '', sublinea: r.sublines?.name || '', tipoRef: r.tipo_ref || r.lines?.code || '', tallaje: r.tallaje_groups?.name || '', largo: r.length_description || '', largoCms: r.length_cm || '', closure: '',
+                         linea: r.lines?.name || '', sublinea: r.sublines?.name || '', tipoRef: r.lines?.code || '', tallaje: r.tallaje_groups?.name || '', largo: r.length_description || '', largoCms: r.length_cm || '', closure: '',
                       faseActual: sf,
                       subfaseNombre: getProcesoNombre(sf),
                       responsable: '', tiempoFase: '',
@@ -312,7 +388,7 @@ export function useDashboardData() {
                       complejidadCorte: '', complejidadConfeccion: '',
                       tieneBordado: r.has_embroidery || false,
                       tieneSemielaborado: r.has_semielaborated || false,
-                      montajeManiqui: '', tirasContinuas: false,
+                       montajeManiqui: montageMap[r.id] || '', tirasContinuas: false,
                       includes: '', tipoEmpaque: '',
                       isHidden: r.is_hidden || false,
                       telas: [], insumos: [], historialFases: [], mediciones: [],
@@ -360,24 +436,26 @@ export function useDashboardData() {
 // ═══════════════════════════════════════════════════════════════
 // Hook: useReferenciaDetalle(id) — fetch full reference detail
 // ═══════════════════════════════════════════════════════════════
-export function useReferenciaDetalle(refId) {
+export function useReferenciaDetalle(dbRefId) {
   const [ref, setRef] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!refId) return;
+    if (!dbRefId) return;
     let cancelled = false;
     async function load() {
       try {
-        const refNum = refId.replace('REF-', '');
+        const refNum = Number(dbRefId);
+        if (!Number.isSafeInteger(refNum) || refNum <= 0) throw new Error('Se requiere ID de referencia válido.');
 
         const { data: refData, error: refErr } = await supabase
           .from('references')
-          .select('*, collections(name, code), reference_statuses(status, description)')
-          .eq('reference_number', refNum)
-          .single();
+           .select('id,reference_number,collection_id,year,name,color,color_code,status_id,main_image_url,has_art_modification,has_trace_location,has_all_over,tipo_prenda_id,tipo_prendas(name),reference_type,collections(name, code),reference_statuses(status, description)')
+          .eq('id', refNum)
+          .maybeSingle();
 
         if (refErr) throw refErr;
+        if (!refData) return;
 
         const [fabricsResult, consumosResult, codeMap] = await Promise.all([
           supabase
@@ -404,9 +482,9 @@ export function useReferenciaDetalle(refId) {
         const sf = getReferenceStatusSubfase(statusNombre);
         setRef({
           ...refData,
-          id: refId,
-          codigoMD: rcCodes.MD || `MD-${String(refData.reference_number).padStart(3, '0')}`,
-          codigoPT: rcCodes.PT || `PT03${String(refData.reference_number).padStart(3, '0')}`,
+          id: `REF-${refData.reference_number}`,
+           codigoMD: rcCodes.MD || null,
+           codigoPT: rcCodes.PT || null,
           mdAssigned: !!rcCodes.MD,
           ptAssigned: !!rcCodes.PT,
           faseActual: sf,
@@ -435,7 +513,7 @@ export function useReferenciaDetalle(refId) {
     }
     load();
     return () => { cancelled = true; };
-  }, [refId]);
+  }, [dbRefId]);
 
   return { ref, loading };
 }
@@ -483,7 +561,7 @@ export async function readFinalSheet(referenceId) {
   }
 
   const [referenceResult, compositionResult, careTypesResult, careResult, contraResult, notesResult, qualityResult] = await Promise.all([
-    supabase.from('references').select('*').eq('id', numericReferenceId).single(),
+     supabase.from('references').select('id,reference_number,name,color,color_code,status_id,tipo_prenda_id,tipo_prendas(name)').eq('id', numericReferenceId).single(),
     supabase.from('compositions').select('*').eq('reference_id', numericReferenceId).order('id'),
     supabase.from('care_types').select('id,type,description').order('id'),
     supabase.from('care_instructions').select('*').eq('reference_id', numericReferenceId).order('care_type_id').order('id'),
@@ -573,8 +651,8 @@ export async function readFinalSheet(referenceId) {
   return {
     reference: {
       ...reference,
-      codigoMD: codes.MD || `MD-${String(reference.reference_number).padStart(3, '0')}`,
-      codigoPT: codes.PT || `PT03${String(reference.reference_number).padStart(3, '0')}`,
+       codigoMD: codes.MD || null,
+       codigoPT: codes.PT || null,
     },
     compositions: compositionByScope,
     careTypes,
@@ -732,27 +810,23 @@ export async function saveFinalSheet(payload) {
 // ═══════════════════════════════════════════════════════════════
 // Hook: useConsumos — fetch consumos for a reference
 // ═══════════════════════════════════════════════════════════════
-export function useConsumos(refId) {
+export function useConsumos(dbRefId) {
   const [consumos, setConsumos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!refId) return;
+    if (!dbRefId) return;
     let cancelled = false;
     async function load() {
-      const refNum = refId.replace('REF-', '');
-      const { data: ref } = await supabase
-        .from('references')
-        .select('id')
-        .eq('reference_number', refNum)
-        .single();
-
-      if (!ref) { setLoading(false); return; }
+      if (!Number.isSafeInteger(Number(dbRefId)) || Number(dbRefId) <= 0) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from('consumos')
         .select('*, reference_fabrics(fabric_id, fabrics(code, description))')
-        .eq('reference_id', ref.id)
+        .eq('reference_id', Number(dbRefId))
         .order('role')
         .order('version');
 
@@ -761,7 +835,7 @@ export function useConsumos(refId) {
     }
     load();
     return () => { cancelled = true; };
-  }, [refId]);
+  }, [dbRefId]);
 
   return { consumos, loading };
 }
@@ -989,9 +1063,59 @@ export function useCollectionYears(collectionId) {
 // ═══════════════════════════════════════════════════════════════
 // CRUD: References (create, update, hide)
 // ═══════════════════════════════════════════════════════════════
+export function createGarmentType(name, description = '') {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) throw new Error('El nombre del tipo de prenda es obligatorio.');
+  return supabase.from('tipo_prendas').insert({ name: trimmed, description: description.trim(), active: true });
+}
+
+export function setGarmentTypeActive(id, active) {
+  return supabase.from('tipo_prendas').update({ active: active === true }).eq('id', id);
+}
+
+const PILOT_CREATE_FIELDS = new Set([
+  'collection_id','year','reference_number','name','tipo_prenda_id','color','color_code',
+  'line_id','subline_id','tallaje_group_id','length_description','length_cm',
+  'closure_type_id','package_type_id','has_art_modification','has_trace_location',
+  'has_all_over','has_embroidery','has_semielaborated','complejidad_corte_id',
+  'complejidad_confeccion_id','priority_first_buy','drop_entrega',
+  'envio_corte_maquila','envio_confeccion_maquila','status_id','linned',
+  'requiere_muestra','tiras_continuas','especificacion_confeccion',
+  'montage_type','referent_reference_id',
+  'embroidery_description',
+]);
+
+export async function createPilotReference(payload, requestId) {
+  const unsupported = Object.keys(payload || {}).filter(key => !PILOT_CREATE_FIELDS.has(key));
+  if (unsupported.length) return { data: null, error: new Error(`Campo no admitido: ${unsupported.join(', ')}`) };
+  if (!requestId || !payload?.tipo_prenda_id) return { data: null, error: new Error('Intento y tipo de prenda obligatorios') };
+  return supabase.rpc('pilot_create_reference_032', { p_payload: payload, p_request_id: requestId });
+}
+
+export async function assignMissingPilotCode(referenceId, codeType, code) {
+  if (!['MD', 'PT'].includes(codeType) || !code?.trim()) throw new Error('Código inválido');
+  const active = () => supabase.from('reference_codes').select('code')
+    .eq('reference_id', referenceId).eq('code_type', codeType).eq('active', true).maybeSingle();
+  const { data: existing, error: readError } = await active();
+  if (readError) throw readError;
+  if (existing) {
+    if (existing.code !== code) throw new Error(`${codeType} ya asignado con otro valor; no se reemplazó`);
+    return { code, assigned: true };
+  }
+  const { error } = await supabase.rpc('assign_existing_reference_code', {
+    p_reference_id: referenceId, p_code_type: codeType, p_code: code, p_notes: null,
+  });
+  if (error) {
+    const { data: raced, error: recheckError } = await active();
+    if (!recheckError && raced?.code === code) return { code, assigned: true };
+    throw error;
+  }
+  return { code, assigned: true };
+}
+
 export function validateReferenceLineSubline({ line_id, subline_id, availableSublines } = {}) {
-  if (!line_id) return 'La línea es obligatoria.';
-  if (!subline_id) return 'La sublínea es obligatoria.';
+  if (!line_id && subline_id) return 'La sublínea requiere una línea.';
+  if (!subline_id) return null;
   if (availableSublines && !availableSublines.some(subline => subline.id === subline_id)) {
     return 'La sublínea no pertenece a la línea seleccionada.';
   }
@@ -1001,7 +1125,7 @@ export function validateReferenceLineSubline({ line_id, subline_id, availableSub
 export async function createReference(data) {
   const {
     collection_id, year, reference_number, name, color, color_code,
-    reference_type, line_id, subline_id, tallaje_group_id,
+    tipo_prenda_id, line_id, subline_id, tallaje_group_id,
     length_description, length_cm, closure_type_id, package_type_id,
     has_art_modification, has_trace_location, has_all_over,
     has_embroidery, has_semielaborated,
@@ -1015,6 +1139,7 @@ export async function createReference(data) {
 
   const lineSublineError = validateReferenceLineSubline({ line_id, subline_id });
   if (lineSublineError) return { data: null, error: new Error(lineSublineError) };
+  if (!tipo_prenda_id) return { data: null, error: new Error('El tipo de prenda es obligatorio.') };
 
   let resolvedStatusId = status_id;
   if (!resolvedStatusId) {
@@ -1031,8 +1156,8 @@ export async function createReference(data) {
     .from('references')
     .insert({
       collection_id, year, reference_number, name, color, color_code,
-      reference_type: reference_type || 'SILUETA',
-      line_id, subline_id, tallaje_group_id,
+      tipo_prenda_id,
+      line_id: line_id || null, subline_id: subline_id || null, tallaje_group_id,
       length_description, length_cm, closure_type_id, package_type_id,
       has_art_modification: has_art_modification || false,
       has_trace_location: has_trace_location || false,
@@ -1508,20 +1633,13 @@ export function useSearchReferences(searchTerm, collectionId) {
     let cancelled = false;
     const timeout = setTimeout(async () => {
       setLoading(true);
-      let query = supabase
-        .from('references')
-        .select('id, reference_number, name, color, collection_id, collections(name, code)')
-        .ilike('name', `%${searchTerm}%`)
-        .eq('is_hidden', false)
-        .order('reference_number')
-        .limit(20);
-
-      if (collectionId) query = query.eq('collection_id', collectionId);
-
-      const { data, error } = await query;
-      if (!cancelled) {
-        if (!error) setResults(data || []);
-        setLoading(false);
+      try {
+        const data = await searchReferences(searchTerm, { collectionId });
+        if (!cancelled) setResults(data);
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }, 300);
     return () => { cancelled = true; clearTimeout(timeout); };
@@ -1938,62 +2056,97 @@ function derivePT(refNumber) {
 export async function resolveReferenceCodes(referenceIds) {
   const ids = Array.isArray(referenceIds) ? referenceIds : [referenceIds];
   if (ids.length === 0) return {};
-
-  const { data, error } = await supabase
-    .from('reference_codes')
-    .select('reference_id, code_type, code, active')
-    .in('reference_id', ids)
-    .eq('active', true);
-
-  if (error) throw error;
-  if (!data) return {};
-
   const map = {};
-  data.forEach(rc => {
-    if (!map[rc.reference_id]) map[rc.reference_id] = {};
-    map[rc.reference_id][rc.code_type] = rc.code;
-  });
+  for (let start = 0; start < ids.length; start += 200) {
+    const batch = ids.slice(start, start + 200);
+    let cursor = null;
+    let page;
+    do {
+      let query = supabase.from('reference_codes')
+        .select('id,reference_id,code_type,code,active').in('reference_id', batch)
+        .eq('active', true).order('id');
+      if (cursor !== null) query = query.gt('id', cursor);
+      const { data, error } = await query.limit(500);
+      if (error) throw error;
+      page = data || [];
+      for (const rc of page) {
+        if (!map[rc.reference_id]) map[rc.reference_id] = {};
+        map[rc.reference_id][rc.code_type] = rc.code;
+      }
+      if (page.length) cursor = page[page.length - 1].id;
+    } while (page.length > 0);
+  }
   return map;
 }
 
-export async function searchReferences(searchTerm) {
-  const term = String(searchTerm || '').trim().toLocaleLowerCase();
+export async function searchReferences(searchTerm, { collectionId, year } = {}) {
+  const term = String(searchTerm || '').trim();
   if (!term) return [];
+  if (PILOT_COLLECTION_CODE === 'SS27') {
+    const { data: pilot, error } = await supabase.from('collections').select('id')
+      .eq('code', 'SS27').eq('year', 2027).maybeSingle();
+    if (error) throw error;
+    if (!pilot || (collectionId && Number(collectionId) !== pilot.id) || (year && Number(year) !== 2027)) return [];
+    collectionId = pilot.id;
+    year = 2027;
+  }
 
-  const { data, error } = await supabase
-    .from('references')
-    .select('id, reference_number, name, collection_id, year, is_hidden, collections(code, name, season, year), reference_codes(code_type, code, active)')
-    .eq('is_hidden', false)
-    .order('reference_number')
-    .limit(250);
-
-  if (error) throw error;
-
-  return (data || [])
-    .filter(reference => {
-      const codes = (reference.reference_codes || [])
-        .filter(code => code.active !== false)
-        .map(code => code.code);
-      return [reference.name, reference.reference_number, ...codes]
-        .some(value => String(value || '').toLocaleLowerCase().includes(term));
-    })
-    .slice(0, 12)
-    .map(reference => {
-      const codes = (reference.reference_codes || []).filter(code => code.active !== false);
-      const md = codes.find(code => code.code_type === 'MD')?.code || deriveMD(reference.reference_number);
-      const pt = codes.find(code => code.code_type === 'PT')?.code || derivePT(reference.reference_number);
-      return {
-        id: reference.id,
-        referenceNumber: reference.reference_number,
-        name: reference.name,
-        collectionId: reference.collection_id,
-        collectionName: reference.collections?.name || '',
-        collectionCode: reference.collections?.season || reference.collections?.code || '',
-        year: reference.year || reference.collections?.year,
-        codigoMD: md,
-        codigoPT: pt,
-      };
+  // Search in the indexed source tables, not the first 250 unrelated references.
+  // PostgREST can cap rows below a requested limit: continue by primary-key cursor.
+  const pageMatches = async (table, select, filters) => {
+    const rows = [];
+    let cursor = null;
+    while (rows.length < 12) {
+      let query = filters(supabase.from(table).select(select)).order('id');
+      if (cursor !== null) query = query.gt('id', cursor);
+      const { data, error } = await query.limit(12 - rows.length);
+      if (error) throw error;
+      if (!data?.length) break;
+      rows.push(...data);
+      cursor = data[data.length - 1].id;
+    }
+    return rows;
+  };
+  const scope = query => {
+    let scoped = query.eq('is_hidden', false);
+    if (collectionId) scoped = scoped.eq('collection_id', Number(collectionId));
+    if (year) scoped = scoped.eq('year', Number(year));
+    return scoped;
+  };
+  const select = 'id,reference_number,name,collection_id,year,collections(code,name,season,year),reference_codes(code_type,code,active)';
+  const codeRows = await pageMatches('reference_codes',
+    'id,reference_id,code_type,code,references!inner(collection_id,year,is_hidden)', query => {
+      let scoped = query.eq('active', true).eq('code_type', 'PT').ilike('code', `%${term}%`)
+        .eq('references.is_hidden', false);
+      if (collectionId) scoped = scoped.eq('references.collection_id', Number(collectionId));
+      if (year) scoped = scoped.eq('references.year', Number(year));
+      return scoped;
     });
+  const codeByRef = new Map(codeRows.map(row => [row.reference_id, row.code]));
+  const byName = await pageMatches('references', select, query => scope(query).ilike('name', `%${term}%`));
+  const byNumber = /^\d+$/.test(term)
+    ? await pageMatches('references', select, query => scope(query).eq('reference_number', term)) : [];
+  let byPT = [];
+  if (codeByRef.size) {
+    byPT = await pageMatches('references', select, query => scope(query).in('id', [...codeByRef.keys()]));
+  }
+  const unique = new Map([...byPT, ...byName, ...byNumber].map(ref => [ref.id, ref]));
+  return [...unique.values()].slice(0, 12).map(reference => {
+    const codes = (reference.reference_codes || []).filter(code => code.active !== false);
+    return {
+      id: reference.id,
+      reference_number: reference.reference_number,
+      collections: reference.collections,
+      referenceNumber: reference.reference_number,
+      name: reference.name,
+      collectionId: reference.collection_id,
+      collectionName: reference.collections?.name || '',
+      collectionCode: reference.collections?.season || reference.collections?.code || '',
+      year: reference.year || reference.collections?.year,
+      codigoMD: codes.find(code => code.code_type === 'MD')?.code || null,
+      codigoPT: codeByRef.get(reference.id) || codes.find(code => code.code_type === 'PT')?.code || null,
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2001,7 +2154,7 @@ export async function searchReferences(searchTerm) {
 // ═══════════════════════════════════════════════════════════════
 
 export function useReferenceCodes(dbRefId, referenceNumber) {
-  const [codes, setCodes] = useState({ md: null, pt: null, mdStatus: 'DERIVADO', ptStatus: 'DERIVADO' });
+  const [codes, setCodes] = useState({ md: null, pt: null, mdStatus: 'SIN_ASIGNAR', ptStatus: 'SIN_ASIGNAR' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -2023,14 +2176,13 @@ export function useReferenceCodes(dbRefId, referenceNumber) {
       const mdRow = (data || []).find(r => r.code_type === 'MD');
       const ptRow = (data || []).find(r => r.code_type === 'PT');
 
-      const num = referenceNumber || '';
-      setCodes({
-        md: mdRow ? mdRow.code : deriveMD(num),
-        pt: ptRow ? ptRow.code : derivePT(num),
+       setCodes({
+         md: mdRow ? mdRow.code : null,
+         pt: ptRow ? ptRow.code : null,
         mdDbId: mdRow ? mdRow : null,
         ptDbId: ptRow ? ptRow : null,
-        mdStatus: mdRow ? 'ASIGNADO' : 'DERIVADO',
-        ptStatus: ptRow ? 'ASIGNADO' : 'DERIVADO',
+         mdStatus: mdRow ? 'ASIGNADO' : 'SIN_ASIGNAR',
+         ptStatus: ptRow ? 'ASIGNADO' : 'SIN_ASIGNAR',
       });
       setLoading(false);
     }
@@ -2161,10 +2313,10 @@ export function useReferencesWithCodeStatus(collectionId = null) {
           collectionId: r.collection_id,
           collectionCode: r.collections?.code || '',
           collectionName: r.collections?.name || '',
-          codigoMD: codes.MD || deriveMD(r.reference_number),
-          codigoPT: codes.PT || derivePT(r.reference_number),
-          mdStatus: codes.MD ? 'ASIGNADO' : 'DERIVADO',
-          ptStatus: codes.PT ? 'ASIGNADO' : 'DERIVADO',
+           codigoMD: codes.MD || null,
+           codigoPT: codes.PT || null,
+          mdStatus: codes.MD ? 'ASIGNADO' : 'SIN_ASIGNAR',
+          ptStatus: codes.PT ? 'ASIGNADO' : 'SIN_ASIGNAR',
         };
       });
 

@@ -4,6 +4,7 @@ import {
   Plus, Save, ShieldCheck, Tag, X,
 } from 'lucide-react';
 import supabase from '../lib/supabase';
+import { describeGarmentType } from '../lib/garmentType';
 import {
   buildFinalSheetPayload,
   FINAL_SHEET_SCOPES,
@@ -154,7 +155,7 @@ export default function FichaFinalView() {
     async function loadReferences() {
       const { data, error } = await supabase
         .from('references')
-        .select('id,reference_number,name,reference_type,color,color_code,is_hidden')
+        .select('id,reference_number,name,tipo_prenda_id,tipo_prendas(name),reference_type,color,color_code,is_hidden')
         .eq('collection_id', Number(selectedCollectionId))
         .eq('year', Number(selectedYear))
         .eq('is_hidden', false)
@@ -392,12 +393,14 @@ export default function FichaFinalView() {
         <div className={styles.headerInfo}>
           <h2>Ficha Final y Marquillas</h2>
           <p>
-            Referencia: <strong style={{ color: 'var(--primary-600)' }}>{selectedReference?.codigoMD || `MD-${selectedReference?.reference_number || ''}`}</strong>
-            {' / '}<strong>{selectedReference?.codigoPT || `PT03${selectedReference?.reference_number || ''}`}</strong>
+            Referencia: <strong style={{ color: 'var(--primary-600)' }}>{selectedReference?.codigoMD || 'MD sin asignar'}</strong>
+            {' / '}<strong>{selectedReference?.codigoPT || 'PT sin asignar'}</strong>
             {' — '}{selectedReference?.name || 'Sin nombre'}
           </p>
           <div className={styles.headerBadges}>
-            <span className="badge badge-primary">{selectedReference?.reference_type || 'Sin tipo'}</span>
+             <span className="badge badge-primary">{describeGarmentType(selectedReference?.tipo_prendas?.name, selectedReference?.reference_type).label}</span>
+             {selectedReference && describeGarmentType(selectedReference.tipo_prendas?.name, selectedReference.reference_type).legacyHint &&
+               <span>{describeGarmentType(selectedReference.tipo_prendas?.name, selectedReference.reference_type).legacyHint}</span>}
             {selectedCollection?.name && <span className="badge badge-warning">{selectedCollection.name}</span>}
             {selectedYear && <span className={styles.yearBadge}>{selectedYear}</span>}
           </div>

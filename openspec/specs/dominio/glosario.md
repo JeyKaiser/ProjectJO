@@ -1,7 +1,7 @@
 # Glosario del dominio
 
 > **Estado:** APROBADA  
-> **Versión:** 0.1  
+> **Versión:** 0.2 (enmienda L3-v5 aprobada, pendiente de verificación en clon)
 > **Idioma:** español  
 > **Identificador:** GLO  
 > **Fecha:** 2026-09-12
@@ -158,11 +158,25 @@ Resultado de una comprobación aplicada a un registro. Un `WARNING` informa una
 condición que requiere atención, pero permite continuar. Un `ERROR` impide
 únicamente el registro afectado; no impide continuar con los demás registros.
 
+### GLO-027 — Tipo concreto de prenda y Tipo Ref
+
+El tipo concreto de prenda (`tipo_prenda_id`) es una opción administrada en
+`jo.tipo_prendas` (p. ej. Vestido o Pantalón); no es el enum histórico
+`reference_type`, que permanece solo para compatibilidad del esquema. `Tipo Ref`
+es el código informativo derivado de la línea, vacío cuando no hay línea.
+
+### GLO-028 — Episodio de cancelación global del piloto
+
+Instantánea durable de las subfases activas en el instante de cancelar la
+referencia: guarda rama, progreso y responsable sin borrar historial. Al
+reactivar se restablecen únicamente las ramas de ese episodio. Una rama
+cancelada por sí sola cuenta como resuelta para la unión automática (M1).
+
 ## Criterios de aceptación
 
-- El documento se identifica como `GLO`, versión `0.1`, estado `APROBADA`,
-  idioma español y fecha `2026-09-12`.
-- Están presentes y numeradas las definiciones `GLO-001` a `GLO-026`.
+- El documento se identifica como `GLO`, versión `0.2`, estado `APROBADA`,
+  idioma español y fecha inicial `2026-09-12`.
+- Están presentes y numeradas las definiciones `GLO-001` a `GLO-028`.
 - La definición de colección distingue `collection.code` de
   `collection.name`, y el código se especifica con cuatro caracteres.
 - Los códigos MD y PT se definen como únicos, y el número de referencia como
@@ -181,4 +195,5 @@ condición que requiere atención, pero permite continuar. Un `ERROR` impide
 
 | Versión | Fecha | Cambio |
 |---|---|---|
+| 0.2 | 2026-10-21 | L3-v5 aprobada: tipo concreto vs tipo derivado de línea; episodio de cancelación SS27. No verificada en BD. |
 | 0.1 | 2026-09-12 | Versión aprobada con las aclaraciones sobre colección, códigos MD/PT, ámbito del número de referencia, estados del workflow y validaciones; se incorporan Muestra de Diseño y Producto Terminado. |

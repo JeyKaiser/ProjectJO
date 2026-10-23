@@ -100,13 +100,27 @@ Registra la identidad y las características de las prendas, y controla su segui
 
 | ID | Caso de uso | Interacción y resultado |
 |---|---|---|
-| FIC-01 | Crear referencia y ficha inicial | Seleccionar colección y año; registrar número, nombre, color, línea, sublínea, tallaje y características de la prenda. |
-| FIC-02 | Editar información general | Actualizar los campos habilitados en el detalle, incluido el estado general. |
+| FIC-01 | Crear referencia y ficha inicial | Seleccionar colección y año; registrar número, nombre, color y tipo concreto de prenda obligatorio. Línea y sublínea opcionales; sublínea requiere línea. Estado general EN_PROCESO para no administradores. |
+| FIC-02 | Editar información general | Creador puede editar los campos habilitados en el detalle, pero NO el estado general. Solo Administrador puede elegirlo al crear o modificarlo después. |
 | FIC-03 | Consultar referentes | Consultar el catálogo y consumos históricos para elegir un referente base. |
 | FIC-04 | Vincular referente base | Asociar una referencia anterior como base de moldería durante la creación de la ficha. |
-| FIC-05 | Operar máquina de estados | Consultar bandejas, alertas e historial; inicializar estados y ejecutar transiciones válidas. |
+| FIC-05 | Operar máquina de estados | Consultar bandejas, alertas e historial. Exclusivamente en el piloto SS27 aislado, Administrador inicializa y ejecuta eventos por RPC atómica; asignaciones futuras por líder de área quedan pendientes. |
 
 **Condiciones y alcance:** El número se valida dentro de colección + año. El diagrama muestra la creación sin referente opcional. La asignación oficial de códigos MD/PT y la administración de catálogos se reservan al Administrador.
+
+**Enmienda L3-v5 (aprobada; implementación pendiente de revisión en clon aislado):**
+`jo.tipo_prendas` sustituye en la aplicación la lectura/escritura del enum legacy,
+que NO se borra. Los 11 históricos se clasifican manualmente, uno por uno.
+`tipo_ref` es informativo desde la línea; `''` sin línea (CSV-010). Comercial,
+Complejidad y Empaque son bloques independientes; selecciones no marcadas se
+guardan NULL y flags booleanos false. Maquila de corte y confección son controles
+independientes. No se generan forks automáticamente desde estos campos. En el
+piloto, `MERGE_UNION` ocurre de forma automática al resolver el último fork
+(terminado o cancelado). La cancelación global suspende solo forks activos y
+reactivar recupera únicamente la instantánea de ese episodio; históricos sin
+instantánea fiable requieren revisión manual. Esta regla temporal no autoriza
+Admin a ejecutar eventos en otras colecciones ni constituye autorización
+permanente para producción.
 
 **Secuencia representativa:** Crear una referencia.
 
@@ -150,7 +164,7 @@ Desarrolla la muestra y registra materiales, procesos y validaciones de diseño.
 | CRE-07 | Solicitar corte | Crear una solicitud para muestra, laboratorio, pieza u otro tipo habilitado. |
 | CRE-08 | Entregar o devolver referencia | Entregar a Diseño Técnico cuando el área CREATIVO está IN_PROGRESS, o devolver con observaciones. |
 
-**Condiciones y alcance:** El diagrama CRE-02 muestra una tela con valores de consumo que generan una nueva versión CREATIVO. Registrar una medición APROBADA con este rol no actualiza automáticamente el estado general: la interfaz indica que debe hacerlo Administrador o Creador de Ficha.
+**Condiciones y alcance:** El diagrama CRE-02 muestra una tela con valores de consumo que generan una nueva versión CREATIVO. Registrar una medición APROBADA con este rol no actualiza automáticamente el estado general: exclusivamente Administrador puede cambiarlo (L3-v5).
 
 **Secuencia representativa:** Asignar tela y consumo creativo.
 

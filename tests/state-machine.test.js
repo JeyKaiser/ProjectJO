@@ -5,13 +5,14 @@ vi.mock('../src/state-machine/lib/supabase', () => ({
   upsertReferenceState: vi.fn(),
   insertHistory: vi.fn(),
   getReference: vi.fn(),
+  pilotWorkflowEvent: vi.fn(),
 }));
 
 vi.mock('../src/state-machine/services/thresholdService', () => ({
   getThreshold: vi.fn().mockResolvedValue(45),
 }));
 
-import { getReferenceState, insertHistory, upsertReferenceState } from '../src/state-machine/lib/supabase';
+import { getReference, getReferenceState, insertHistory, upsertReferenceState } from '../src/state-machine/lib/supabase';
 import { getAvailableEvents, isValidTransition, transition } from '../src/state-machine/services/transitionService';
 
 const baseState = {
@@ -31,6 +32,7 @@ const baseState = {
 };
 
 function mockSuccessfulPersistence(state = baseState) {
+  getReference.mockResolvedValue({ data: { id: 1, collection_id: 1, year: 2026, collections: { code: 'SS26', year: 2026 } }, error: null });
   getReferenceState.mockResolvedValue({ data: state, error: null });
   upsertReferenceState.mockResolvedValue({ data: {}, error: null });
   insertHistory.mockResolvedValue({ data: {}, error: null });
@@ -50,6 +52,8 @@ describe('state machine external contract', () => {
   it('filters fork and merge events from the available actions', () => {
     const state = { ...baseState, current_state: 'diseno' };
     expect(getAvailableEvents('diseno', state)).toContain('FORK_BORDADO');
+    expect(getAvailableEvents('diseno', state)).not.toContain('RECHAZAR_BORDADO');
+    expect(getAvailableEvents('diseno', { ...state, sub_states: ['bordado'] })).toContain('RECHAZAR_BORDADO');
     expect(getAvailableEvents('diseno', { ...state, sub_states: ['bordado'] })).not.toContain('FORK_BORDADO');
     expect(getAvailableEvents('union', { ...state, waiting_for_merge: false })).not.toContain('MERGE_UNION');
     expect(getAvailableEvents('union', { ...state, waiting_for_merge: true })).toContain('MERGE_UNION');

@@ -112,7 +112,7 @@ function ReferenciasTab() {
       const s = searchTerm.toLowerCase();
       const match = String(r.referenceNumber).includes(s) ||
         r.name.toLowerCase().includes(s) ||
-        r.codigoMD.toLowerCase().includes(s) ||
+        (r.codigoMD || '').toLowerCase().includes(s) ||
         r.codigoPT.toLowerCase().includes(s);
       if (!match) return false;
     }

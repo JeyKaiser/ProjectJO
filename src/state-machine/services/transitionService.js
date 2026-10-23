@@ -3,11 +3,12 @@ import {
   EVENT_TO_FORK_TYPE, EVENT_TO_COMPLETE_TYPE, MAIN_STATES_WITH_FORKS,
 } from '../config/transitions';
 import {
-  getReferenceState, getReference, upsertReferenceState, insertHistory,
+  getReferenceState, getReference, pilotWorkflowEvent, upsertReferenceState, insertHistory,
 } from '../lib/supabase';
 import { evaluateAlert } from './alertService';
 import { getThreshold } from './thresholdService';
 import { STATE_LABELS } from '../lib/states';
+import { PILOT_COLLECTION_CODE } from '../../lib/pilotScope';
 
 export function isValidTransition(currentState, event) {
   const stateTransitions = TRANSITIONS[currentState];
@@ -19,19 +20,29 @@ export function getAvailableEvents(currentState, stateRecord) {
   const stateTransitions = TRANSITIONS[currentState];
   if (!stateTransitions) return [];
 
-  return Object.keys(stateTransitions).filter(event => {
+  const pilot = stateRecord?.pilot_version != null;
+  const laterTrunk = ['diseno','costeo','industrializacion','produccion','comercial'].includes(currentState);
+  const activeForkEvents = pilot && laterTrunk
+    ? (stateRecord.sub_states || []).flatMap(type => {
+      const suffix = type === 'proceso_externo' ? 'EXT' : type.toUpperCase();
+      return [`COMPLETAR_${suffix}`, `RECHAZAR_${suffix}`];
+    }) : [];
+
+  return [...new Set([...Object.keys(stateTransitions), ...activeForkEvents])].filter(event => {
     if (FORK_EVENTS.includes(event)) {
       const forkType = EVENT_TO_FORK_TYPE[event];
       if (stateRecord?.sub_states?.includes(forkType)) return false;
       if (stateRecord?.completed_sub_states?.includes(forkType)) return false;
+      if (stateRecord?.cancelled_sub_states?.includes(forkType)) return false;
     }
-    if (COMPLETE_EVENTS.includes(event)) {
-      const forkType = EVENT_TO_COMPLETE_TYPE[event];
+    if (COMPLETE_EVENTS.includes(event) || event.startsWith('RECHAZAR_')) {
+      const forkType = EVENT_TO_COMPLETE_TYPE[event.replace('RECHAZAR_', 'COMPLETAR_')];
       if (!stateRecord?.sub_states?.includes(forkType)) return false;
     }
     if (event === 'MERGE_UNION') {
-      return stateRecord?.waiting_for_merge === true;
+      return !pilot && stateRecord?.waiting_for_merge === true;
     }
+    if (pilot && event === 'CERRAR_COMERCIAL' && stateRecord?.sub_states?.length) return false;
     if (event === 'REANUDAR') {
       return currentState === 'pausado' && stateRecord?.previous_state;
     }
@@ -51,11 +62,21 @@ export function requiresJustification(stateRecord, payload) {
 }
 
 export async function transition(referenceId, event, payload = {}) {
+  const { data: refRecord, error: refErr } = await getReference(referenceId);
+  if (refErr || !refRecord) throw new Error(`No se pudo verificar referencia: ${refErr?.message || 'no existe'}`);
+  if (PILOT_COLLECTION_CODE && PILOT_COLLECTION_CODE !== 'SS27') throw new Error('Piloto permitido únicamente para SS27.');
+  if (PILOT_COLLECTION_CODE === 'SS27' && (refRecord.year !== 2027 || refRecord.collections?.code !== 'SS27' || refRecord.collections?.year !== 2027)) {
+    throw new Error('El piloto solo permite transiciones SS27.');
+  }
   const { data: stateRecord, error: stateErr } = await getReferenceState(referenceId);
   if (stateErr) throw new Error(`Error al obtener estado: ${stateErr.message}`);
 
   if (!stateRecord) {
     throw new Error(`No existe estado para la referencia ${referenceId}. Inicialice la SM primero.`);
+  }
+
+  if (refRecord.year === 2027 && refRecord.collections?.code === 'SS27' && refRecord.collections?.year === 2027) {
+    return pilotWorkflowEvent(referenceId, event, stateRecord.pilot_version, payload);
   }
 
   const currentState = stateRecord.current_state;
@@ -202,12 +223,21 @@ export async function transition(referenceId, event, payload = {}) {
 }
 
 export async function initializeReference(referenceId, collectionId = null) {
+  const { data: refRecord, error: refErr } = await getReference(referenceId);
+  if (refErr || !refRecord) throw new Error(`No se pudo verificar referencia: ${refErr?.message || 'no existe'}`);
+  if (PILOT_COLLECTION_CODE && PILOT_COLLECTION_CODE !== 'SS27') throw new Error('Piloto permitido únicamente para SS27.');
+  if (PILOT_COLLECTION_CODE === 'SS27' && (refRecord.year !== 2027 || refRecord.collections?.code !== 'SS27' || refRecord.collections?.year !== 2027)) {
+    throw new Error('El piloto solo permite inicializar SS27.');
+  }
   const { data: existing } = await getReferenceState(referenceId);
   if (existing) return existing;
 
+  if (refRecord.year === 2027 && refRecord.collections?.code === 'SS27' && refRecord.collections?.year === 2027) {
+    throw new Error('Referencia histórica SS27 sin workflow: requiere revisión manual. Solo la creación nueva inicializa concepto.');
+  }
+
   if (!collectionId) {
-    const { data: ref } = await getReference(referenceId);
-    if (ref?.collection_id) collectionId = ref.collection_id;
+    if (refRecord?.collection_id) collectionId = refRecord.collection_id;
   }
 
   const newState = {

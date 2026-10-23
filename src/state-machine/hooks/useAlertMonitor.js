@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAllStates, getReferencesByIds } from '../lib/supabase';
+import { loadAlertSource } from '../services/inboxService';
 import { evaluateAlertSync } from '../services/alertService';
 import { STATE_LABELS } from '../lib/states';
 
@@ -11,16 +11,9 @@ export function useAlertMonitor() {
 
   useEffect(() => {
     let cancelled = false;
-    getAllStates().then(({ data: states }) => {
-      if (cancelled) return;
-      if (!states?.length) {
-        setAlerts([]);
-        setLoading(false);
-        return;
-      }
-
-      const refIds = states.map(s => s.reference_id);
-      getReferencesByIds(refIds).then(({ data: refs }) => {
+    async function load() {
+      try {
+        const { states, refs } = await loadAlertSource();
         if (cancelled) return;
         const refMap = {};
         (refs || []).forEach(r => { refMap[r.id] = r; });
@@ -44,8 +37,8 @@ export function useAlertMonitor() {
             referenceId: state.reference_id,
             referenceNumber: ref.reference_number || `#${state.reference_id}`,
             referenceName: ref.name || '',
-            codigoMD: ref.reference_number ? `MD-${String(ref.reference_number).padStart(3, '0')}` : '',
-            codigoPT: ref.reference_number ? `PT03${String(ref.reference_number).padStart(3, '0')}` : '',
+            codigoMD: null,
+            codigoPT: null,
             currentState: state.current_state,
             stateLabel: STATE_LABELS[state.current_state] || state.current_state,
             alertLevel: result.alertLevel || state.alert_level,
@@ -68,17 +61,20 @@ export function useAlertMonitor() {
         setAlerts(sorted);
         setError(null);
         setLoading(false);
-      });
-    }).catch(e => {
-      if (cancelled) return;
-      setError(e.message);
-      setLoading(false);
-    });
+      } catch (e) {
+        if (cancelled) return;
+        setAlerts([]);
+        setError(e.message);
+        setLoading(false);
+      }
+    }
+    load();
     return () => { cancelled = true; };
   }, [refreshKey]);
 
   const refresh = useCallback(() => {
     setRefreshKey(k => k + 1);
+    setError(null);
     setLoading(true);
   }, []);
 

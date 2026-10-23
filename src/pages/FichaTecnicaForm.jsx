@@ -1,41 +1,19 @@
-import { useState, useEffect, startTransition } from 'react';
-import { Save, Image as ImageIcon, User, CheckCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { useState, useRef, useEffect, startTransition } from 'react';
+import { Save, CheckCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useDashboardData, createReference, slugFromName, useCollectionYears, useColorLookup, useSearchReferences, assignCode, validateReferenceLineSubline } from '../lib/api';
-import supabase from '../lib/supabase';
-import { useLineas, useSublineas, useTallajes, useClosures, useEmpaques, useComplejidad } from '../hooks/useCatalogos';
-import { usePersonsByArea } from '../hooks/usePersons';
+import { useDashboardData, createPilotReference, isDefinitiveCreateError, slugFromName, useCollectionYears, useColorLookup, useSearchReferences, assignMissingPilotCode, validateReferenceLineSubline } from '../lib/api';
+import { PILOT_COLLECTION_CODE } from '../lib/pilotScope';
+import { CLASIFICACION_OPTIONS, classificationFields } from '../lib/traceClassification';
+import { useLineas, useSublineas, useTallajes, useClosures, useEmpaques, useComplejidad, useTipoPrendas, useReferenceStatuses } from '../hooks/useCatalogos';
 import { useAuth } from '../context/AuthContext';
 import styles from './FichaTecnicaForm.module.css';
 
-// ── Catálogos (mantenidos como constantes UI) ────────────────
-const TIPO_PRENDA_OPTIONS = [
-  'Vestido', 'Pantalón', 'Falda', 'Blazer', 'Jacket', 'Abrigo',
-  'Jumpsuit', 'Top', 'Blusa', 'Camisa', 'Shorts', 'Cardigan', 'Vest','Otro',
-];
-
+// ── Opciones de presentación (catálogos de BD se cargan abajo) ───────────
 const LARGO_OPTIONS = ['Mini', 'Midi', 'Maxi', 'Full Length', 'Hip', 'Knee Length', 'Cropped'];
 const DROP_OPTIONS = ['A', 'B', 'C', 'D', 'E'];
 const PRIORIDAD_OPTIONS = ['A', 'B', 'C'];
 const MONTAJE_OPTIONS = ['No aplica', 'Drapeado', 'Descole', 'Prensados'];
 
-const CLASIFICACION_OPTIONS = [
-  { value: 'Sólida', label: 'Sólida' },
-  { value: 'Mod. Arte', label: 'Modificación de Arte' },
-  { value: 'Ubicación Trazo', label: 'Ubicación en Trazo' },
-];
-
-// Roles de personas involucradas en el ciclo de vida
-const ROLES_EQUIPO = [
-  { key: 'disenadorCreativo', label: 'Diseñador(a) Creativo(a)', fase: '2.1 Inicio de Coleccion', requerido: true, area: 'creativos' },
-  // { key: 'patronista',        label: 'Patronista / Moldería', fase: '2.2 Prototipos (Moldería)', requerido: false, area: 'tecnicos' },
-  { key: 'disenadorTecnico',  label: 'Diseñador(a) Técnico(a)', fase: '3.2 Costeo (Tecnicos)', requerido: false, area: 'tecnicos' },
-  // { key: 'cortador',          label: 'Cortador(a)', fase: '2.3 Corte', requerido: false, area: 'cortadores' },
-  { key: 'modista',           label: 'Modista / Confección', fase: '2.4 Confeccion', requerido: false, area: 'modistas' },
-  // { key: 'bordadora',         label: 'Bordadora / Proceso Especial', fase: '2.5 Bordado', requerido: false, area: 'bordadoras' },
-  { key: 'trazador',          label: 'Trazador(a)', fase: '3.5 Ubicaciones de Trazo', requerido: false, area: 'trazadores' },
-  { key: 'equipoConsumos',    label: 'Equipo Consumos / Validación', fase: '4.3 Industrializacion', requerido: false, area: 'especificadoras' },
-];
 
 // ── Toggle chip ──────────────────────────────────────────────
 function ChipToggle({ active, onChange, children }) {
@@ -95,39 +73,36 @@ export default function FichaTecnicaForm() {
     closure_id: null,
     codigoMD: '',
     codigoPT: '',
-    clasificacion: 'Sólida',
+    clasificacion: 'SOLIDA',
     referente: '',
     referenteId: null,
     // Comercial
-    prioridadFirstBuy: 'A',
-    dropEntrega: 'A',
-    enviarMaquila: false,
+    prioridadFirstBuy: '',
+    dropEntrega: '',
+    envioCorteMaquila: false,
+    envioConfeccionMaquila: false,
+    status_id: '',
     complejidad_corte_id: null,
     complejidad_confeccion_id: null,
     // Procesos (toggle: null = no aplica, true = aplica)
     tieneBordado: false,
+    descripcionBordado: '',
     tieneSemielaborado: false,
-    montajeManiqui: 'No aplica',
+    montajeManiqui: '',
     tirasContinuas: '',
-    includes: '',
     empaque_id: null,
     // Nuevos campos
     linned: false,
     requiereMuestra: false,
     especificacionConfeccion: '',
-    // Equipo
-    disenadorCreativo: '',
-    disenadorTecnico: '',
-    modista: '',
-    trazador: '',
-    equipoConsumos: '',
-    // Boceto
-    boceto: null,
   });
 
   const [guardado, setGuardado] = useState(false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const pendingCreate = useRef(null);
+  const [createError, setCreateError] = useState('');
+  const [codeInputs, setCodeInputs] = useState({ MD: '', PT: '' });
   const [referenteSearch, setReferenteSearch] = useState('');
   const [referenteFocused, setReferenteFocused] = useState(false);
 
@@ -143,21 +118,8 @@ export default function FichaTecnicaForm() {
   const { data: closures } = useClosures();
   const { data: empaques } = useEmpaques();
   const { data: complejidad } = useComplejidad();
-
-  // ── Hooks de personas desde BD ─────────────────────────────
-  const { data: personasCreativos } = usePersonsByArea('creativos');
-  const { data: personasTecnicos } = usePersonsByArea('tecnicos');
-  const { data: personasModistas } = usePersonsByArea('modistas');
-  const { data: personasTrazadores } = usePersonsByArea('trazadores');
-  const { data: personasEspecificadoras } = usePersonsByArea('especificadoras');
-
-  const personasMap = {
-    creativos: personasCreativos,
-    tecnicos: personasTecnicos,
-    modistas: personasModistas,
-    trazadores: personasTrazadores,
-    especificadoras: personasEspecificadoras,
-  };
+  const { data: tiposPrenda, loading: tiposLoading, error: tiposError } = useTipoPrendas();
+  const { data: estados, loading: estadosLoading, error: estadosError } = useReferenceStatuses();
 
   const set = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
   const handleInput = (e) => set(e.target.name, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
@@ -175,6 +137,7 @@ export default function FichaTecnicaForm() {
     if (!formData.referencia) err.referencia = 'Requerido';
     else if (!/^\d+$/.test(formData.referencia)) err.referencia = 'Debe ser un numero entero positivo';
     if (!formData.tipoPrenda) err.tipoPrenda = 'Requerido';
+    if (tiposError) err.tipoPrenda = 'No se pudo cargar el catálogo';
     if (!formData.nombre) err.nombre = 'Requerido';
     if (!formData.color) err.color = 'Requerido';
     if (!formData.codigoColor) err.codigoColor = 'Digita el codigo de color';
@@ -184,43 +147,29 @@ export default function FichaTecnicaForm() {
       availableSublines: sublineasLoading ? null : sublineas,
     });
     if (lineSublineError) {
-      if (!formData.linea_id) err.linea_id = lineSublineError;
+      if (!formData.linea_id) err.sublinea_id = lineSublineError;
       else err.sublinea_id = lineSublineError;
     }
-    if (!formData.disenadorCreativo) err.disenadorCreativo = 'El diseñador creativo es obligatorio';
     setErrors(err);
     return Object.keys(err).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (PILOT_COLLECTION_CODE !== 'SS27') {
+      setCreateError('Creación no disponible fuera del piloto SS27 aislado.');
+      return;
+    }
+    if (!pendingCreate.current && !validate()) return;
 
     setSaving(true);
+    setCreateError('');
     try {
       const refNum = formData.referencia.trim();
       const collectionId = parseInt(formData.coleccion);
       const yearInt = parseInt(formData.year);
-
-      // La identidad es colección + año + referencia; el mismo número puede
-      // existir legítimamente en otro año o colección.
-      const { data: existingRef } = await supabase
-        .from('references')
-        .select('id')
-        .eq('collection_id', collectionId)
-        .eq('year', yearInt)
-        .eq('reference_number', refNum)
-        .maybeSingle();
-
-      if (existingRef) {
-        setErrors(prev => ({ ...prev, referencia: 'Este número de referencia ya existe en la colección y año seleccionados' }));
-        setSaving(false);
-        return;
-      }
-
       const largoCmsVal = formData.largoCms ? parseInt(formData.largoCms) : null;
-
-      const { data: newRef, error: createErr } = await createReference({
+      const core = {
         collection_id: collectionId,
         year: yearInt,
         reference_number: refNum,
@@ -230,14 +179,17 @@ export default function FichaTecnicaForm() {
         length_description: formData.largo || null,
         length_cm: largoCmsVal,
         has_embroidery: formData.tieneBordado,
+        embroidery_description: formData.tieneBordado ? formData.descripcionBordado.trim() || null : null,
         has_semielaborated: formData.tieneSemielaborado,
-        priority_first_buy: PRIORIDAD_OPTIONS.indexOf(formData.prioridadFirstBuy) + 1,
-        drop_entrega: formData.dropEntrega,
+         priority_first_buy: formData.prioridadFirstBuy ? PRIORIDAD_OPTIONS.indexOf(formData.prioridadFirstBuy) + 1 : null,
+         drop_entrega: formData.dropEntrega || null,
+         envio_corte_maquila: formData.envioCorteMaquila,
+         envio_confeccion_maquila: formData.envioConfeccionMaquila,
+         tipo_prenda_id: Number(formData.tipoPrenda),
+         ...(isAdmin && formData.status_id ? { status_id: Number(formData.status_id) } : {}),
         complejidad_corte_id: formData.complejidad_corte_id,
         complejidad_confeccion_id: formData.complejidad_confeccion_id,
-        has_art_modification: formData.clasificacion === 'Mod. Arte',
-        has_trace_location: formData.clasificacion === 'Ubicacion Trazo',
-        has_all_over: false,
+        ...classificationFields(formData.clasificacion),
         line_id: formData.linea_id,
         subline_id: formData.sublinea_id,
         closure_type_id: formData.closure_id,
@@ -247,44 +199,72 @@ export default function FichaTecnicaForm() {
         requiere_muestra: formData.requiereMuestra,
         tiras_continuas: formData.tirasContinuas || null,
         especificacion_confeccion: formData.especificacionConfeccion || null,
-      });
+        montage_type: formData.montajeManiqui || null,
+        referent_reference_id: formData.referenteId || null,
+      };
+      // Reintentos con respuesta incierta reutilizan ID y payload originales.
+      if (!pendingCreate.current) pendingCreate.current = { requestId: crypto.randomUUID(), payload: core };
+      const { data: newRef, error: createErr } = await createPilotReference(pendingCreate.current.payload, pendingCreate.current.requestId);
 
       if (createErr) throw createErr;
-
-      // Si hay referente seleccionado, guardar en references_referents
-      if (formData.referenteId && newRef) {
-        await supabase
-          .from('references_referents')
-          .insert({
-            reference_id: newRef.id,
-            referent_reference_id: formData.referenteId,
-            relationship: 'MOLDERIA_BASE',
-          });
+      pendingCreate.current = null;
+      const requests = { MD: isAdmin ? formData.codigoMD.trim() : '', PT: isAdmin ? formData.codigoPT.trim() : '' };
+      setCodeInputs(requests);
+      const saved = { dbId: newRef.id, collectionSlug: colDbToSlug[collectionId], year: yearInt,
+        codes: { MD: { code: requests.MD, assigned: false }, PT: { code: requests.PT, assigned: false } } };
+      setGuardado(saved);
+      // Los códigos son POSTCOMMIT: un fallo no oculta la ficha ya confirmada.
+      if (isAdmin) {
+        for (const type of ['MD', 'PT']) {
+          if (!requests[type]) continue;
+          try {
+            await assignMissingPilotCode(newRef.id, type, requests[type]);
+            saved.codes[type] = { code: requests[type], assigned: true };
+          } catch (codeError) {
+            saved.codes[type] = { code: requests[type], assigned: false, error: codeError.message };
+          }
+          setGuardado({ ...saved, codes: { ...saved.codes } });
+        }
       }
-
-      // Admin: guardar codigos MD/PT en reference_codes
-      if (isAdmin && newRef) {
-        const mdCode = formData.codigoMD || `MD-${refNum}`;
-        const ptCode = formData.codigoPT || `PT03${refNum}`;
-        await assignCode(newRef.id, 'MD', mdCode, 'admin');
-        await assignCode(newRef.id, 'PT', ptCode, 'admin');
-      }
-
-      const nuevoMD = formData.codigoMD || `MD-${refNum}`;
-      const nuevoPT = formData.codigoPT || `PT03${refNum}`;
-       setGuardado({ codigoMD: nuevoMD, codigoPT: nuevoPT, collectionSlug: colDbToSlug[collectionId], year: yearInt });
     } catch (err) {
-      alert('Error al crear la referencia: ' + err.message);
-      console.error(err);
+      if (isDefinitiveCreateError(err)) pendingCreate.current = null;
+      setCreateError(isDefinitiveCreateError(err)
+        ? `No se creó la ficha: ${err.message}. Corrige los datos y vuelve a intentar.`
+        : `No se confirmó la creación. Reintentar conserva el mismo intento: ${err.message}`);
     } finally {
       setSaving(false);
     }
   };
 
+  const retryCode = async type => {
+    if (!guardado?.dbId || saving || guardado.codes[type]?.assigned) return;
+    const code = codeInputs[type]?.trim();
+    if (!code) return;
+    setSaving(true);
+    try {
+      await assignMissingPilotCode(guardado.dbId, type, code);
+      setGuardado(previous => ({ ...previous, codes: { ...previous.codes, [type]: { code, assigned: true } } }));
+    } catch (error) {
+      setGuardado(previous => ({ ...previous, codes: { ...previous.codes, [type]: { code, assigned: false, error: error.message } } }));
+    } finally { setSaving(false); }
+  };
+
   const handleReset = () => {
     setGuardado(false);
+    pendingCreate.current = null;
+    setCreateError('');
+    setCodeInputs({ MD: '', PT: '' });
     setErrors({});
-    setFormData(prev => ({ ...prev, referencia: '', nombre: '', color: '', codigoColor: '', codigoMD: '', codigoPT: '', largoCms: '', referente: '', referenteId: null }));
+    setFormData(prev => ({ ...prev, referencia: '', nombre: '', tipoPrenda: '', color: '', codigoColor: '',
+      codigoMD: '', codigoPT: '', largoCms: '', referente: '', referenteId: null,
+      linea_id: null, sublinea_id: null, status_id: '',
+      prioridadFirstBuy: '', dropEntrega: '', complejidad_corte_id: null,
+      complejidad_confeccion_id: null, empaque_id: null,
+      envioCorteMaquila: false, envioConfeccionMaquila: false,
+      linned: false, requiereMuestra: false, tieneBordado: false,
+      tieneSemielaborado: false, montajeManiqui: '',
+      descripcionBordado: '',
+    }));
     setReferenteSearch('');
   };
 
@@ -297,13 +277,17 @@ export default function FichaTecnicaForm() {
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-2xl)', marginBottom: 8 }}>
             ¡Referencia Creada!
           </h2>
-          <p style={{ color: 'var(--gray-500)', marginBottom: 24 }}>
-            La referencia ha sido registrada en <strong>Fase 2.1 · Inicio de Coleccion</strong>.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 24 }}>
-            <span className="code-badge code-md" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoMD}</span>
-            <span className="code-badge code-pt" style={{ fontSize: 16, padding: '6px 16px' }}>{guardado.codigoPT}</span>
-          </div>
+          <p>Ficha confirmada. Los códigos MD/PT son asignaciones posteriores opcionales.</p>
+          {(['MD','PT']).map(type => <div key={type} style={{ margin: 12 }}>
+            <strong>{type}: {guardado.codes[type].assigned ? `Asignado ${guardado.codes[type].code}` : 'Pendiente / sin asignar'}</strong>
+            {!guardado.codes[type].assigned && isAdmin && <>
+              <input className="form-input" aria-label={`Código ${type} pendiente`} value={codeInputs[type]}
+                onChange={e => setCodeInputs(prev => ({ ...prev, [type]: e.target.value }))} />
+              <button className="btn btn-secondary" disabled={saving || !codeInputs[type]?.trim()}
+                onClick={() => retryCode(type)}>Asignar / reintentar solo {type}</button>
+            </>}
+            {guardado.codes[type].error && <p role="alert" className="form-error">{guardado.codes[type].error}</p>}
+          </div>)}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button className="btn btn-primary" onClick={() => navigate(`/colecciones/${guardado.collectionSlug}/${guardado.year}`)}>
               Ver en Colecciones
@@ -329,6 +313,14 @@ export default function FichaTecnicaForm() {
       </div>
 
       <form onSubmit={handleSubmit} noValidate className={styles.body}>
+        {createError && <p role="alert" className="form-error">{createError}</p>}
+        {pendingCreate.current && <p role="status">Reintento del mismo intento. Los cambios de formulario no se aplicarán hasta confirmar o iniciar otra ficha.</p>}
+        {pendingCreate.current && <button type="button" className="btn btn-secondary" onClick={() => {
+          if (window.confirm('Si el servidor sí creó la ficha, descartarla aquí no la elimina. ¿Abandonar este intento y corregir el formulario?')) {
+            pendingCreate.current = null;
+            setCreateError('Intento descartado. Comprueba si ya existe la referencia antes de crear otra.');
+          }
+        }}>Descartar intento</button>}
 
         {/* ── SECCIÓN 1: Identificación básica ── */}
         <FormSeccion titulo="📋  Identificación y Perfil" accentColor="var(--temp-cold-border)">
@@ -376,8 +368,10 @@ export default function FichaTecnicaForm() {
               <select name="tipoPrenda" className={`form-select ${errors.tipoPrenda ? 'input-error' : ''}`}
                 value={formData.tipoPrenda} onChange={handleInput} required>
                 <option value="">Selecciona...</option>
-                {TIPO_PRENDA_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                 {tiposPrenda.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
+              {tiposLoading && <span className="form-help">Cargando tipos...</span>}
+              {tiposError && <span role="alert" className="form-error">{tiposError.message}</span>}
               {errors.tipoPrenda && <span className="form-error">{errors.tipoPrenda}</span>}
             </div>
 
@@ -499,14 +493,14 @@ export default function FichaTecnicaForm() {
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-50)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       onMouseDown={() => {
-                        const label = `PT03${String(ref.reference_number).padStart(3, '0')} – ${ref.name || '(sin nombre)'}`;
+                        const label = `Ref #${ref.reference_number} – ${ref.name || '(sin nombre)'}`;
                         set('referente', label);
                         set('referenteId', ref.id);
                         setReferenteSearch(label);
                         setReferenteFocused(false);
                       }}>
                       <span style={{ fontWeight: 600 }}>
-                        PT03{String(ref.reference_number).padStart(3, '0')}
+                         Ref #{ref.reference_number}
                       </span>
                       <span style={{ color: 'var(--gray-500)', flex: 1, marginLeft: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {ref.name || '(sin nombre)'}
@@ -523,7 +517,7 @@ export default function FichaTecnicaForm() {
 
             {/* Línea */}
             <div className="form-group">
-              <label className="form-label form-label-required">Línea</label>
+               <label className="form-label">Línea</label>
               <select name="linea_id" className={`form-select ${errors.linea_id ? 'input-error' : ''}`} value={formData.linea_id || ''} onChange={(e) => {
                 set('linea_id', e.target.value ? parseInt(e.target.value) : null);
                 set('sublinea_id', null);
@@ -536,7 +530,7 @@ export default function FichaTecnicaForm() {
 
             {/* Sublínea */}
             <div className="form-group">
-              <label className="form-label form-label-required">Sublínea</label>
+               <label className="form-label">Sublínea</label>
               <select name="sublinea_id" className={`form-select ${errors.sublinea_id ? 'input-error' : ''}`} value={formData.sublinea_id || ''} disabled={!formData.linea_id || sublineasLoading} onChange={(e) => set('sublinea_id', e.target.value ? parseInt(e.target.value) : null)}>
                 <option value="">Selecciona...</option>
                 {sublineas.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -544,6 +538,21 @@ export default function FichaTecnicaForm() {
               {!formData.linea_id && <span className="form-help">Selecciona una línea primero</span>}
               {errors.sublinea_id && <span className="form-error">{errors.sublinea_id}</span>}
             </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="tipo-ref-derived">Tipo Ref (línea)</label>
+              <input id="tipo-ref-derived" className="form-input" readOnly value={lineas.find(l => l.id === formData.linea_id)?.code || ''} />
+            </div>
+
+            {isAdmin && <div className="form-group">
+              <label className="form-label" htmlFor="status-general-create">Estado general</label>
+              <select id="status-general-create" className="form-select" value={formData.status_id} onChange={e => set('status_id', e.target.value)}>
+                <option value="">EN_PROCESO (predeterminado)</option>
+                {estados.map(s => <option key={s.id} value={s.id}>{s.status}</option>)}
+              </select>
+              {estadosLoading && <span className="form-help">Cargando estados...</span>}
+              {estadosError && <span role="alert" className="form-error">{estadosError.message}</span>}
+            </div>}
 
             {/* Clasificación */}
             <div className="form-group">
@@ -574,14 +583,14 @@ export default function FichaTecnicaForm() {
         </FormSeccion>
 
         {/* ── SECCIÓN 2: Datos Comerciales ── */}
-        <FormSeccion titulo="💼  Datos Comerciales y Complejidad" accentColor="var(--primary-500)">
+        <FormSeccion titulo="💼  Comercial" accentColor="var(--primary-500)">
           <div className={styles.grid3}>
             <div className="form-group">
               <label className="form-label">Prioridad First Buy</label>
               <div className={styles.chipGroup}>
                 {PRIORIDAD_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.prioridadFirstBuy === o}
-                    onChange={() => set('prioridadFirstBuy', o)}>{o}</ChipToggle>
+                    onChange={() => set('prioridadFirstBuy', formData.prioridadFirstBuy === o ? '' : o)}>{o}</ChipToggle>
                 ))}
               </div>
             </div>
@@ -591,27 +600,21 @@ export default function FichaTecnicaForm() {
               <div className={styles.chipGroup}>
                 {DROP_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.dropEntrega === o}
-                    onChange={() => set('dropEntrega', o)}>{o}</ChipToggle>
+                    onChange={() => set('dropEntrega', formData.dropEntrega === o ? '' : o)}>{o}</ChipToggle>
                 ))}
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">¿Enviar a Maquila?</label>
-              <div className={styles.chipGroup}>
-                <ChipToggle active={formData.enviarMaquila === false}
-                  onChange={() => set('enviarMaquila', false)}>No aplica</ChipToggle>
-                <ChipToggle active={formData.enviarMaquila === true}
-                  onChange={() => set('enviarMaquila', true)}>Sí, enviar</ChipToggle>
-              </div>
-            </div>
-
+          </div>
+        </FormSeccion>
+        <FormSeccion titulo="Complejidad" accentColor="var(--primary-500)">
+          <div className={styles.grid3}>
             <div className="form-group">
               <label className="form-label">Complejidad de Corte</label>
               <div className={styles.chipGroup}>
                 {complejidad.map(c => (
                   <ChipToggle key={c.id} active={formData.complejidad_corte_id === c.id}
-                    onChange={() => set('complejidad_corte_id', c.id)}>{c.level}</ChipToggle>
+                     onChange={() => set('complejidad_corte_id', formData.complejidad_corte_id === c.id ? null : c.id)}>{c.level}</ChipToggle>
                 ))}
               </div>
             </div>
@@ -621,17 +624,29 @@ export default function FichaTecnicaForm() {
               <div className={styles.chipGroup}>
                 {complejidad.map(c => (
                   <ChipToggle key={c.id} active={formData.complejidad_confeccion_id === c.id}
-                    onChange={() => set('complejidad_confeccion_id', c.id)}>{c.level}</ChipToggle>
+                     onChange={() => set('complejidad_confeccion_id', formData.complejidad_confeccion_id === c.id ? null : c.id)}>{c.level}</ChipToggle>
                 ))}
               </div>
             </div>
 
             <div className="form-group">
+              <label className="form-label">Maquila corte</label>
+              <ChipToggle active={formData.envioCorteMaquila} onChange={v => set('envioCorteMaquila', v)}>Enviar corte</ChipToggle>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Maquila confección</label>
+              <ChipToggle active={formData.envioConfeccionMaquila} onChange={v => set('envioConfeccionMaquila', v)}>Enviar confección</ChipToggle>
+            </div>
+          </div>
+        </FormSeccion>
+        <FormSeccion titulo="Empaque" accentColor="var(--primary-500)">
+          <div className={styles.grid3}>
+            <div className="form-group">
               <label className="form-label">Tipo de Empaque</label>
               <div className={styles.chipGroup}>
                 {empaques.map(e => (
                   <ChipToggle key={e.id} active={formData.empaque_id === e.id}
-                    onChange={() => set('empaque_id', e.id)}>{e.name}</ChipToggle>
+                     onChange={() => set('empaque_id', formData.empaque_id === e.id ? null : e.id)}>{e.name}</ChipToggle>
                 ))}
               </div>
             </div>
@@ -641,43 +656,39 @@ export default function FichaTecnicaForm() {
         {/* ── SECCIÓN 3: Procesos Especiales ── */}
         <FormSeccion titulo="⚙️  Procesos Especiales" accentColor="var(--temp-cold-border)">
           <p className="form-help" style={{ marginBottom: 16 }}>
-            Indica si aplica cada proceso. Los ítems marcados como "Aplica" generarán una subfase de seguimiento.
+             Indica si aplica cada proceso. Las subfases automáticas quedan diferidas.
           </p>
           <div className={styles.grid3}>
 
             <div className="form-group">
               <label className="form-label">¿Tiene Forro? (Linned)</label>
               <div className={styles.chipGroup}>
-                <ChipToggle active={!formData.linned} onChange={() => set('linned', false)}>No</ChipToggle>
-                <ChipToggle active={formData.linned} onChange={() => set('linned', true)}>Sí</ChipToggle>
+                 <ChipToggle active={formData.linned} onChange={v => set('linned', v)}>Sí</ChipToggle>
               </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">¿Requiere Muestra?</label>
               <div className={styles.chipGroup}>
-                <ChipToggle active={!formData.requiereMuestra} onChange={() => set('requiereMuestra', false)}>No</ChipToggle>
-                <ChipToggle active={formData.requiereMuestra} onChange={() => set('requiereMuestra', true)}>Sí</ChipToggle>
+                 <ChipToggle active={formData.requiereMuestra} onChange={v => set('requiereMuestra', v)}>Sí</ChipToggle>
               </div>
             </div>
 
             <div className="form-group">
               <label className="form-label">Bordado en Prenda</label>
               <div className={styles.chipGroup}>
-                <ChipToggle active={!formData.tieneBordado} onChange={() => set('tieneBordado', false)}>No aplica</ChipToggle>
-                <ChipToggle active={formData.tieneBordado} onChange={() => set('tieneBordado', true)}>Aplica</ChipToggle>
+                 <ChipToggle active={formData.tieneBordado} onChange={v => set('tieneBordado', v)}>Aplica</ChipToggle>
               </div>
               {formData.tieneBordado && (
                 <input type="text" className="form-input mt-2" placeholder="Descripción del bordado..."
-                  name="descripcionBordado" onChange={handleInput} />
+                  name="descripcionBordado" value={formData.descripcionBordado} onChange={handleInput} />
               )}
             </div>
 
             <div className="form-group">
               <label className="form-label">Semielaborados</label>
               <div className={styles.chipGroup}>
-                <ChipToggle active={!formData.tieneSemielaborado} onChange={() => set('tieneSemielaborado', false)}>No aplica</ChipToggle>
-                <ChipToggle active={formData.tieneSemielaborado} onChange={() => set('tieneSemielaborado', true)}>Aplica</ChipToggle>
+                 <ChipToggle active={formData.tieneSemielaborado} onChange={v => set('tieneSemielaborado', v)}>Aplica</ChipToggle>
               </div>
             </div>
 
@@ -686,7 +697,7 @@ export default function FichaTecnicaForm() {
               <div className={styles.chipGroup} style={{ flexWrap: 'wrap' }}>
                 {MONTAJE_OPTIONS.map(o => (
                   <ChipToggle key={o} active={formData.montajeManiqui === o}
-                    onChange={() => set('montajeManiqui', o)}>{o}</ChipToggle>
+                     onChange={() => set('montajeManiqui', formData.montajeManiqui === o ? '' : o)}>{o}</ChipToggle>
                 ))}
               </div>
             </div>
@@ -703,13 +714,6 @@ export default function FichaTecnicaForm() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Includes (Accesorios)</label>
-              <input type="text" name="includes" className="form-input"
-                value={formData.includes} onChange={handleInput}
-                placeholder="Ej. Cinturón, Broche, Bolso... (vacío = No aplica)" />
-            </div>
-
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">Especificación de Confección</label>
               <textarea 
@@ -722,49 +726,6 @@ export default function FichaTecnicaForm() {
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Boceto / Imagen Inicial</label>
-              <label className={styles.bocetoUpload}>
-                <ImageIcon size={20} />
-                <span>{formData.boceto ? formData.boceto.name : 'Subir boceto o foto'}</span>
-                <input type="file" accept="image/*" style={{ display: 'none' }}
-                  onChange={(e) => set('boceto', e.target.files[0])} />
-              </label>
-            </div>
-
-          </div>
-        </FormSeccion>
-
-        {/* ── SECCIÓN 4: Equipo de Trabajo ── */}
-        <FormSeccion titulo="👥  Equipo de Trabajo" accentColor="var(--temp-hot-border)">
-          <p className="form-help" style={{ marginBottom: 16 }}>
-            El diseñador creativo es obligatorio. Los demás roles se asignan a medida que la referencia avanza por cada área.
-          </p>
-          <div className={styles.grid2}>
-            {ROLES_EQUIPO.map(rol => {
-                const personasArea = personasMap[rol.area] || [];
-                return (
-              <div key={rol.key} className={`${styles.equipoRolCard} ${rol.requerido ? styles.rolRequerido : ''}`}>
-                <label className={`form-label ${rol.requerido ? 'form-label-required' : ''}`}>
-                  <User size={13} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
-                  {rol.label}
-                </label>
-                <span className={styles.rolFaseTag}>{rol.fase}</span>
-                <select
-                  name={rol.key}
-                  className={`form-select ${errors[rol.key] ? 'input-error' : ''}`}
-                  value={formData[rol.key]}
-                  onChange={handleInput}
-                >
-                  <option value="">{rol.requerido ? 'Selecciona...' : 'Sin asignar...'}</option>
-                  {personasArea.map(p => (
-                    <option key={p.id} value={p.nombre}>{p.nombre}</option>
-                  ))}
-                </select>
-                {errors[rol.key] && <span className="form-error">{errors[rol.key]}</span>}
-              </div>
-                );
-              })}
           </div>
         </FormSeccion>
 
@@ -773,9 +734,9 @@ export default function FichaTecnicaForm() {
           <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
+           <button type="submit" className="btn btn-primary" disabled={saving || tiposLoading || Boolean(tiposError)}>
             <Save size={18} />
-            {saving ? 'Guardando...' : 'Crear y Asignar Codigo MD'}
+            {saving ? 'Guardando...' : pendingCreate.current ? 'Reintentar creación' : 'Crear ficha'}
           </button>
         </div>
 
